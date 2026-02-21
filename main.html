@@ -7,6 +7,11 @@
 
     <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class'
+      }
+    </script>
 
     <!-- Babel for in-browser JSX compilation -->
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
@@ -26,8 +31,12 @@
         body {
             margin: 0;
             padding: 0;
-            background-color: #0d1117;
             overflow: hidden;
+        }
+        @media (prefers-color-scheme: dark) {
+            body {
+                background-color: #0d1117;
+            }
         }
     </style>
 </head>
@@ -44,7 +53,7 @@
           Bold, Italic, Link as LinkIcon, List, Image as ImageIcon, 
           Code, Heading1, Heading2, Quote, LogOut, Plus, ChevronRight,
           AlertCircle, CheckCircle2, Loader2, ArrowLeft, EyeOff, Trash2, RefreshCcw,
-          CheckSquare, Strikethrough, Table, Sigma
+          CheckSquare, Strikethrough, Table, Sigma, FileEdit, Sun, Moon, FileUp, Download, HardDrive, GripVertical
         } from 'lucide-react';
 
         // --- Utility: Base64 Encoding with Unicode Support ---
@@ -55,19 +64,19 @@
         const fallbackParse = (md) => {
           if (!md) return '';
           let html = md.replace(/</g, '&lt;').replace(/>/g, '&gt;');
-          html = html.replace(/```([\s\S]*?)```/g, '<pre class="bg-gray-800 p-4 rounded-md overflow-x-auto my-4 text-sm font-mono text-gray-200"><code>$1</code></pre>');
-          html = html.replace(/`([^`]+)`/g, '<code class="bg-gray-800 px-1.5 py-0.5 rounded text-sm text-pink-400 font-mono">$1</code>');
-          html = html.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-bold text-white">$1</strong>');
+          html = html.replace(/```([\s\S]*?)```/g, '<pre class="bg-gray-100 dark:bg-gray-800 p-4 rounded-md overflow-x-auto my-4 text-sm font-mono text-gray-900 dark:text-gray-200"><code>$1</code></pre>');
+          html = html.replace(/`([^`]+)`/g, '<code class="bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded text-sm text-pink-600 dark:text-pink-400 font-mono">$1</code>');
+          html = html.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-bold text-gray-900 dark:text-white">$1</strong>');
           html = html.replace(/\*([^*]+)\*/g, '<em class="italic">$1</em>');
-          html = html.replace(/^### (.*$)/gim, '<h3 class="text-xl font-bold mt-6 mb-3 text-white">$1</h3>');
-          html = html.replace(/^## (.*$)/gim, '<h2 class="text-2xl font-bold mt-8 mb-4 pb-2 border-b border-gray-700 text-white">$1</h2>');
-          html = html.replace(/^# (.*$)/gim, '<h1 class="text-4xl font-extrabold mt-6 mb-6 text-white">$1</h1>');
-          html = html.replace(/^\> (.*$)/gim, '<blockquote class="border-l-4 border-indigo-500 pl-4 py-1 my-4 text-gray-400 bg-gray-800/50 rounded-r">$1</blockquote>');
+          html = html.replace(/^### (.*$)/gim, '<h3 class="text-xl font-bold mt-6 mb-3 text-gray-900 dark:text-white">$1</h3>');
+          html = html.replace(/^## (.*$)/gim, '<h2 class="text-2xl font-bold mt-8 mb-4 pb-2 border-b border-gray-200 dark:border-gray-700 text-gray-900 dark:text-white">$1</h2>');
+          html = html.replace(/^# (.*$)/gim, '<h1 class="text-4xl font-extrabold mt-6 mb-6 text-gray-900 dark:text-white">$1</h1>');
+          html = html.replace(/^\> (.*$)/gim, '<blockquote class="border-l-4 border-indigo-500 pl-4 py-1 my-4 text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-r">$1</blockquote>');
           html = html.replace(/!\[([^\]]+)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" class="max-w-full rounded-lg my-4 shadow-md" />');
-          html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-indigo-400 hover:text-indigo-300 underline underline-offset-2" target="_blank">$1</a>');
+          html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 underline underline-offset-2" target="_blank">$1</a>');
           html = html.replace(/^\s*-\s(.*$)/gim, '<li class="ml-4 list-disc mb-1">$1</li>');
           html = html.replace(/<\/li>\n<li/g, '</li><li'); 
-          return `<div class="space-y-4 text-gray-300 leading-relaxed">${html.split('\n\n').map(p => {
+          return `<div class="space-y-4 text-gray-800 dark:text-gray-300 leading-relaxed">${html.split('\n\n').map(p => {
             if (p.startsWith('<h') || p.startsWith('<pre') || p.startsWith('<blockquote') || p.startsWith('<li')) return p;
             return `<p>${p}</p>`;
           }).join('')}</div>`;
@@ -76,6 +85,70 @@
         function App() {
           // --- Editor State ---
           const [content, setContent] = useState(() => localStorage.getItem('markhub_draft') || '# Welcome to MarkHub\n\nA powerful, browser-based Markdown editor with **GitHub Sync**.\n\n## Features\n- [x] Live WYSIWYG Preview\n- [x] GitHub Repository Sync\n- [ ] Export to PDF\n\n## Math & Tables\n\n| Feature | Status |\n| ------- | ------ |\n| Tables | Working! |\n| Math | Active |\n\nHere is your complex formula natively rendered:\nInline math: $P_{g,i} - P_{d,i} = \\sum_{j=1}^{N} |V_i||V_j||Y_{ij}| \\cos(\\theta_i - \\theta_j - \\delta_{ij})$\n\nBlock math:\n$$E = mc^2$$\n\n> "The best way to write documentation and notes."\n\n```javascript\n// Write code blocks easily\nconst editor = "awesome";\nconsole.log(editor);\n```');
+          
+          // --- Theme State ---
+          const [theme, setTheme] = useState(() => {
+            if (typeof localStorage !== 'undefined' && localStorage.getItem('theme')) {
+              return localStorage.getItem('theme');
+            }
+            if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+              return 'dark';
+            }
+            return 'light';
+          });
+
+          // --- Layout State ---
+          const [sidebarWidth, setSidebarWidth] = useState(256);
+          const [splitRatio, setSplitRatio] = useState(0.5);
+          const [isResizingSidebar, setIsResizingSidebar] = useState(false);
+          const [isResizingSplit, setIsResizingSplit] = useState(false);
+
+          useEffect(() => {
+            const handleMouseMove = (e) => {
+              if (isResizingSidebar) {
+                const newWidth = Math.max(150, Math.min(e.clientX, 600));
+                setSidebarWidth(newWidth);
+              }
+              if (isResizingSplit) {
+                const mainArea = editorRef.current?.parentElement?.parentElement;
+                if (mainArea) {
+                  const rect = mainArea.getBoundingClientRect();
+                  const relativeX = e.clientX - rect.left;
+                  const newRatio = Math.max(0.2, Math.min(relativeX / rect.width, 0.8));
+                  setSplitRatio(newRatio);
+                }
+              }
+            };
+
+            const handleMouseUp = () => {
+              setIsResizingSidebar(false);
+              setIsResizingSplit(false);
+              document.body.style.cursor = 'default';
+              document.body.style.userSelect = 'auto';
+            };
+
+            if (isResizingSidebar || isResizingSplit) {
+              window.addEventListener('mousemove', handleMouseMove);
+              window.addEventListener('mouseup', handleMouseUp);
+              document.body.style.userSelect = 'none';
+            }
+
+            return () => {
+              window.removeEventListener('mousemove', handleMouseMove);
+              window.removeEventListener('mouseup', handleMouseUp);
+            };
+          }, [isResizingSidebar, isResizingSplit]);
+
+          useEffect(() => {
+            const root = window.document.documentElement;
+            if (theme === 'dark') {
+              root.classList.add('dark');
+            } else {
+              root.classList.remove('dark');
+            }
+            localStorage.setItem('theme', theme);
+          }, [theme]);
+
           const [viewMode, setViewMode] = useState('split'); // 'split', 'edit', 'preview'
           const [parsedHtml, setParsedHtml] = useState('');
           const editorRef = useRef(null);
@@ -92,6 +165,18 @@
           const [manualRepo, setManualRepo] = useState(''); // For manually entering owner/repo
           const [hiddenRepos, setHiddenRepos] = useState(() => JSON.parse(localStorage.getItem('markhub_hidden_repos') || '[]'));
           
+          // --- Local File State ---
+          const [localFileHandle, setLocalFileHandle] = useState(null);
+          const [localFileName, setLocalFileName] = useState('');
+
+          // --- Workspace State (New) ---
+          const [localWorkspaceFiles, setLocalWorkspaceFiles] = useState(() => JSON.parse(localStorage.getItem('markhub_local_workspace') || '[]')); // [{ path, name, type, content }]
+          const [pendingOps, setPendingOps] = useState({}); // { [path]: { action: 'add'|'delete', file?: object, content?: string } }
+
+          useEffect(() => {
+            localStorage.setItem('markhub_local_workspace', JSON.stringify(localWorkspaceFiles));
+          }, [localWorkspaceFiles]);
+
           // --- UI State ---
           const [isSidebarOpen, setIsSidebarOpen] = useState(true);
           const [showAuthModal, setShowAuthModal] = useState(false);
@@ -218,13 +303,22 @@
 
           const apiRequest = async (endpoint, method = 'GET', body = null, customToken = null) => {
             const tokenToUse = customToken || ghToken;
-            const response = await fetch(`https://api.github.com${endpoint}`, {
+            
+            // Add timestamp to GET requests to prevent caching
+            let url = `https://api.github.com${endpoint}`;
+            if (method === 'GET') {
+              const separator = url.includes('?') ? '&' : '?';
+              url += `${separator}t=${new Date().getTime()}`;
+            }
+
+            const response = await fetch(url, {
               method,
               headers: {
                 'Authorization': `token ${tokenToUse}`,
                 'Accept': 'application/vnd.github.v3+json',
                 'Content-Type': 'application/json',
               },
+              cache: 'no-store',
               body: body ? JSON.stringify(body) : null
             });
             if (!response.ok) throw new Error(`GitHub API Error: ${response.status}`);
@@ -284,10 +378,35 @@
             setLoadingState('');
           };
 
+          const getWorkspaceFiles = () => {
+            if (currentRepo) {
+              // Git Mode: Merge repoContents with pendingOps
+              let files = repoContents.filter(f => !pendingOps[f.path] || pendingOps[f.path].action !== 'delete');
+              
+              // Add pending 'add' operations
+              const pendingAdds = Object.values(pendingOps)
+                .filter(op => op.action === 'add' && op.file)
+                .map(op => ({ ...op.file, status: 'pending' }));
+              
+              files = [...files, ...pendingAdds];
+
+              return files.sort((a, b) => {
+                if (a.type === b.type) return a.name.localeCompare(b.name);
+                return a.type === 'dir' ? -1 : 1;
+              });
+            } else {
+              // Local Mode: Use localWorkspaceFiles
+              return localWorkspaceFiles.sort((a, b) => {
+                if (a.type === b.type) return a.name.localeCompare(b.name);
+                return a.type === 'dir' ? -1 : 1;
+              });
+            }
+          };
+
           const loadFile = async (file) => {
             if (file.type === 'dir') {
               setPathStack([...pathStack, file]);
-              fetchRepoContents(currentRepo, file.path);
+              if (currentRepo) fetchRepoContents(currentRepo, file.path);
               return;
             }
             
@@ -296,12 +415,38 @@
               return;
             }
 
+            if (!currentRepo) {
+              // Local Workspace Mode
+              setContent(file.content || '');
+              setActiveFile(file);
+              setLocalFileHandle(null);
+              setLocalFileName('');
+              return;
+            }
+
+            // Check if file is pending creation (optimistic load)
+            const pendingOp = pendingOps[file.path];
+            if (pendingOp && pendingOp.action === 'add') {
+              if (pendingOp.content !== undefined) {
+                setContent(pendingOp.content);
+                setActiveFile(file);
+                setLocalFileHandle(null);
+                setLocalFileName('');
+                return;
+              } else {
+                showToast('File is syncing, please wait...', 'info');
+                return;
+              }
+            }
+
             setLoadingState('fetching');
             try {
               const data = await apiRequest(`/repos/${currentRepo}/contents/${file.path}`);
               const decodedContent = b64_to_utf8(data.content);
               setContent(decodedContent);
               setActiveFile({ path: file.path, sha: data.sha, name: file.name });
+              setLocalFileHandle(null); // Clear local file context
+              setLocalFileName('');     // Clear local file name
               showToast(`Loaded ${file.name}`);
             } catch (err) {
               showToast('Failed to load file', 'error');
@@ -318,10 +463,17 @@
           };
 
           const saveToGitHub = async () => {
-            if (!activeFile || !currentRepo) {
-              showToast('No active GitHub file to save. Create or open one first.', 'error');
+            if (!activeFile) return;
+            
+            if (!currentRepo) {
+              // Local Mode Save (Auto-Save to LocalStorage)
+              const updated = localWorkspaceFiles.map(f => f.path === activeFile.path ? { ...f, content: content } : f);
+              setLocalWorkspaceFiles(updated);
+              showToast('Saved locally');
               return;
             }
+
+            // Git Mode Save -> Direct Commit
             setLoadingState('saving');
             try {
               const body = {
@@ -338,77 +490,349 @@
             setLoadingState('');
           };
 
-          const deleteFile = async (fileToDelete) => {
-            if (!fileToDelete || !currentRepo) {
-              showToast('No file selected for deletion.', 'error');
-              return;
-            }
-            if (!confirm(`Are you sure you want to delete ${fileToDelete.name}? This action cannot be undone.`)) {
-              return;
-            }
-            setLoadingState('deleting');
-            try {
-              const body = {
-                message: `Delete ${fileToDelete.name} via MarkHub`,
-                sha: fileToDelete.sha,
-              };
-              await apiRequest(`/repos/${currentRepo}/contents/${fileToDelete.path}`, 'DELETE', body);
+          const renameFile = async (fileToRename) => {
+            const newName = prompt(`Rename ${fileToRename.name} to:`, fileToRename.name);
+            if (!newName || newName === fileToRename.name) return;
 
-              // Update state: refresh repo contents, clear active file if it was the one deleted
-              showToast(`Successfully deleted ${fileToDelete.name}!`);
-              // Re-fetch contents of the current directory to remove the deleted file from the list
-              const currentDirPath = pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '';
-              fetchRepoContents(currentRepo, currentDirPath);
+            const currentPath = pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '';
+            const newPath = currentPath ? `${currentPath}/${newName}` : newName;
 
-              if (activeFile && activeFile.path === fileToDelete.path) {
-                setActiveFile(null);
-                // Clear editor content and revert to default welcome message
-                setContent('# Welcome to MarkHub\n\nA powerful, browser-based Markdown editor with **GitHub Sync**.\n\n## Features\n- [x] Live WYSIWYG Preview\n- [x] GitHub Repository Sync\n- [ ] Export to PDF\n\n## Math & Tables\n\n| Feature | Status |\n| ------- | ------ |\n| Tables | Working! |\n| Math | Active |\n\nHere is your complex formula natively rendered:\nInline math: $P_{g,i} - P_{d,i} = \\sum_{j=1}^{N} |V_i||V_j||Y_{ij}| \\cos(\\theta_i - \\theta_j - \\delta_{ij})$\n\nBlock math:\n$$E = mc^2$$\n\n> "The best way to write documentation and notes."\n\n```javascript\n// Write code blocks easily\nconst editor = "awesome";\nconsole.log(editor);\n```'); 
+            if (!currentRepo) {
+              // Local Mode Rename
+              const existingFile = localWorkspaceFiles.find(f => f.path !== fileToRename.path && f.name === newName);
+              if (existingFile) {
+                showToast(`File with name '${newName}' already exists.`, 'error');
+                return;
               }
-            } catch (err) {
-              console.error('Failed to delete file:', err);
-              showToast(`Failed to delete ${fileToDelete.name}`, 'error');
-            } finally {
-              setLoadingState('');
+              setLocalWorkspaceFiles(localWorkspaceFiles.map(f => 
+                f.path === fileToRename.path ? { ...f, name: newName, path: newPath } : f
+              ));
+              if (activeFile?.path === fileToRename.path) {
+                setActiveFile({ ...activeFile, name: newName, path: newPath });
+              }
+              showToast(`Renamed to ${newName}`);
+              return;
             }
+
+            // Git Mode Rename -> Optimistic Update
+            // 1. Optimistic Update
+            const newFile = { ...fileToRename, name: newName, path: newPath };
+            
+            setPendingOps(prev => ({
+              ...prev,
+              [fileToRename.path]: { action: 'delete' },
+              [newPath]: { action: 'add', file: newFile }
+            }));
+
+            if (activeFile?.path === fileToRename.path) {
+              setActiveFile(newFile);
+            }
+            showToast(`Renaming to ${newName}...`);
+
+            // 2. Background API Call
+            (async () => {
+              try {
+                // Get source content
+                const sourceData = await apiRequest(`/repos/${currentRepo}/contents/${fileToRename.path}`);
+                
+                // Create new file
+                const createBody = {
+                  message: `Rename ${fileToRename.name} to ${newName} via MarkHub`,
+                  content: sourceData.content.replace(/\n/g, ''), 
+                };
+                const createRes = await apiRequest(`/repos/${currentRepo}/contents/${newPath}`, 'PUT', createBody);
+
+                // Delete old file
+                const deleteBody = {
+                  message: `Rename ${fileToRename.name} to ${newName} (cleanup) via MarkHub`,
+                  sha: sourceData.sha
+                };
+                await apiRequest(`/repos/${currentRepo}/contents/${fileToRename.path}`, 'DELETE', deleteBody);
+
+                // Success: Manually update repoContents
+                setRepoContents(prev => {
+                  const filtered = prev.filter(f => f.path !== fileToRename.path);
+                  return [...filtered, { 
+                    name: newName, 
+                    path: newPath, 
+                    type: 'file', 
+                    sha: createRes.content.sha 
+                  }].sort((a, b) => {
+                     if (a.type === b.type) return a.name.localeCompare(b.name);
+                     return a.type === 'dir' ? -1 : 1;
+                  });
+                });
+                
+                // Clean up pending ops
+                setPendingOps(prev => {
+                  const newState = { ...prev };
+                  delete newState[fileToRename.path];
+                  delete newState[newPath];
+                  return newState;
+                });
+                
+                showToast(`Renamed ${newName}`);
+                
+                const currentDirPath = pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '';
+                fetchRepoContents(currentRepo, currentDirPath);
+                
+                if (activeFile && activeFile.path === newPath) {
+                  setActiveFile({ ...activeFile, sha: createRes.content.sha });
+                }
+
+              } catch (err) {
+                console.error('Rename failed:', err);
+                showToast(`Failed to rename: ${err.message || 'Unknown error'}`, 'error');
+                // Revert ops
+                setPendingOps(prev => {
+                  const newState = { ...prev };
+                  delete newState[fileToRename.path];
+                  delete newState[newPath];
+                  return newState;
+                });
+                // Revert active file if needed
+                if (activeFile?.path === newPath) {
+                  setActiveFile(fileToRename);
+                }
+              }
+            })();
+          };
+
+          const deleteFile = async (fileToDelete) => {
+            if (!confirm(`Delete ${fileToDelete.name}?`)) return;
+
+            if (!currentRepo) {
+              // Local Mode Delete
+              setLocalWorkspaceFiles(localWorkspaceFiles.filter(f => f.path !== fileToDelete.path));
+              if (activeFile?.path === fileToDelete.path) {
+                setActiveFile(null);
+                setContent('');
+              }
+              showToast(`Deleted ${fileToDelete.name}`);
+              return;
+            }
+
+            // Git Mode Delete -> Optimistic Update
+            // 1. Mark as pending delete
+            setPendingOps(prev => ({
+              ...prev,
+              [fileToDelete.path]: { action: 'delete' }
+            }));
+            
+            // 2. Clear active file if it was this one
+            if (activeFile?.path === fileToDelete.path) {
+              setActiveFile(null);
+              setContent('');
+            }
+            showToast(`Deleting ${fileToDelete.name}...`);
+
+            // 3. Background API Call
+            (async () => {
+              try {
+                // If the file was just optimistically created and not synced yet, we just remove the op
+                if (pendingOps[fileToDelete.path]?.action === 'add') {
+                  setPendingOps(prev => {
+                    const newState = { ...prev };
+                    delete newState[fileToDelete.path];
+                    return newState;
+                  });
+                  return;
+                }
+
+                // Normal Delete
+                const body = {
+                  message: `Delete ${fileToDelete.name} via MarkHub`,
+                  sha: fileToDelete.sha,
+                };
+                await apiRequest(`/repos/${currentRepo}/contents/${fileToDelete.path}`, 'DELETE', body);
+
+                // Optimistic UI: Manually remove file from repoContents
+                setRepoContents(prev => prev.filter(f => f.path !== fileToDelete.path));
+
+                // Clean up pending op
+                setPendingOps(prev => {
+                  const newState = { ...prev };
+                  delete newState[fileToDelete.path];
+                  return newState;
+                });
+
+                showToast(`Deleted ${fileToDelete.name}`);
+                
+                // Background refresh to ensure consistency
+                const currentDirPath = pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '';
+                fetchRepoContents(currentRepo, currentDirPath);
+              } catch (err) {
+                console.error('Failed to delete file:', err);
+                showToast(`Failed to delete ${fileToDelete.name}`, 'error');
+                // Revert on error
+                setPendingOps(prev => {
+                  const newState = { ...prev };
+                  delete newState[fileToDelete.path];
+                  return newState;
+                });
+              }
+            })();
           };
 
           const createFile = async (fileName, initialContent = '') => {
+            const currentPath = pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '';
+            const filePath = currentPath ? `${currentPath}/${fileName}` : fileName;
+
             if (!currentRepo) {
-              showToast('No repository selected.', 'error');
+              // Local Mode Create
+              const existingFile = localWorkspaceFiles.find(f => f.name === fileName);
+              if (existingFile) {
+                showToast(`File '${fileName}' already exists.`, 'error');
+                return;
+              }
+              const newFile = { 
+                name: fileName, 
+                path: filePath, 
+                type: 'file', 
+                content: initialContent 
+              };
+              setLocalWorkspaceFiles([...localWorkspaceFiles, newFile]);
+              setActiveFile(newFile);
+              setContent(initialContent);
+              showToast(`Created ${fileName}`);
               return;
             }
-            setLoadingState('saving');
-            try {
-              const currentPath = pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '';
-              const filePath = currentPath ? `${currentPath}/${fileName}` : fileName;
 
-              const body = {
-                message: `Create ${fileName} via MarkHub`,
-                content: utf8_to_b64(initialContent),
-              };
-              const data = await apiRequest(`/repos/${currentRepo}/contents/${filePath}`, 'PUT', body);
+            // Git Mode Create -> Optimistic Update + Background API
+            // 1. Optimistic Update
+            const tempFile = { name: fileName, path: filePath, type: 'file', sha: null, content: initialContent };
+            
+            // Set pending op
+            setPendingOps(prev => ({
+              ...prev,
+              [filePath]: { action: 'add', file: tempFile, content: initialContent }
+            }));
+            
+            // Set active (user can start editing immediately)
+            setActiveFile(tempFile);
+            setContent(initialContent);
+            showToast(`Creating ${fileName}...`); // Informational
 
-              showToast(`Successfully created ${fileName}!`);
-              // Refresh repo contents and open the new file
-              fetchRepoContents(currentRepo, currentPath);
-              setActiveFile({ path: filePath, sha: data.content.sha, name: fileName });
-              setContent(initialContent);
-            } catch (err) {
-              console.error('Failed to create file:', err);
-              showToast(`Failed to create file: ${fileName}`, 'error');
-            }
-            setLoadingState('');
+            // 2. Background API Call
+            (async () => {
+              try {
+                const body = {
+                  message: `Create ${fileName} via MarkHub`,
+                  content: utf8_to_b64(initialContent),
+                };
+                const data = await apiRequest(`/repos/${currentRepo}/contents/${filePath}`, 'PUT', body);
+
+                // Success: Manually update repoContents and clear pending op
+                const newFileEntry = { name: fileName, path: filePath, type: 'file', sha: data.content.sha };
+                
+                setRepoContents(prev => {
+                  // Avoid duplicates
+                  const filtered = prev.filter(f => f.path !== filePath);
+                  return [...filtered, newFileEntry].sort((a, b) => {
+                     if (a.type === b.type) return a.name.localeCompare(b.name);
+                     return a.type === 'dir' ? -1 : 1;
+                  });
+                });
+
+                setPendingOps(prev => {
+                  const newState = { ...prev };
+                  delete newState[filePath];
+                  return newState;
+                });
+                
+                // If active file is still this one, update SHA
+                setActiveFile(prev => prev && prev.path === filePath ? { ...prev, sha: data.content.sha } : prev);
+                
+                // Background refresh to ensure consistency
+                fetchRepoContents(currentRepo, currentPath);
+                showToast(`Synced ${fileName}`);
+              } catch (err) {
+                console.error('Failed to create file:', err);
+                showToast(`Failed to create file: ${fileName}`, 'error');
+                // Revert pending op on error
+                setPendingOps(prev => {
+                  const newState = { ...prev };
+                  delete newState[filePath];
+                  return newState;
+                });
+                // If active file was this one, clear it
+                setActiveFile(prev => prev && prev.path === filePath ? null : prev);
+              }
+            })();
           };
 
           const handleNewFile = () => {
-            if (!currentRepo) {
-              showToast('Please select a repository first.', 'error');
-              return;
-            }
             const fileName = prompt('Enter new file name (e.g., my-doc.md):');
             if (fileName) {
               createFile(fileName, `# ${fileName.replace(/\.md$/, '')}\n\n`);
+            }
+          };
+
+          // --- Local File Handlers ---
+          const importLocalFile = async () => {
+            if (!('showOpenFilePicker' in window)) {
+              showToast('Browser not supported.', 'error');
+              return;
+            }
+            try {
+              const [handle] = await window.showOpenFilePicker({
+                types: [{
+                  description: 'Markdown Files',
+                  accept: { 'text/markdown': ['.md', '.markdown', '.mdx', '.txt'] },
+                }],
+                multiple: false,
+              });
+              const file = await handle.getFile();
+              const text = await file.text();
+              
+              // Import as "Create File"
+              createFile(file.name, text);
+
+            } catch (err) {
+              if (err.name !== 'AbortError') {
+                console.error('Failed to open local file:', err);
+                showToast('Failed to open local file', 'error');
+              }
+            }
+          };
+
+          const handleSaveLocal = async (saveAs = false) => {
+            if (!('showSaveFilePicker' in window)) {
+               // Fallback for browsers without File System Access API (simple download)
+               const blob = new Blob([content], { type: 'text/markdown' });
+               const url = URL.createObjectURL(blob);
+               const a = document.createElement('a');
+               a.href = url;
+               a.download = localFileName || 'untitled.md';
+               a.click();
+               URL.revokeObjectURL(url);
+               showToast('File downloaded (Browser does not support direct save)');
+               return;
+            }
+
+            try {
+              let handle = localFileHandle;
+              if (saveAs || !handle) {
+                handle = await window.showSaveFilePicker({
+                  suggestedName: localFileName || 'untitled.md',
+                  types: [{
+                    description: 'Markdown File',
+                    accept: { 'text/markdown': ['.md'] },
+                  }],
+                });
+              }
+              const writable = await handle.createWritable();
+              await writable.write(content);
+              await writable.close();
+              
+              setLocalFileHandle(handle);
+              setLocalFileName(handle.name);
+              showToast(`Saved to ${handle.name}`);
+            } catch (err) {
+              if (err.name !== 'AbortError') {
+                console.error('Failed to save local file:', err);
+                showToast('Failed to save local file', 'error');
+              }
             }
           };
 
@@ -423,7 +847,7 @@
           };
 
           return (
-            <div className="flex h-screen w-full bg-[#0d1117] text-gray-200 font-sans overflow-hidden selection:bg-indigo-500/30">
+            <div className="flex h-screen w-full bg-white dark:bg-[#0d1117] text-gray-900 dark:text-gray-200 font-sans overflow-hidden selection:bg-indigo-500/30">
               
               {/* Toast Notification */}
               {toast && (
@@ -473,11 +897,14 @@
               )}
 
               {/* Sidebar */}
-              <div className={`${isSidebarOpen ? 'w-64' : 'w-0'} flex-shrink-0 bg-[#161b22] border-r border-gray-800 flex flex-col transition-all duration-300 overflow-hidden`}>
+              <div 
+                className={`flex-shrink-0 bg-gray-50 dark:bg-[#161b22] border-r border-gray-200 dark:border-gray-800 flex flex-col transition-none overflow-hidden relative`}
+                style={{ width: isSidebarOpen ? sidebarWidth : 0 }}
+              >
                 {/* Sidebar Header */}
-                <div className="h-14 flex items-center justify-between px-4 border-b border-gray-800 shrink-0">
-                  <span className="font-bold flex items-center text-gray-100">
-                    <Github className="w-5 h-5 mr-2 text-indigo-400" />
+                <div className="h-14 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-800 shrink-0">
+                  <span className="font-bold flex items-center text-gray-900 dark:text-gray-100 truncate">
+                    <Github className="w-5 h-5 mr-2 text-indigo-600 dark:text-indigo-400 shrink-0" />
                     Explorer
                   </span>
                 </div>
@@ -485,27 +912,91 @@
                 {/* Sidebar Content */}
                 <div className="flex-1 overflow-y-auto overflow-x-hidden p-3 space-y-4 custom-scrollbar">
                   
-                  {/* GitHub Connection Area */}
+                  {/* GitHub Connection Area (Shown if not connected) */}
                   {!ghUser ? (
-                    <div className="bg-[#0d1117] border border-gray-800 p-4 rounded-lg text-center">
-                      <Github className="w-8 h-8 mx-auto mb-3 text-gray-500" />
-                      <p className="text-sm text-gray-400 mb-3">Sync files with your GitHub repositories.</p>
-                      <button 
-                        onClick={() => setShowAuthModal(true)}
-                        className="w-full py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded text-sm font-medium transition-colors text-gray-200"
-                      >
-                        Connect Account
-                      </button>
+                    <div className="space-y-4">
+                      <div className="bg-white dark:bg-[#0d1117] border border-gray-200 dark:border-gray-800 p-4 rounded-lg text-center">
+                        <Github className="w-8 h-8 mx-auto mb-3 text-gray-400 dark:text-gray-500" />
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">Sync files with your GitHub repositories.</p>
+                        <button 
+                          onClick={() => setShowAuthModal(true)}
+                          className="w-full py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-gray-800 dark:hover:bg-gray-700 border border-gray-300 dark:border-gray-700 rounded text-sm font-medium transition-colors text-gray-900 dark:text-gray-200"
+                        >
+                          Connect Account
+                        </button>
+                      </div>
+
+                      {/* Local Workspace (When not connected) */}
+                      <div>
+                        <div className="flex items-center justify-between mb-2 px-1">
+                          <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider truncate">
+                            Local Workspace
+                          </h3>
+                          <div className="flex space-x-1">
+                            <button
+                              onClick={importLocalFile}
+                              className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xs bg-gray-200 dark:bg-gray-800 px-1.5 py-1 rounded"
+                              title="Import File"
+                            >
+                              <FileUp className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => handleNewFile()}
+                              className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xs bg-gray-200 dark:bg-gray-800 px-1.5 py-1 rounded"
+                              title="New file"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+
+                        <ul className="space-y-1">
+                          {getWorkspaceFiles().map(file => (
+                            <li key={file.path}>
+                              <div className="flex items-center group">
+                                <button 
+                                  onClick={() => loadFile(file)}
+                                  className={`flex-1 flex items-center px-2 py-1.5 rounded text-sm transition-colors text-left group min-w-0 ${
+                                    activeFile?.path === file.path 
+                                      ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300' 
+                                      : 'hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
+                                  }`}
+                                >
+                                  <FileText className="w-4 h-4 mr-2 text-gray-500 shrink-0" />
+                                  <span className="flex-1 truncate min-w-0" title={file.name}>{file.name}</span>
+                                </button>
+                                <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); renameFile(file); }}
+                                    className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all rounded mr-1"
+                                    title="Rename"
+                                  >
+                                    <FileEdit className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); deleteFile(file); }}
+                                    className="p-1 hover:bg-red-100 dark:hover:bg-red-900/50 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-all rounded"
+                                    title="Delete"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </div>
+                            </li>
+                          ))}
+                          {getWorkspaceFiles().length === 0 && <p className="text-xs text-gray-500 px-2 italic">No files</p>}
+                        </ul>
+                      </div>
                     </div>
                   ) : (
                     <div className="space-y-4">
                       {/* User Profile */}
-                      <div className="flex items-center justify-between bg-[#0d1117] p-2 rounded-lg border border-gray-800">
+                      <div className="flex items-center justify-between bg-white dark:bg-[#0d1117] p-2 rounded-lg border border-gray-200 dark:border-gray-800">
                         <div className="flex items-center truncate">
                           <img src={ghUser.avatar_url} alt="Avatar" className="w-6 h-6 rounded-full mr-2" />
-                          <span className="text-sm font-medium truncate">{ghUser.login}</span>
+                          <span className="text-sm font-medium truncate text-gray-900 dark:text-gray-200">{ghUser.login}</span>
                         </div>
-                        <button onClick={handleLogout} className="text-gray-500 hover:text-red-400 p-1 rounded" title="Disconnect">
+                        <button onClick={handleLogout} className="text-gray-500 hover:text-red-500 dark:hover:text-red-400 p-1 rounded" title="Disconnect">
                           <LogOut className="w-4 h-4" />
                         </button>
                       </div>
@@ -523,9 +1014,9 @@
                                   <li key={repo.id} className="flex items-center group">
                                     <button 
                                       onClick={() => fetchRepoContents(repo.full_name)}
-                                      className="flex-1 flex items-center px-2 py-1.5 hover:bg-gray-800 rounded-l text-sm text-gray-300 transition-colors text-left overflow-hidden"
+                                      className="flex-1 flex items-center px-2 py-1.5 hover:bg-gray-200 dark:hover:bg-gray-800 rounded-l text-sm text-gray-700 dark:text-gray-300 transition-colors text-left overflow-hidden"
                                     >
-                                      <Folder className="w-4 h-4 mr-2 text-indigo-400 shrink-0" />
+                                      <Folder className="w-4 h-4 mr-2 text-blue-500 dark:text-indigo-400 shrink-0" />
                                       <span className="truncate">{repo.name}</span>
                                     </button>
                                     <button
@@ -534,7 +1025,7 @@
                                         setHiddenRepos(updated);
                                         localStorage.setItem('markhub_hidden_repos', JSON.stringify(updated));
                                       }}
-                                      className="opacity-0 group-hover:opacity-100 px-2 py-1.5 hover:bg-gray-700 text-gray-500 hover:text-red-400 transition-all rounded-r"
+                                      className="opacity-0 group-hover:opacity-100 px-2 py-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-all rounded-r"
                                       title="Hide from list"
                                     >
                                       <EyeOff className="w-4 h-4" />
@@ -550,14 +1041,14 @@
                                 <div className="px-1 -mt-2 mb-2">
                                   <button 
                                     onClick={() => { setHiddenRepos([]); localStorage.removeItem('markhub_hidden_repos'); }}
-                                    className="text-[10px] uppercase tracking-wider text-gray-500 hover:text-indigo-400 transition-colors"
+                                    className="text-[10px] uppercase tracking-wider text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                                   >
                                     Restore {hiddenRepos.length} hidden repo{hiddenRepos.length !== 1 ? 's' : ''}
                                   </button>
                                 </div>
                               )}
 
-                              <div className="px-1 border-t border-gray-800 pt-3">
+                              <div className="px-1 border-t border-gray-200 dark:border-gray-800 pt-3">
                                 <p className="text-xs text-gray-500 mb-2">Can't see your repo? Enter manually:</p>
                                 <div className="flex space-x-2">
                                   <input 
@@ -566,12 +1057,12 @@
                                     value={manualRepo}
                                     onChange={(e) => setManualRepo(e.target.value)}
                                     onKeyDown={(e) => e.key === 'Enter' && manualRepo && fetchRepoContents(manualRepo)}
-                                    className="flex-1 w-full bg-[#0d1117] border border-gray-700 rounded px-2 py-1.5 text-xs text-gray-200 focus:outline-none focus:border-indigo-500"
+                                    className="flex-1 w-full bg-white dark:bg-[#0d1117] border border-gray-300 dark:border-gray-700 rounded px-2 py-1.5 text-xs text-gray-900 dark:text-gray-200 focus:outline-none focus:border-indigo-500"
                                   />
                                   <button 
                                     onClick={() => manualRepo && fetchRepoContents(manualRepo)}
                                     disabled={!manualRepo}
-                                    className="bg-gray-800 hover:bg-gray-700 disabled:opacity-50 px-3 py-1.5 rounded text-xs font-medium transition-colors text-gray-300"
+                                    className="bg-gray-200 hover:bg-gray-300 dark:bg-gray-800 dark:hover:bg-gray-700 disabled:opacity-50 px-3 py-1.5 rounded text-xs font-medium transition-colors text-gray-700 dark:text-gray-300"
                                   >
                                     Go
                                   </button>
@@ -582,34 +1073,50 @@
                         </div>
                       ) : (
                         <div>
+
+
                           <div className="flex items-center justify-between mb-2 px-1">
                             <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider truncate" title={currentRepo}>
                               {currentRepo}
                             </h3>
                             <div className="flex space-x-1">
+                              <button 
+                                onClick={() => { 
+                                  if (pathStack.length > 0) {
+                                    navigateUp();
+                                  } else {
+                                    setCurrentRepo(null); 
+                                    setPathStack([]); 
+                                  }
+                                }}
+                                className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xs bg-gray-200 dark:bg-gray-800 px-1.5 py-1 rounded"
+                                title="Go Up"
+                              >
+                                <ArrowLeft className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={importLocalFile}
+                                className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xs bg-gray-200 dark:bg-gray-800 px-1.5 py-1 rounded"
+                                title="Import File"
+                              >
+                                <FileUp className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={() => handleNewFile()}
+                                className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xs bg-gray-200 dark:bg-gray-800 px-1.5 py-1 rounded"
+                                title="New file"
+                              >
+                                <Plus className="w-3 h-3" />
+                              </button>
                               <button
                                 onClick={() => {
                                   const currentDirPath = pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '';
                                   fetchRepoContents(currentRepo, currentDirPath);
                                 }}
-                                className="text-gray-400 hover:text-white text-xs bg-gray-800 px-1.5 py-0.5 rounded"
+                                className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xs bg-gray-200 dark:bg-gray-800 px-1.5 py-1 rounded"
                                 title="Refresh directory"
                               >
                                 <RefreshCcw className="w-3 h-3" />
-                              </button>
-                              <button
-                                onClick={() => handleNewFile()}
-                                className="text-gray-400 hover:text-white text-xs bg-gray-800 px-1.5 py-0.5 rounded"
-                                title="New file"
-                              >
-                                <Plus className="w-3 h-3" />
-                              </button>
-                              <button 
-                                onClick={() => { setCurrentRepo(null); setPathStack([]); }}
-                                className="text-gray-400 hover:text-white text-xs bg-gray-800 px-1.5 py-0.5 rounded"
-                                title="Change repository"
-                              >
-                                Change
                               </button>
                             </div>
                           </div>
@@ -618,7 +1125,7 @@
                           {pathStack.length > 0 && (
                             <button 
                               onClick={navigateUp}
-                              className="w-full flex items-center px-2 py-1.5 hover:bg-gray-800 rounded text-sm text-gray-400 mb-1 transition-colors"
+                              className="w-full flex items-center px-2 py-1.5 hover:bg-gray-200 dark:hover:bg-gray-800 rounded text-sm text-gray-600 dark:text-gray-400 mb-1 transition-colors"
                             >
                               <ArrowLeft className="w-4 h-4 mr-2 shrink-0" />
                               <span className="truncate">.. / {pathStack[pathStack.length-1].name}</span>
@@ -630,39 +1137,56 @@
                             <div className="flex justify-center p-4"><Loader2 className="w-5 h-5 animate-spin text-gray-500" /></div>
                           ) : (
                             <ul className="space-y-1">
-                              {repoContents.map(file => (
+                              {getWorkspaceFiles().map(file => (
                                 <li key={file.sha || file.path}>
-                                  <div className="flex items-center group">
+                                  <div className={`flex items-center group ${file.status === 'pending' ? 'opacity-70' : ''}`}>
                                     <button 
                                       onClick={() => loadFile(file)}
                                       className={`flex-1 flex items-center px-2 py-1.5 rounded text-sm transition-colors text-left group min-w-0 ${
-                                        activeFile?.path === file.path ? 'bg-indigo-500/20 text-indigo-300' : 'hover:bg-gray-800 text-gray-300'
+                                        activeFile?.path === file.path 
+                                          ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300' 
+                                          : 'hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'
                                       }`}
                                     >
                                       {file.type === 'dir' ? (
-                                        <Folder className="w-4 h-4 mr-2 text-blue-400 shrink-0" />
+                                        <Folder className="w-4 h-4 mr-2 text-blue-500 dark:text-blue-400 shrink-0" />
                                       ) : (
-                                        <FileText className="w-4 h-4 mr-2 text-gray-500 shrink-0" />
+                                        <FileText className={`w-4 h-4 mr-2 shrink-0 ${file.status === 'pending' ? 'text-amber-500 animate-pulse' : 'text-gray-500'}`} />
                                       )}
-                                      <span className="flex-1 truncate min-w-0" title={file.name}>{file.name}</span>
+                                      <span className={`flex-1 truncate min-w-0 ${file.status === 'pending' ? 'text-amber-600 dark:text-amber-400 italic' : ''}`} title={file.name}>
+                                        {file.name} {file.status === 'pending' && <span className="text-[10px] ml-1 opacity-75">(Syncing)</span>}
+                                      </span>
                                     </button>
                                     {file.type === 'file' && (
-                                      <button
-                                        onClick={(e) => {
-                                          e.stopPropagation(); // Prevent loadFile from being called
-                                          deleteFile(file);
-                                        }}
-                                        className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-900/50 text-gray-500 hover:text-red-400 transition-all rounded"
-                                        title="Delete File"
-                                        disabled={loadingState === 'deleting'}
-                                      >
-                                        <Trash2 className="w-4 h-4" />
-                                      </button>
+                                      <div className={`flex items-center transition-opacity ${file.status === 'pending' ? 'opacity-0' : 'opacity-0 group-hover:opacity-100'}`}>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            renameFile(file);
+                                          }}
+                                          className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all rounded mr-1"
+                                          title="Rename File"
+                                          disabled={loadingState !== ''}
+                                        >
+                                          <FileEdit className="w-4 h-4" />
+                                        </button>
+                                        <button
+                                          onClick={(e) => {
+                                            e.stopPropagation(); // Prevent loadFile from being called
+                                            deleteFile(file);
+                                          }}
+                                          className="p-1 hover:bg-red-100 dark:hover:bg-red-900/50 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-all rounded"
+                                          title="Delete File"
+                                          disabled={loadingState !== ''}
+                                        >
+                                          <Trash2 className="w-4 h-4" />
+                                        </button>
+                                      </div>
                                     )}
                                   </div>
                                 </li>
                               ))}
-                              {repoContents.length === 0 && <p className="text-xs text-gray-500 px-2 italic">Empty folder</p>}
+                              {getWorkspaceFiles().length === 0 && <p className="text-xs text-gray-500 px-2 italic">Empty folder</p>}
                             </ul>
                           )}
                         </div>
@@ -672,16 +1196,29 @@
                 </div>
               </div>
 
+              {/* Sidebar Resizer */}
+              {isSidebarOpen && (
+                <div
+                  className="w-1 cursor-col-resize hover:bg-indigo-500/50 active:bg-indigo-500 transition-colors z-10 flex items-center justify-center group"
+                  onMouseDown={() => {
+                    setIsResizingSidebar(true);
+                    document.body.style.cursor = 'col-resize';
+                  }}
+                >
+                  <div className="h-8 w-0.5 bg-gray-300 dark:bg-gray-700 rounded opacity-0 group-hover:opacity-100 transition-opacity group-hover:bg-white" />
+                </div>
+              )}
+
               {/* Main Content Area */}
               <div className="flex-1 flex flex-col min-w-0">
                 
                 {/* Top Toolbar */}
-                <div className="h-14 bg-[#161b22] border-b border-gray-800 flex items-center justify-between px-4 shrink-0">
+                <div className="h-14 bg-gray-50 dark:bg-[#161b22] border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-4 shrink-0">
                   
                   <div className="flex items-center space-x-2">
                     <button 
                       onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                      className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded transition-colors mr-2"
+                      className="p-1.5 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-800 rounded transition-colors mr-2"
                       title="Toggle Sidebar"
                     >
                       <Columns className="w-5 h-5" />
@@ -692,8 +1229,13 @@
                       {activeFile ? (
                         <>
                           <span className="text-gray-500">{currentRepo} / </span>
-                          <span className="text-gray-200 ml-1 font-medium">{activeFile.name}</span>
+                          <span className="text-gray-900 dark:text-gray-200 ml-1 font-medium">{activeFile.name}</span>
                           {content !== localStorage.getItem('markhub_draft') && <span className="w-2 h-2 rounded-full bg-yellow-500 ml-2" title="Unsaved changes"></span>}
+                        </>
+                      ) : localFileName ? (
+                        <>
+                          <span className="text-gray-500 italic">Local / </span>
+                          <span className="text-gray-900 dark:text-gray-200 ml-1 font-medium">{localFileName}</span>
                         </>
                       ) : (
                         <span className="text-gray-500 italic">Local Draft (Unsynced)</span>
@@ -703,25 +1245,34 @@
 
                   {/* Action Buttons */}
                   <div className="flex items-center space-x-2">
+                    {/* Theme Toggle */}
+                    <button
+                      onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+                      className="p-1.5 text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-800 rounded transition-colors mr-2"
+                      title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+                    >
+                      {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                    </button>
+
                     {/* View Mode Toggles */}
-                    <div className="flex bg-gray-900 rounded-lg p-0.5 border border-gray-700 mr-4">
+                    <div className="flex bg-gray-100 dark:bg-gray-900 rounded-lg p-0.5 border border-gray-300 dark:border-gray-700 mr-4">
                       <button 
                         onClick={() => setViewMode('edit')}
-                        className={`p-1.5 rounded-md transition-all ${viewMode === 'edit' ? 'bg-gray-700 text-white shadow' : 'text-gray-500 hover:text-gray-300'}`}
+                        className={`p-1.5 rounded-md transition-all ${viewMode === 'edit' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
                         title="Editor Only"
                       >
                         <Edit3 className="w-4 h-4" />
                       </button>
                       <button 
                         onClick={() => setViewMode('split')}
-                        className={`p-1.5 rounded-md transition-all ${viewMode === 'split' ? 'bg-gray-700 text-white shadow' : 'text-gray-500 hover:text-gray-300'}`}
+                        className={`p-1.5 rounded-md transition-all ${viewMode === 'split' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
                         title="Split View"
                       >
                         <Columns className="w-4 h-4" />
                       </button>
                       <button 
                         onClick={() => setViewMode('preview')}
-                        className={`p-1.5 rounded-md transition-all ${viewMode === 'preview' ? 'bg-gray-700 text-white shadow' : 'text-gray-500 hover:text-gray-300'}`}
+                        className={`p-1.5 rounded-md transition-all ${viewMode === 'preview' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
                         title="Preview Only"
                       >
                         <Eye className="w-4 h-4" />
@@ -734,28 +1285,28 @@
                       className={`flex items-center px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                         activeFile 
                           ? 'bg-indigo-600 hover:bg-indigo-700 text-white' 
-                          : 'bg-gray-800 text-gray-500 cursor-not-allowed'
+                          : 'bg-gray-200 dark:bg-gray-800 text-gray-500 cursor-not-allowed'
                       }`}
                     >
                       {loadingState === 'saving' ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-                      Commit
+                      {currentRepo ? 'Commit' : 'Save'}
                     </button>
                   </div>
                 </div>
 
                 {/* Formatting Toolbar */}
                 {viewMode !== 'preview' && (
-                  <div className="h-10 bg-[#0d1117] border-b border-gray-800 flex items-center px-4 space-x-1 overflow-x-auto shrink-0 custom-scrollbar">
+                  <div className="h-10 bg-gray-50 dark:bg-[#0d1117] border-b border-gray-200 dark:border-gray-800 flex items-center px-4 space-x-1 overflow-x-auto shrink-0 custom-scrollbar">
                     <ToolButton icon={<Bold className="w-4 h-4" />} onClick={() => insertText('**', '**', 'bold text')} title="Bold" />
                     <ToolButton icon={<Italic className="w-4 h-4" />} onClick={() => insertText('*', '*', 'italic text')} title="Italic" />
-                    <div className="w-px h-5 bg-gray-700 mx-1"></div>
+                    <div className="w-px h-5 bg-gray-300 dark:bg-gray-700 mx-1"></div>
                     <ToolButton icon={<Heading1 className="w-4 h-4" />} onClick={() => insertText('# ', '', 'Heading 1')} title="Heading 1" />
                     <ToolButton icon={<Heading2 className="w-4 h-4" />} onClick={() => insertText('## ', '', 'Heading 2')} title="Heading 2" />
-                    <div className="w-px h-5 bg-gray-700 mx-1"></div>
+                    <div className="w-px h-5 bg-gray-300 dark:bg-gray-700 mx-1"></div>
                     <ToolButton icon={<List className="w-4 h-4" />} onClick={() => insertText('- ', '', 'List item')} title="Bullet List" />
                     <ToolButton icon={<CheckSquare className="w-4 h-4" />} onClick={() => insertText('- [ ] ', '', 'Task')} title="Task List" />
                     <ToolButton icon={<Quote className="w-4 h-4" />} onClick={() => insertText('> ', '', 'Quote')} title="Blockquote" />
-                    <div className="w-px h-5 bg-gray-700 mx-1"></div>
+                    <div className="w-px h-5 bg-gray-300 dark:bg-gray-700 mx-1"></div>
                     <ToolButton icon={<LinkIcon className="w-4 h-4" />} onClick={() => insertText('[', '](url)', 'link text')} title="Link" />
                     <ToolButton icon={<ImageIcon className="w-4 h-4" />} onClick={() => insertText('![alt text](', ')', 'image url')} title="Image" />
                     <ToolButton icon={<Table className="w-4 h-4" />} onClick={() => insertText('\n| Header 1 | Header 2 |\n| -------- | -------- |\n| Cell 1   | Cell 2   |\n', '', '')} title="Table" />
@@ -766,20 +1317,36 @@
                 )}
 
                 {/* Editor & Preview Area */}
-                <div className="flex-1 flex overflow-hidden">
+                <div className="flex-1 flex overflow-hidden relative">
                   
                   {/* Editor Pane */}
                   {(viewMode === 'edit' || viewMode === 'split') && (
-                    <div className={`flex-1 h-full flex flex-col bg-[#0d1117] ${viewMode === 'split' ? 'border-r border-gray-800' : ''}`}>
+                    <div 
+                      className={`h-full flex flex-col bg-white dark:bg-[#0d1117] ${viewMode === 'split' ? '' : 'flex-1'}`}
+                      style={viewMode === 'split' ? { width: `${splitRatio * 100}%` } : {}}
+                    >
                       <textarea
                         ref={editorRef}
                         value={content}
                         onChange={(e) => setContent(e.target.value)}
                         onScroll={handleScroll}
-                        className="flex-1 w-full bg-transparent text-gray-300 font-mono text-sm leading-relaxed p-6 resize-none focus:outline-none custom-scrollbar"
+                        className="flex-1 w-full bg-transparent text-gray-900 dark:text-gray-300 font-mono text-sm leading-relaxed p-6 resize-none focus:outline-none custom-scrollbar"
                         placeholder="Start typing your markdown here..."
                         spellCheck="false"
                       />
+                    </div>
+                  )}
+
+                  {/* Split Resizer */}
+                  {viewMode === 'split' && (
+                    <div
+                      className="w-1 cursor-col-resize bg-gray-200 dark:bg-gray-800 hover:bg-indigo-500/50 active:bg-indigo-500 transition-colors z-10 flex items-center justify-center group"
+                      onMouseDown={() => {
+                        setIsResizingSplit(true);
+                        document.body.style.cursor = 'col-resize';
+                      }}
+                    >
+                      <div className="h-8 w-0.5 bg-gray-400 dark:bg-gray-600 rounded group-hover:bg-white transition-colors" />
                     </div>
                   )}
 
@@ -788,11 +1355,12 @@
                     <div 
                       ref={previewRef}
                       onScroll={handleScroll}
-                      className="flex-1 h-full bg-[#0d1117] overflow-y-auto p-8 custom-scrollbar relative"
+                      className={`h-full bg-white dark:bg-[#0d1117] overflow-y-auto p-8 custom-scrollbar relative ${viewMode === 'split' ? '' : 'flex-1'}`}
+                      style={viewMode === 'split' ? { width: `${(1 - splitRatio) * 100}%` } : {}}
                     >
                       <div className="max-w-3xl mx-auto w-full">
                         <div 
-                          className="markdown-body text-gray-200"
+                          className="markdown-body text-gray-900 dark:text-gray-200"
                           dangerouslySetInnerHTML={{ __line: 1, __html: parsedHtml }}
                         />
                       </div>
@@ -803,42 +1371,54 @@
 
               {/* Internal CSS for Scrollbars & Minor Tweaks */}
               <style dangerouslySetInnerHTML={{__html: `
-                .custom-scrollbar::-webkit-scrollbar {
-                  width: 8px;
-                  height: 8px;
-                }
-                .custom-scrollbar::-webkit-scrollbar-track {
-                  background: transparent;
-                }
-                .custom-scrollbar::-webkit-scrollbar-thumb {
-                  background-color: #30363d;
-                  border-radius: 4px;
-                }
-                .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-                  background-color: #484f58;
-                }
+                /* Scrollbar */
+                .custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
+                .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+                .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #d1d5db; border-radius: 4px; }
+                .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #9ca3af; }
+                .dark .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #30363d; }
+                .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #484f58; }
                 
-                /* Markdown Global Styles */
-                .markdown-body { color: #e5e7eb; }
-                .markdown-body h1 { font-size: 2.25rem; font-weight: 800; margin: 2rem 0 1.5rem; color: #fff; letter-spacing: -0.025em; }
-                .markdown-body h2 { font-size: 1.5rem; font-weight: 700; margin: 2.5rem 0 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #1f2937; color: #fff; }
-                .markdown-body h3 { font-size: 1.25rem; font-weight: 700; margin: 1.5rem 0 0.75rem; color: #f3f4f6; }
-                .markdown-body p { margin-bottom: 1rem; line-height: 1.625; color: #d1d5db; }
-                .markdown-body a { color: #818cf8; text-decoration: underline; text-underline-offset: 2px; }
-                .markdown-body a:hover { color: #a5b4fc; }
+                /* Markdown Global Styles - Light Mode Defaults */
+                .markdown-body { color: #1f2937; }
+                .markdown-body h1 { font-size: 2.25rem; font-weight: 800; margin: 2rem 0 1.5rem; color: #111827; letter-spacing: -0.025em; }
+                .markdown-body h2 { font-size: 1.5rem; font-weight: 700; margin: 2.5rem 0 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #e5e7eb; color: #111827; }
+                .markdown-body h3 { font-size: 1.25rem; font-weight: 700; margin: 1.5rem 0 0.75rem; color: #374151; }
+                .markdown-body p { margin-bottom: 1rem; line-height: 1.625; color: #4b5563; }
+                .markdown-body a { color: #4f46e5; text-decoration: underline; text-underline-offset: 2px; }
+                .markdown-body a:hover { color: #6366f1; }
                 .markdown-body ul { list-style-type: disc; padding-left: 1.5rem; margin-bottom: 1rem; }
                 .markdown-body ol { list-style-type: decimal; padding-left: 1.5rem; margin-bottom: 1rem; }
-                .markdown-body blockquote { border-left: 4px solid #6366f1; padding: 0.25rem 0 0.25rem 1rem; margin: 1.5rem 0; color: #9ca3af; background: rgba(31, 41, 55, 0.3); border-radius: 0 0.25rem 0.25rem 0; font-style: italic; }
-                .markdown-body pre { background-color: #1e1e1e; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; margin: 1.5rem 0; border: 1px solid #1f2937; }
-                .markdown-body pre code { font-size: 0.875rem; font-family: monospace; color: #e5e7eb; background: transparent; padding: 0; }
-                .markdown-body code { background-color: #1f2937; padding: 0.125rem 0.375rem; border-radius: 0.25rem; font-size: 0.875rem; color: #f472b6; font-family: monospace; }
+                .markdown-body blockquote { border-left: 4px solid #4f46e5; padding: 0.25rem 0 0.25rem 1rem; margin: 1.5rem 0; color: #6b7280; background: #f9fafb; border-radius: 0 0.25rem 0.25rem 0; font-style: italic; }
+                .markdown-body pre { background-color: #f3f4f6; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; margin: 1.5rem 0; border: 1px solid #e5e7eb; }
+                .markdown-body pre code { font-size: 0.875rem; font-family: monospace; color: #1f2937; background: transparent; padding: 0; }
+                .markdown-body code { background-color: #f3f4f6; padding: 0.125rem 0.375rem; border-radius: 0.25rem; font-size: 0.875rem; color: #db2777; font-family: monospace; }
                 .markdown-body table { width: 100%; text-align: left; border-collapse: collapse; margin: 1.5rem 0; }
-                .markdown-body thead { background-color: #1f2937; }
-                .markdown-body th, .markdown-body td { border: 1px solid #374151; padding: 0.5rem 1rem; }
-                .markdown-body tr:nth-child(even) { background-color: rgba(31, 41, 55, 0.3); }
-                .markdown-body del { text-decoration: line-through; color: #6b7280; }
-                .markdown-body input[type="checkbox"] { margin-right: 0.5rem; accent-color: #6366f1; transform: translateY(0.125rem); }
+                .markdown-body thead { background-color: #f9fafb; }
+                .markdown-body th, .markdown-body td { border: 1px solid #e5e7eb; padding: 0.5rem 1rem; }
+                .markdown-body tr:nth-child(even) { background-color: #f9fafb; }
+                .markdown-body del { text-decoration: line-through; color: #9ca3af; }
+                .markdown-body input[type="checkbox"] { margin-right: 0.5rem; accent-color: #4f46e5; transform: translateY(0.125rem); }
                 .markdown-body li.task-list-item { list-style: none; margin-left: -1.5rem; display: flex; align-items: flex-start; }
+
+                /* Markdown Dark Mode Overrides */
+                .dark .markdown-body { color: #e5e7eb; }
+                .dark .markdown-body h1 { color: #fff; }
+                .dark .markdown-body h2 { border-bottom: 1px solid #1f2937; color: #fff; }
+                .dark .markdown-body h3 { color: #f3f4f6; }
+                .dark .markdown-body p { color: #d1d5db; }
+                .dark .markdown-body a { color: #818cf8; }
+                .dark .markdown-body a:hover { color: #a5b4fc; }
+                .dark .markdown-body blockquote { border-left-color: #6366f1; color: #9ca3af; background: rgba(31, 41, 55, 0.3); }
+                .dark .markdown-body pre { background-color: #1e1e1e; border-color: #1f2937; }
+                .dark .markdown-body pre code { color: #e5e7eb; }
+                .dark .markdown-body code { background-color: #1f2937; color: #f472b6; }
+                .dark .markdown-body thead { background-color: #1f2937; }
+                .dark .markdown-body th, .dark .markdown-body td { border-color: #374151; }
+                .dark .markdown-body tr:nth-child(even) { background-color: rgba(31, 41, 55, 0.3); }
+                .dark .markdown-body del { color: #6b7280; }
+                .dark .markdown-body input[type="checkbox"] { accent-color: #6366f1; }
+
                 .katex-display { overflow-x: auto; padding: 0.5rem 0; }
               `}} />
             </div>
@@ -851,7 +1431,7 @@
             <button 
               onClick={onClick}
               title={title}
-              className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-800 rounded transition-colors flex items-center justify-center shrink-0"
+              className="p-1.5 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-800 rounded transition-colors flex items-center justify-center shrink-0"
             >
               {icon}
             </button>

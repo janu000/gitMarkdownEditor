@@ -46,7 +46,7 @@ This document outlines the current feature set of MarkHub and serves as a roadma
 - [ ] **Create New File:** Ability to create new files directly within a GitHub repository.
 - [ ] **Delete File:** Option to delete files from the repository.
 - [ ] **Rename File:** Ability to rename existing files.
-- [ ] **Local File Support:** Open and save files from/to the user's local device file system (using the File System Access API).
+- [x] **Local File Support:** Open and save files from/to the user's local device file system (using the File System Access API).
 - [ ] **Export Options:** Export the current document as PDF, HTML, or raw Markdown.
 
 ### GitHub Workflow
