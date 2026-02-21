@@ -1,5 +1,5 @@
 {
-  "name": "markhub",
+  "name": "git-markdown-editor",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -26,6 +26,7 @@
     "globals": "^16.5.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.19",
-    "vite": "^7.3.1"
+    "vite": "^7.3.1",
+    "vite-plugin-pwa": "^1.2.0"
   }
 }

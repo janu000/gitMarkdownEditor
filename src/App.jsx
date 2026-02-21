@@ -451,7 +451,7 @@ export default function App() {
     setLoadingState('saving');
     try {
       const body = {
-        message: `Update ${currentActiveFile.name} via MarkHub`,
+        message: `Update ${currentActiveFile.name} via Git Markdown Editor`,
         content: utf8_to_b64(content),
         sha: currentActiveFile.sha
       };
@@ -547,7 +547,7 @@ export default function App() {
       try {
         const sourceData = await apiRequest(`/repos/${currentRepo}/contents/${fileToRename.path}`);
         const createBody = {
-          message: `Rename ${fileToRename.name} to ${newName} via MarkHub`,
+          message: `Rename ${fileToRename.name} to ${newName} via Git Markdown Editor`,
           content: sourceData.content.replace(/\n/g, ''), 
         };
         const createRes = await apiRequest(`/repos/${currentRepo}/contents/${newPath}`, 'PUT', createBody);
@@ -614,7 +614,7 @@ export default function App() {
           return;
         }
 
-        const body = { message: `Delete ${fileToDelete.name} via MarkHub`, sha: fileToDelete.sha };
+        const body = { message: `Delete ${fileToDelete.name} via Git Markdown Editor`, sha: fileToDelete.sha };
         await apiRequest(`/repos/${currentRepo}/contents/${fileToDelete.path}`, 'DELETE', body);
 
         setRepoContents(prev => prev.filter(f => f.path !== fileToDelete.path));
@@ -656,7 +656,7 @@ export default function App() {
 
     (async () => {
       try {
-        const body = { message: `Create ${fileName} via MarkHub`, content: utf8_to_b64(initialContent) };
+        const body = { message: `Create ${fileName} via Git Markdown Editor`, content: utf8_to_b64(initialContent) };
         const data = await apiRequest(`/repos/${currentRepo}/contents/${filePath}`, 'PUT', body);
         
         const newFileEntry = { name: fileName, path: filePath, type: 'file', sha: data.content.sha };
@@ -756,7 +756,7 @@ export default function App() {
 
   // --- RENDER HELPERS ---
   const renderSidebar = () => (
-    <div className="flex-shrink-0 bg-gray-50 dark:bg-[#161b22] border-r border-gray-200 dark:border-gray-800 flex flex-col transition-none overflow-hidden relative" style={{ width: isSidebarOpen ? sidebarWidth : 0 }}>
+    <div id="main-sidebar" className="flex-shrink-0 bg-gray-50 dark:bg-[#161b22] border-r border-gray-200 dark:border-gray-800 flex flex-col transition-none overflow-hidden relative" style={{ width: isSidebarOpen ? sidebarWidth : 0 }}>
       <div className="h-14 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-800 shrink-0">
         <span className="font-bold flex items-center text-gray-900 dark:text-gray-100 truncate">
           <Github className="w-5 h-5 mr-2 text-indigo-600 dark:text-indigo-400 shrink-0" /> Explorer

@@ -1,6 +1,6 @@
-# Welcome to MarkHu
+# Welcome to Git Markdown Editor (MarkHub)
 
-A powerful, browser-based Markdown editor with seamless GitHub integration for syncing and managing your documentation directly from your browser.
+A powerful, browser-based Markdown editor built with React and Vite, offering seamless GitHub integration for syncing and managing your documentation directly from your browser. "MarkHub" is the project's personal name.
 
 
 ## Features
@@ -37,6 +37,7 @@ A powerful, browser-based Markdown editor with seamless GitHub integration for s
 - Persistent GitHub authentication tokens (localStorage)
 - Hidden repository management
 - Support for `.md`, `.txt`, and `.mdx` files
+- Local File System Access: Open and save files directly to your local machine using the File System Access API.
 
 🛠️ **Formatting Toolbar**
 Quick-insert buttons for:
@@ -53,27 +54,45 @@ Quick-insert buttons for:
 ## Getting Started
 
 ### Prerequisites
+- Node.js and npm installed
 - A modern web browser (Chrome, Firefox, Safari, Edge)
 - A GitHub Personal Access Token (for GitHub sync features)
 
+### Running Locally
+
+1.  **Clone the repository**:
+    ```bash
+    git clone [repository-url]
+    cd git-markdown-editor
+    ```
+2.  **Install Dependencies**:
+    ```bash
+    npm install
+    ```
+3.  **Start Development Server**:
+    ```bash
+    npm run dev
+    ```
+    This will start a development server, usually accessible at `http://localhost:5173`.
+
 ### Usage
 
-1. **Open the editor**: Simply open `main.html` in your web browser
-2. **Connect GitHub (optional)**:
-   - Click "Connect Account" in the sidebar
-   - Enter your GitHub Personal Access Token (classic) with `repo` scope
-   - Your repositories will load automatically
+1.  **Open the editor**: Access `http://localhost:5173` in your web browser.
+2.  **Connect GitHub (optional)**:
+    - Click "Connect Account" in the sidebar
+    - Enter your GitHub Personal Access Token (classic) with `repo` scope
+    - Your repositories will load automatically
 
-3. **Start editing**:
-   - Write or paste Markdown in the editor
-   - See live preview in real-time
-   - Use the toolbar for quick formatting
+3.  **Start editing**:
+    - Write or paste Markdown in the editor
+    - See live preview in real-time
+    - Use the toolbar for quick formatting
 
-4. **GitHub Sync**:
-   - Click on a repository in the sidebar
-   - Browse and select files to edit
-   - Make changes in the editor
-   - Click "Save to GitHub" to commit changes
+4.  **GitHub Sync**:
+    - Click on a repository in the sidebar
+    - Browse and select files to edit
+    - Make changes in the editor
+    - Click "Save to GitHub" to commit changes
 
 ## Creating a GitHub Personal Access Token
 
@@ -82,21 +101,20 @@ To enable GitHub synchronization:
 1. Go to GitHub Settings → Developer settings → [Personal access tokens](https://github.com/settings/tokens)
 2. Click "Generate new token (classic)"
 3. Set the scope to `repo` (Full control of private repositories)
-4. Copy the token and paste it into MarkHub
+4. Copy the token and paste it into Git Markdown Editor
 
 ⚠️ **Security Note**: Keep your token private. It's stored in your browser's localStorage and never sent to external servers (only to GitHub's official API).
 
 ## Technology Stack
 
-- **Frontend Framework**: React 18.2.0 (via ESM)
-- **Markdown Parser**: [Marked.js](https://marked.js.org/)
-- **Math Rendering**: [KaTeX](https://katex.org/)
-- **CSS Framework**: [Tailwind CSS](https://tailwindcss.com/)
-- **Icons**: [Lucide React](https://lucide.dev/)
-- **API Integration**: GitHub REST API v3
-- **JavaScript**: Vanilla JavaScript with Babel for JSX compilation
-
-All dependencies are loaded from CDNs for instant, zero-setup usage.
+-   **Frontend Framework**: React 19 (with Vite)
+-   **Markdown Parser**: [Marked.js](https://marked.js.org/)
+-   **Math Rendering**: [KaTeX](https://katex.org/)
+-   **CSS Framework**: [Tailwind CSS](https://tailwindcss.com/)
+-   **Icons**: [Lucide React](https://lucide.dev/)
+-   **Build Tool**: [Vite](https://vitejs.dev/)
+-   **API Integration**: GitHub REST API v3
+-   **Code Quality**: ESLint, Prettier
 
 ## Supported Markdown Syntax
 
@@ -183,22 +201,21 @@ Here is a list of keyboard shortcuts to enhance your editing workflow:
 ## Project Structure
 
 ```
-GitMarkdownEditor/
-├── main.html          # Single-file React application
-├── README.md          # This file
-└── LICENSE            # MIT License
+git-markdown-editor/
+├── public/                 # Static assets
+├── src/                    # Source code
+│   ├── App.jsx             # Main application component
+│   ├── main.jsx            # Entry point for React
+│   └── index.css           # Global styles
+├── index.html              # Main HTML file
+├── package.json            # Project dependencies and scripts
+├── vite.config.js          # Vite configuration
+├── tailwind.config.js      # Tailwind CSS configuration
+├── postcss.config.js       # PostCSS configuration
+├── eslint.config.js        # ESLint configuration
+├── README.md               # This file
+└── LICENSE                 # MIT License
 ```
-
-## File Details
-
-### main.html
-The complete application bundled into a single HTML file containing:
-- HTML structure
-- Tailwind CSS styling
-- React application code
-- External dependency imports via CDN
-
-The file is self-contained and requires no build process or dependencies to be installed.
 
 ## Browser Compatibility
 
@@ -209,7 +226,7 @@ The file is self-contained and requires no build process or dependencies to be i
 
 ## Local Storage
 
-MarkHub stores the following in your browser's localStorage for persistence:
+Git Markdown Editor stores the following in your browser's localStorage for persistence:
 
 - `markhub_draft`: Current editor content
 - `gh_token`: GitHub Personal Access Token (if connected)
@@ -228,7 +245,6 @@ MarkHub stores the following in your browser's localStorage for persistence:
 
 Potential features for future versions:
 - [ ] Create new files in repositories
-- [ ] Export to PDF
 - [ ] Collaborative editing
 - [ ] Offline support with service workers
 - [ ] Custom themes

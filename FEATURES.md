@@ -1,6 +1,6 @@
-# MarkHub Features & Roadmap
+# Git Markdown Editor (MarkHub) Features & Roadmap
 
-This document outlines the current feature set of MarkHub and serves as a roadmap for future development.
+This document outlines the current feature set of Git Markdown Editor (MarkHub) and serves as a roadmap for future development.
 
 ## ✅ Current Features
 
