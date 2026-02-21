@@ -2,6 +2,7 @@
 
 A powerful, browser-based Markdown editor with seamless GitHub integration for syncing and managing your documentation directly from your browser.
 
+
 ## Features
 
 ✨ **Rich Markdown Editing**
