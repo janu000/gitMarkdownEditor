@@ -159,14 +159,12 @@ Here is a list of keyboard shortcuts to enhance your editing workflow:
 *   **Bold**: `Ctrl/Cmd + B`
 *   **Italic**: `Ctrl/Cmd + I`
 *   **Strikethrough**: `Ctrl/Cmd + Shift + S`
-*   **Heading 1**: `Ctrl/Cmd + Alt + 1`
-*   **Heading 2**: `Ctrl/Cmd + Alt + 2`
-*   **Heading 3**: `Ctrl/Cmd + Alt + 3`
 *   **Link**: `Ctrl/Cmd + K`
 *   **Image**: `Ctrl/Cmd + Alt + I`
 
 ### Structural Elements
 *   **Unordered List**: `Ctrl/Cmd + Shift + U`
+*   **Numbered List**: `Ctrl/Cmd + Shift + O`
 *   **Task List**: `Ctrl/Cmd + Shift + L`
 *   **Blockquote**: `Ctrl/Cmd + Shift + Q`
 *   **Code Block**: `Ctrl/Cmd + Alt + C`

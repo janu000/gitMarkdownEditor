@@ -50,7 +50,7 @@
         import { createRoot } from 'react-dom/client';
         import { 
           Github, FileText, Folder, Save, Eye, Edit3, Columns, 
-          Bold, Italic, Link as LinkIcon, List, Image as ImageIcon, 
+          Bold, Italic, Link as LinkIcon, List, ListOrdered, Image as ImageIcon, 
           Code, Heading1, Heading2, Quote, LogOut, Plus, ChevronRight,
           AlertCircle, CheckCircle2, Loader2, ArrowLeft, EyeOff, Trash2, RefreshCcw,
           CheckSquare, Strikethrough, Table, Sigma, FileEdit, Sun, Moon, FileUp, Download, HardDrive, GripVertical, Printer
@@ -387,19 +387,125 @@ For issues, feature requests, or questions:
             localStorage.setItem('theme', theme);
           }, [theme]);
 
+          // --- Keyboard Shortcuts ---
+          useEffect(() => {
+            const handleKeyDown = (e) => {
+              const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+              const isCtrlOrCmd = isMac ? e.metaKey : e.ctrlKey;
+
+              // --- File Operations ---
+              // Ctrl/Cmd + S (Save/Commit)
+              if (isCtrlOrCmd && e.key === 's') {
+                e.preventDefault();
+                saveToGitHub();
+              }
+              // Ctrl/Cmd + P (Export to PDF)
+              if (isCtrlOrCmd && e.key === 'p') {
+                e.preventDefault();
+                handleExportPdf();
+              }
+
+              // --- Text Formatting ---
+              // Ctrl/Cmd + B (Bold)
+              if (isCtrlOrCmd && e.key === 'b') {
+                e.preventDefault();
+                insertText('**', '**', 'bold text');
+              }
+              // Ctrl/Cmd + I (Italic)
+              if (isCtrlOrCmd && e.key === 'i') {
+                e.preventDefault();
+                insertText('*', '*', 'italic text');
+              }
+              // Ctrl/Cmd + Shift + S (Strikethrough)
+              if (isCtrlOrCmd && e.shiftKey && e.key === 'S') { // Note: 'S' for Shift + s
+                e.preventDefault();
+                insertText('~~', '~~', 'strikethrough text');
+              }
+
+              // Ctrl/Cmd + K (Link)
+              if (isCtrlOrCmd && e.key === 'k') {
+                e.preventDefault();
+                insertText('[', '](url)', 'link text');
+              }
+              // Ctrl/Cmd + Alt + I (Image)
+              if (isCtrlOrCmd && e.altKey && e.key === 'i') {
+                e.preventDefault();
+                insertText('![alt text](', ')', 'image url');
+              }
+
+              // --- Structural Elements ---
+              // Ctrl/Cmd + Shift + U (Unordered List)
+              if (isCtrlOrCmd && e.shiftKey && e.key === 'U') {
+                e.preventDefault();
+                insertListItem('- ', 'List item');
+              }
+              // Ctrl/Cmd + Shift + O (Numbered List)
+              if (isCtrlOrCmd && e.shiftKey && e.key === 'O') {
+                e.preventDefault();
+                insertNumberedList(1, 'Numbered item');
+              }
+              // Ctrl/Cmd + Shift + L (Task List)
+              if (isCtrlOrCmd && e.shiftKey && e.key === 'L') {
+                e.preventDefault();
+                insertTaskList('- [ ] ', 'Task');
+              }
+              // Ctrl/Cmd + Shift + Q (Blockquote)
+              if (isCtrlOrCmd && e.shiftKey && e.key === 'Q') {
+                e.preventDefault();
+                insertText('> ', '', 'Quote');
+              }
+              // Ctrl/Cmd + Alt + C (Code Block)
+              if (isCtrlOrCmd && e.altKey && e.key === 'c') {
+                e.preventDefault();
+                insertText('```\n', '\n```', 'code block');
+              }
+              // Ctrl/Cmd + Alt + ` (Inline Code) - Note: backtick key can be tricky, check e.key
+              if (isCtrlOrCmd && e.altKey && e.key === '`') { // e.key should be '`' for backtick
+                e.preventDefault();
+                insertText('`', '`', 'inline code');
+              }
+              // Ctrl/Cmd + Alt + T (Table)
+              if (isCtrlOrCmd && e.altKey && e.key === 't') {
+                e.preventDefault();
+                insertText('\n| Header 1 | Header 2 |\n| -------- | -------- |\n| Cell 1   | Cell 2   |\n', '', '');
+              }
+              // Ctrl/Cmd + Alt + M (Math Block)
+              if (isCtrlOrCmd && e.altKey && e.key === 'm') {
+                e.preventDefault();
+                insertText('$$\n', '\n$$', 'E = mc^2');
+              }
+            };
+
+            window.addEventListener('keydown', handleKeyDown);
+
+            return () => {
+              window.removeEventListener('keydown', handleKeyDown);
+            };
+          }, [saveToGitHub, handleExportPdf, insertText, insertListItem, insertNumberedList, insertTaskList]); // Added insertTaskList
+
           const [viewMode, setViewMode] = useState('split'); // 'split', 'edit', 'preview'
           const [parsedHtml, setParsedHtml] = useState('');
           const editorRef = useRef(null);
           const previewRef = useRef(null);
+          const activeFileRef = useRef(null); // Ref to store the latest activeFile
+          const currentRepoRef = useRef(null); // Ref to store the latest currentRepo
 
           // --- GitHub State ---
           const [ghToken, setGhToken] = useState(() => localStorage.getItem('gh_token') || '');
           const [ghUser, setGhUser] = useState(null);
           const [repos, setRepos] = useState([]);
           const [currentRepo, setCurrentRepo] = useState(null);
+
+          useEffect(() => {
+            currentRepoRef.current = currentRepo;
+          }, [currentRepo]);
           const [repoContents, setRepoContents] = useState([]);
           const [pathStack, setPathStack] = useState([]); // Directory navigation stack
           const [activeFile, setActiveFile] = useState(null); // { path, sha, name }
+
+          useEffect(() => {
+            activeFileRef.current = activeFile;
+          }, [activeFile]);
           const [manualRepo, setManualRepo] = useState(''); // For manually entering owner/repo
           const [hiddenRepos, setHiddenRepos] = useState(() => JSON.parse(localStorage.getItem('markhub_hidden_repos') || '[]'));
           
@@ -529,6 +635,128 @@ For issues, feature requests, or questions:
             setTimeout(() => {
               textarea.focus();
               textarea.setSelectionRange(start + before.length, start + before.length + selectedText.length);
+            }, 0);
+          };
+
+          const insertListItem = (prefix, defaultText = '') => {
+            const textarea = editorRef.current;
+            if (!textarea) return;
+
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            let selectedText = textarea.value.substring(start, end);
+            let newContent;
+            let newSelectionStart;
+            let newSelectionEnd;
+
+            if (selectedText.length === 0) {
+                // No selection, insert prefix + defaultText
+                newContent = prefix + defaultText;
+                newSelectionStart = start + prefix.length;
+                newSelectionEnd = newSelectionStart + defaultText.length;
+            } else {
+                // Multi-line selection
+                const lines = selectedText.split('\n');
+                const prefixedLines = lines.map(line => {
+                    // Only add prefix if line is not empty and doesn't already start with the prefix
+                    if (line.trim().length > 0 && !line.trim().startsWith(prefix.trim())) {
+                        return prefix + line;
+                    }
+                    return line;
+                });
+                newContent = prefixedLines.join('\n');
+                newSelectionStart = start;
+                newSelectionEnd = start + newContent.length; // Select the newly formatted text
+            }
+
+            const newValue = textarea.value.substring(0, start) + newContent + textarea.value.substring(end);
+            setContent(newValue);
+
+            setTimeout(() => {
+                textarea.focus();
+                textarea.setSelectionRange(newSelectionStart, newSelectionEnd);
+            }, 0);
+          };
+
+          const insertNumberedList = (startNumber = 1, defaultText = 'Numbered item') => {
+            const textarea = editorRef.current;
+            if (!textarea) return;
+
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            let selectedText = textarea.value.substring(start, end);
+            let newContent;
+            let newSelectionStart;
+            let newSelectionEnd;
+
+            if (selectedText.length === 0) {
+                // No selection, insert first number + defaultText
+                newContent = `${startNumber}. ${defaultText}`;
+                newSelectionStart = start + `${startNumber}. `.length;
+                newSelectionEnd = newSelectionStart + defaultText.length;
+            } else {
+                // Multi-line selection
+                const lines = selectedText.split('\n');
+                let currentNum = startNumber;
+                const prefixedLines = lines.map(line => {
+                    // Only add prefix if line is not empty and doesn't already start with a number. + space
+                    // This regex checks for "1. ", "2. ", etc. at the start of the line.
+                    if (line.trim().length > 0 && !/^\d+\.\s/.test(line.trim())) {
+                        return `${currentNum++}. ${line}`;
+                    }
+                    return line;
+                });
+                newContent = prefixedLines.join('\n');
+                newSelectionStart = start;
+                newSelectionEnd = start + newContent.length; // Select the newly formatted text
+            }
+
+            const newValue = textarea.value.substring(0, start) + newContent + textarea.value.substring(end);
+            setContent(newValue);
+
+            setTimeout(() => {
+                textarea.focus();
+                textarea.setSelectionRange(newSelectionStart, newSelectionEnd);
+            }, 0);
+          };
+
+          const insertTaskList = (prefix, defaultText = '') => {
+            const textarea = editorRef.current;
+            if (!textarea) return;
+
+            const start = textarea.selectionStart;
+            const end = textarea.selectionEnd;
+            let selectedText = textarea.value.substring(start, end);
+            let newContent;
+            let newSelectionStart;
+            let newSelectionEnd;
+
+            if (selectedText.length === 0) {
+                // No selection, insert prefix + defaultText
+                newContent = prefix + defaultText;
+                newSelectionStart = start + prefix.length;
+                newSelectionEnd = newSelectionStart + defaultText.length;
+            } else {
+                // Multi-line selection
+                const lines = selectedText.split('\n');
+                const prefixedLines = lines.map(line => {
+                    // Only add prefix if line is not empty and doesn't already start with the prefix
+                    if (line.trim().length > 0 && !line.trim().startsWith(prefix.trim())) {
+                        return prefix + line;
+                    }
+                    return line;
+                });
+                newContent = prefixedLines.join('\n');
+                newSelectionStart = start;
+                newSelectionEnd = start + newContent.length; // Select the newly formatted text
+            }
+
+            const newValue = textarea.value.substring(0, start) + newContent + textarea.value.substring(end);
+            setContent(newValue);
+
+            setTimeout(() => {
+                textarea.focus();
+                textarea.setSelectionRange(newSelectionStart, newSelectionEnd);
             }, 0);
           };
 
@@ -701,11 +929,17 @@ For issues, feature requests, or questions:
           };
 
           const saveToGitHub = async () => {
-            if (!activeFile) return;
+            // Use refs to get the latest state values
+            const currentActiveFile = activeFileRef.current;
+            const repoContext = currentRepoRef.current; // Use the ref for currentRepo
+
+            if (!currentActiveFile) {
+              return;
+            }
             
-            if (!currentRepo) {
+            if (!repoContext) { // Use the ref for currentRepo here
               // Local Mode Save (Auto-Save to LocalStorage)
-              const updated = localWorkspaceFiles.map(f => f.path === activeFile.path ? { ...f, content: content } : f);
+              const updated = localWorkspaceFiles.map(f => f.path === currentActiveFile.path ? { ...f, content: content } : f);
               setLocalWorkspaceFiles(updated);
               showToast('Saved locally');
               return;
@@ -715,12 +949,12 @@ For issues, feature requests, or questions:
             setLoadingState('saving');
             try {
               const body = {
-                message: `Update ${activeFile.name} via MarkHub`,
+                message: `Update ${currentActiveFile.name} via MarkHub`,
                 content: utf8_to_b64(content),
-                sha: activeFile.sha
+                sha: currentActiveFile.sha
               };
-              const data = await apiRequest(`/repos/${currentRepo}/contents/${activeFile.path}`, 'PUT', body);
-              setActiveFile({ ...activeFile, sha: data.content.sha });
+              const data = await apiRequest(`/repos/${repoContext}/contents/${currentActiveFile.path}`, 'PUT', body); // Use repoContext
+              setActiveFile({ ...currentActiveFile, sha: data.content.sha });
               showToast('Successfully committed to GitHub!');
             } catch (err) {
               showToast('Failed to save to GitHub', 'error');
@@ -1573,8 +1807,9 @@ For issues, feature requests, or questions:
                     <ToolButton icon={<Heading1 className="w-4 h-4" />} onClick={() => insertText('# ', '', 'Heading 1')} title="Heading 1" />
                     <ToolButton icon={<Heading2 className="w-4 h-4" />} onClick={() => insertText('## ', '', 'Heading 2')} title="Heading 2" />
                     <div className="w-px h-5 bg-gray-300 dark:bg-gray-700 mx-1"></div>
-                    <ToolButton icon={<List className="w-4 h-4" />} onClick={() => insertText('- ', '', 'List item')} title="Bullet List" />
-                    <ToolButton icon={<CheckSquare className="w-4 h-4" />} onClick={() => insertText('- [ ] ', '', 'Task')} title="Task List" />
+                    <ToolButton icon={<List className="w-4 h-4" />} onClick={() => insertListItem('- ', 'List item')} title="Bullet List" />
+                    <ToolButton icon={<ListOrdered className="w-4 h-4" />} onClick={() => insertNumberedList(1, 'Numbered item')} title="Numbered List" />
+                    <ToolButton icon={<CheckSquare className="w-4 h-4" />} onClick={() => insertTaskList('- [ ] ', 'Task')} title="Task List" />
                     <ToolButton icon={<Quote className="w-4 h-4" />} onClick={() => insertText('> ', '', 'Quote')} title="Blockquote" />
                     <div className="w-px h-5 bg-gray-300 dark:bg-gray-700 mx-1"></div>
                     <ToolButton icon={<LinkIcon className="w-4 h-4" />} onClick={() => insertText('[', '](url)', 'link text')} title="Link" />
