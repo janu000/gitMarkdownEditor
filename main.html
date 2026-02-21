@@ -836,6 +836,20 @@
             }
           };
 
+          const handleDownload = () => {
+            const fileName = activeFile?.name || localFileName || 'untitled.md';
+            const blob = new Blob([content], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            showToast(`Downloaded ${fileName}`);
+          };
+
           const handleLogout = () => {
             setGhToken('');
             setGhUser(null);
@@ -1278,6 +1292,16 @@
                         <Eye className="w-4 h-4" />
                       </button>
                     </div>
+
+
+
+                    <button
+                      onClick={handleDownload}
+                      className="p-1.5 text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-800 rounded transition-colors mr-2"
+                      title="Download File"
+                    >
+                      <Download className="w-5 h-5" />
+                    </button>
 
                     <button 
                       onClick={saveToGitHub}
