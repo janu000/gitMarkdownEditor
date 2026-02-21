@@ -149,9 +149,37 @@ $$E = mc^2$$
 
 ## Keyboard Shortcuts
 
-- **Enter** in token/repo inputs: Submit
-- **Ctrl+S** (where supported): Save functionality
-- Standard text editor shortcuts for selection and navigation
+Here is a list of keyboard shortcuts to enhance your editing workflow:
+
+### File Operations
+*   **Save/Commit**: `Ctrl/Cmd + S`
+*   **Export to PDF**: `Ctrl/Cmd + P`
+
+### Text Formatting
+*   **Bold**: `Ctrl/Cmd + B`
+*   **Italic**: `Ctrl/Cmd + I`
+*   **Strikethrough**: `Ctrl/Cmd + Shift + S`
+*   **Heading 1**: `Ctrl/Cmd + Alt + 1`
+*   **Heading 2**: `Ctrl/Cmd + Alt + 2`
+*   **Heading 3**: `Ctrl/Cmd + Alt + 3`
+*   **Link**: `Ctrl/Cmd + K`
+*   **Image**: `Ctrl/Cmd + Alt + I`
+
+### Structural Elements
+*   **Unordered List**: `Ctrl/Cmd + Shift + U`
+*   **Task List**: `Ctrl/Cmd + Shift + L`
+*   **Blockquote**: `Ctrl/Cmd + Shift + Q`
+*   **Code Block**: `Ctrl/Cmd + Alt + C`
+*   **Inline Code**: `Ctrl/Cmd + Alt + \``
+*   **Table**: `Ctrl/Cmd + Alt + T`
+*   **Math Block**: `Ctrl/Cmd + Alt + M`
+
+### View and UI
+*   **Toggle Sidebar**: `Ctrl/Cmd + Alt + O`
+*   **Toggle Theme (Light/Dark)**: `Ctrl/Cmd + Alt + D`
+*   **Toggle Editor Only View**: `Ctrl/Cmd + Shift + 1`
+*   **Toggle Split View**: `Ctrl/Cmd + Shift + 2`
+*   **Toggle Preview Only View**: `Ctrl/Cmd + Shift + 3`
 
 ## Project Structure
 

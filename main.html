@@ -53,7 +53,7 @@
           Bold, Italic, Link as LinkIcon, List, Image as ImageIcon, 
           Code, Heading1, Heading2, Quote, LogOut, Plus, ChevronRight,
           AlertCircle, CheckCircle2, Loader2, ArrowLeft, EyeOff, Trash2, RefreshCcw,
-          CheckSquare, Strikethrough, Table, Sigma, FileEdit, Sun, Moon, FileUp, Download, HardDrive, GripVertical
+          CheckSquare, Strikethrough, Table, Sigma, FileEdit, Sun, Moon, FileUp, Download, HardDrive, GripVertical, Printer
         } from 'lucide-react';
 
         // --- Utility: Base64 Encoding with Unicode Support ---
@@ -1088,6 +1088,10 @@ For issues, feature requests, or questions:
             showToast(`Downloaded ${fileName}`);
           };
 
+          const handleExportPdf = () => {
+            window.print();
+          };
+
           const handleLogout = () => {
             setGhToken('');
             setGhUser(null);
@@ -1149,9 +1153,7 @@ For issues, feature requests, or questions:
               )}
 
               {/* Sidebar */}
-              <div 
-                className={`flex-shrink-0 bg-gray-50 dark:bg-[#161b22] border-r border-gray-200 dark:border-gray-800 flex flex-col transition-none overflow-hidden relative`}
-                style={{ width: isSidebarOpen ? sidebarWidth : 0 }}
+              <div id="main-sidebar" className="flex-shrink-0 bg-gray-50 dark:bg-[#161b22] border-r border-gray-200 dark:border-gray-800 flex flex-col transition-none overflow-hidden relative"                style={{ width: isSidebarOpen ? sidebarWidth : 0 }}
               >
                 {/* Sidebar Header */}
                 <div className="h-14 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-800 shrink-0">
@@ -1450,9 +1452,7 @@ For issues, feature requests, or questions:
 
               {/* Sidebar Resizer */}
               {isSidebarOpen && (
-                <div
-                  className="w-1 cursor-col-resize hover:bg-indigo-500/50 active:bg-indigo-500 transition-colors z-10 flex items-center justify-center group"
-                  onMouseDown={() => {
+                <div id="sidebar-resizer" className="w-1 cursor-col-resize hover:bg-indigo-500/50 active:bg-indigo-500 transition-colors z-10 flex items-center justify-center group"                  onMouseDown={() => {
                     setIsResizingSidebar(true);
                     document.body.style.cursor = 'col-resize';
                   }}
@@ -1465,7 +1465,7 @@ For issues, feature requests, or questions:
               <div className="flex-1 flex flex-col min-w-0">
                 
                 {/* Top Toolbar */}
-                <div className="h-14 bg-gray-50 dark:bg-[#161b22] border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-4 shrink-0">
+                <div id="top-toolbar" className="h-14 bg-gray-50 dark:bg-[#161b22] border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-4 shrink-0">
                   
                   <div className="flex items-center space-x-2">
                     <button 
@@ -1541,6 +1541,14 @@ For issues, feature requests, or questions:
                       <Download className="w-5 h-5" />
                     </button>
 
+                    <button
+                      onClick={handleExportPdf}
+                      className="p-1.5 text-gray-500 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-800 rounded transition-colors mr-2"
+                      title="Export to PDF"
+                    >
+                      <Printer className="w-5 h-5" />
+                    </button>
+
                     <button 
                       onClick={saveToGitHub}
                       disabled={!activeFile || loadingState === 'saving'}
@@ -1558,7 +1566,7 @@ For issues, feature requests, or questions:
 
                 {/* Formatting Toolbar */}
                 {viewMode !== 'preview' && (
-                  <div className="h-10 bg-gray-50 dark:bg-[#0d1117] border-b border-gray-200 dark:border-gray-800 flex items-center px-4 space-x-1 overflow-x-auto shrink-0 custom-scrollbar">
+                  <div id="formatting-toolbar" className="h-10 bg-gray-50 dark:bg-[#0d1117] border-b border-gray-200 dark:border-gray-800 flex items-center px-4 space-x-1 overflow-x-auto shrink-0 custom-scrollbar">
                     <ToolButton icon={<Bold className="w-4 h-4" />} onClick={() => insertText('**', '**', 'bold text')} title="Bold" />
                     <ToolButton icon={<Italic className="w-4 h-4" />} onClick={() => insertText('*', '*', 'italic text')} title="Italic" />
                     <div className="w-px h-5 bg-gray-300 dark:bg-gray-700 mx-1"></div>
@@ -1584,6 +1592,7 @@ For issues, feature requests, or questions:
                   {/* Editor Pane */}
                   {(viewMode === 'edit' || viewMode === 'split') && (
                     <div 
+                      id="editor-container"
                       className={`h-full flex flex-col bg-white dark:bg-[#0d1117] ${viewMode === 'split' ? '' : 'flex-1'}`}
                       style={viewMode === 'split' ? { width: `${splitRatio * 100}%` } : {}}
                     >
@@ -1602,6 +1611,7 @@ For issues, feature requests, or questions:
                   {/* Split Resizer */}
                   {viewMode === 'split' && (
                     <div
+                      id="split-resizer"
                       className="w-1 cursor-col-resize bg-gray-200 dark:bg-gray-800 hover:bg-indigo-500/50 active:bg-indigo-500 transition-colors z-10 flex items-center justify-center group"
                       onMouseDown={() => {
                         setIsResizingSplit(true);
@@ -1615,6 +1625,7 @@ For issues, feature requests, or questions:
                   {/* Preview Pane */}
                   {(viewMode === 'preview' || viewMode === 'split') && (
                     <div 
+                      id="preview-container"
                       ref={previewRef}
                       onScroll={handleScroll}
                       className={`h-full bg-white dark:bg-[#0d1117] overflow-y-auto p-8 custom-scrollbar relative ${viewMode === 'split' ? '' : 'flex-1'}`}
@@ -1682,6 +1693,108 @@ For issues, feature requests, or questions:
                 .dark .markdown-body input[type="checkbox"] { accent-color: #6366f1; }
 
                 .katex-display { overflow-x: auto; padding: 0.5rem 0; }
+                /* Start Print Styles */
+                @media print {
+                  @page {
+                    size: a4 portrait;
+                    margin: 20mm;
+                  }
+
+                  /* Hide sidebar, toolbars, editor, and resizers */
+                  #main-sidebar,
+                  #sidebar-resizer,
+                  #top-toolbar,
+                  #formatting-toolbar,
+                  #editor-container,
+                  #split-resizer {
+                    display: none !important;
+                  }
+
+                  /* Make main content area fill the screen */
+                  body, html, #root, .flex.h-screen.w-full {
+                    height: auto !important;
+                    overflow: visible !important;
+                    background: white !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                  }
+                  
+                  /* The main container for editor/preview. Ensure it takes full width */
+                  .flex-1.flex.flex-col.min-w-0 {
+                    flex: 1 1 100% !important;
+                    max-width: 100% !important;
+                    min-width: unset !important;
+                    width: 100% !important;
+                  }
+
+                  /* Container for editor & preview. Ensure it takes full width and height */
+                  .flex-1.flex.overflow-hidden.relative {
+                    flex: 1 1 100% !important;
+                    max-width: 100% !important;
+                    overflow: visible !important; /* Allow content to flow */
+                  }
+
+                  /* The actual preview pane */
+                  #preview-container {
+                    width: 100% !important;
+                    max-width: none !important;
+                    padding: 0 !important;
+                    margin: 0 !important;
+                    background: white !important; /* Ensure white background for print */
+                    overflow: visible !important;
+                    flex: 1 1 100% !important;
+                    height: auto !important;
+                  }
+
+                  /* Remove any box shadow and margin/padding from the inner content wrapper */
+                  .max-w-3xl.mx-auto.w-full {
+                    box-shadow: none !important;
+                    padding: 0 !important;
+                    margin: 0 auto !important; /* Keep it centered but remove extra margins */
+                    max-width: 100% !important; /* Allow it to expand */
+                    min-height: 0 !important;
+                  }
+
+                  /* Core Anti-Slicing Rules */
+                  .markdown-body pre,
+                  .markdown-body blockquote,
+                  .markdown-body img,
+                  .markdown-body table,
+                  .markdown-body tr,
+                  .markdown-body h1,
+                  .markdown-body h2,
+                  .markdown-body h3 {
+                    page-break-inside: avoid !important;
+                    break-inside: avoid !important;
+                  }
+
+                  /* Specific adjustments for KaTeX */
+                  .katex-display-wrapper {
+                    page-break-inside: avoid !important;
+                    break-inside: avoid !important;
+                  }
+
+                  /* Ensure dark mode styles are ignored for print, force light */
+                  .dark .markdown-body {
+                    color: #1f2937 !important; /* Force light mode text color */
+                  }
+                  .dark .markdown-body h1 { color: #111827 !important; }
+                  .dark .markdown-body h2 { border-bottom: 1px solid #e5e7eb !important; color: #111827 !important; }
+                  .dark .markdown-body h3 { color: #374151 !important; }
+                  .dark .markdown-body p { color: #4b5563 !important; }
+                  .dark .markdown-body a { color: #4f46e5 !important; }
+                  .dark .markdown-body a:hover { color: #6366f1 !important; }
+                  .dark .markdown-body blockquote { border-left-color: #4f46e5 !important; color: #6b7280 !important; background: #f9fafb !important; }
+                  .dark .markdown-body pre { background-color: #f3f4f6 !important; border-color: #e5e7eb !important; }
+                  .dark .markdown-body pre code { color: #1f2937 !important; }
+                  .dark .markdown-body code { background-color: #f3f4f6 !important; color: #db2777 !important; }
+                  .dark .markdown-body thead { background-color: #f9fafb !important; }
+                  .dark .markdown-body th, .dark .markdown-body td { border-color: #e5e7eb !important; }
+                  .dark .markdown-body tr:nth-child(even) { background-color: #f9fafb !important; }
+                  .dark .markdown-body del { color: #9ca3af !important; }
+                  .dark .markdown-body input[type="checkbox"] { accent-color: #4f46e5 !important; }
+                }
+                /* End Print Styles */
               `}} />
             </div>
           );
@@ -1705,3 +1818,105 @@ For issues, feature requests, or questions:
     </script>
 </body>
 </html>
+<style dangerouslySetInnerHTML={{__html: `
+    @media print {
+      @page {
+        size: a4 portrait;
+        margin: 20mm;
+      }
+
+      /* Hide sidebar, toolbars, editor, and resizers */
+      #main-sidebar,
+      #sidebar-resizer,
+      #top-toolbar,
+      #formatting-toolbar,
+      #editor-container,
+      #split-resizer {
+        display: none !important;
+      }
+
+      /* Make main content area fill the screen */
+      body, html, #root, .flex.h-screen.w-full {
+        height: auto !important;
+        overflow: visible !important;
+        background: white !important;
+        margin: 0 !important;
+        padding: 0 !important;
+      }
+      
+      /* The main container for editor/preview. Ensure it takes full width */
+      .flex-1.flex.flex-col.min-w-0 {
+        flex: 1 1 100% !important;
+        max-width: 100% !important;
+        min-width: unset !important;
+        width: 100% !important;
+      }
+
+      /* Container for editor & preview. Ensure it takes full width and height */
+      .flex-1.flex.overflow-hidden.relative {
+        flex: 1 1 100% !important;
+        max-width: 100% !important;
+        overflow: visible !important; /* Allow content to flow */
+      }
+
+      /* The actual preview pane */
+      #preview-container {
+        width: 100% !important;
+        max-width: none !important;
+        padding: 0 !important;
+        margin: 0 !important;
+        background: white !important; /* Ensure white background for print */
+        overflow: visible !important;
+        flex: 1 1 100% !important;
+        height: auto !important;
+      }
+
+      /* Remove any box shadow and margin/padding from the inner content wrapper */
+      .max-w-3xl.mx-auto.w-full {
+        box-shadow: none !important;
+        padding: 0 !important;
+        margin: 0 auto !important; /* Keep it centered but remove extra margins */
+        max-width: 100% !important; /* Allow it to expand */
+        min-height: 0 !important;
+      }
+
+      /* Core Anti-Slicing Rules */
+      .markdown-body pre,
+      .markdown-body blockquote,
+      .markdown-body img,
+      .markdown-body table,
+      .markdown-body tr,
+      .markdown-body h1,
+      .markdown-body h2,
+      .markdown-body h3 {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+
+      /* Specific adjustments for KaTeX */
+      .katex-display-wrapper {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+
+      /* Ensure dark mode styles are ignored for print, force light */
+      .dark .markdown-body {
+        color: #1f2937 !important; /* Force light mode text color */
+      }
+      .dark .markdown-body h1 { color: #111827 !important; }
+      .dark .markdown-body h2 { border-bottom: 1px solid #e5e7eb !important; color: #111827 !important; }
+      .dark .markdown-body h3 { color: #374151 !important; }
+      .dark .markdown-body p { color: #4b5563 !important; }
+      .dark .markdown-body a { color: #4f46e5 !important; }
+      .dark .markdown-body a:hover { color: #6366f1 !important; }
+      .dark .markdown-body blockquote { border-left-color: #4f46e5 !important; color: #6b7280 !important; background: #f9fafb !important; }
+      .dark .markdown-body pre { background-color: #f3f4f6 !important; border-color: #e5e7eb !important; }
+      .dark .markdown-body pre code { color: #1f2937 !important; }
+      .dark .markdown-body code { background-color: #f3f4f6 !important; color: #db2777 !important; }
+      .dark .markdown-body thead { background-color: #f9fafb !important; }
+      .dark .markdown-body th, .dark .markdown-body td { border-color: #e5e7eb !important; }
+      .dark .markdown-body tr:nth-child(even) { background-color: #f9fafb !important; }
+      .dark .markdown-body del { color: #9ca3af !important; }
+      .dark .markdown-body input[type="checkbox"] { accent-color: #4f46e5 !important; }
+    }
+  `}} />
