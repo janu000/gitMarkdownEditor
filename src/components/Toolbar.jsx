@@ -20,7 +20,8 @@ const Toolbar = ({
   handleExportPdf,
   saveToGitHub,
   loadingState,
-  shortcuts
+  shortcuts,
+  isUnified
 }) => {
   const isModified = content !== localStorage.getItem('gme_draft');
 
@@ -44,6 +45,17 @@ const Toolbar = ({
             </>
           ) : (
             <span className="text-gray-500 italic">Local Draft (Unsynced)</span>
+          )}
+          {isUnified && (
+            <span className="ml-3 px-1.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 text-[10px] font-bold uppercase tracking-wider border border-indigo-500/20" title="AST-Level Sync Active">
+              Sync
+            </span>
+          )}
+          {loadingState && (
+            <span className="ml-3 flex items-center gap-1 text-[11px] text-gray-500 animate-pulse">
+              <Loader2 className="w-3 h-3 animate-spin" />
+              {loadingState === 'fetching' ? 'Syncing...' : 'Saving...'}
+            </span>
           )}
         </div>
       </div>

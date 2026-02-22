@@ -5,7 +5,8 @@ const Preview = ({
   splitRatio, 
   previewRef, 
   handleScroll, 
-  parsedHtml 
+  parsedHtml,
+  onClick
 }) => {
   if (viewMode === 'edit') return null;
 
@@ -14,6 +15,7 @@ const Preview = ({
       id="preview-container" 
       ref={previewRef} 
       onScroll={handleScroll} 
+      onClick={onClick}
       className={`h-full bg-white dark:bg-[#0d1117] overflow-y-auto p-8 custom-scrollbar relative ${viewMode === 'split' ? '' : 'flex-1'}`} 
       style={viewMode === 'split' ? { width: `${(1 - splitRatio) * 100}%` } : {}}
     >

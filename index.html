@@ -7,9 +7,24 @@
       CSP Note: 'unsafe-eval' is included to support dynamic script loading and 
       runtime optimizations that may be required by certain environments or dependencies.
     -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com; img-src 'self' data: https://avatars.githubusercontent.com https://raw.githubusercontent.com https://*.githubusercontent.com; connect-src 'self' https://api.github.com https://*.github.com;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net https://unpkg.com; style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; font-src 'self' https://cdn.jsdelivr.net https://fonts.gstatic.com; img-src 'self' data: https://avatars.githubusercontent.com https://raw.githubusercontent.com https://*.githubusercontent.com; connect-src 'self' https://api.github.com https://*.github.com https://cdn.jsdelivr.net;">
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Git Markdown Editor</title>
+    <style>
+      .cursor-sync-target {
+        transition: background-color 0.15s ease-out, box-shadow 0.15s ease-out;
+        border-radius: 3px;
+      }
+      .cursor-sync-target:hover {
+        background-color: rgba(79, 70, 229, 0.08);
+        box-shadow: 0 0 0 2px rgba(79, 70, 229, 0.1);
+        cursor: pointer;
+      }
+      .dark .cursor-sync-target:hover {
+        background-color: rgba(129, 140, 248, 0.12);
+        box-shadow: 0 0 0 2px rgba(129, 140, 248, 0.15);
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

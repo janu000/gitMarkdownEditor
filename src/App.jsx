@@ -61,6 +61,7 @@ export default function App() {
   // --- View Mode & HTML Parsing ---
   const [viewMode, setViewMode] = useState('split');
   const [parsedHtml, setParsedHtml] = useState('');
+  const [processor, setProcessor] = useState(null);
   const editorRef = useRef(null);
   const previewRef = useRef(null);
   
@@ -175,39 +176,107 @@ export default function App() {
     });
 
     const initParser = async () => {
-      await loadScript("https://cdn.jsdelivr.net/npm/marked/marked.min.js");
+      // Load legacy KaTeX script as fallback
       await loadScript("https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js");
       
-      if (window.marked && window.katex) {
-        const blockMath = {
-          name: 'blockMath', level: 'block',
-          start(src) { return src.indexOf('$$'); },
-          tokenizer(src) {
-            const match = /^\$\$([\s\S]+?)\$\$/.exec(src);
-            if (match) return { type: 'blockMath', raw: match[0], text: match[1] };
-          },
-          renderer(token) {
-            return `<div class="katex-display-wrapper py-2">${window.katex.renderToString(token.text, { throwOnError: false, displayMode: true })}</div>`;
-          }
+      try {
+        setLoadingState('Loading parser...');
+        const [
+          { unified },
+          { default: remarkParse },
+          { default: remarkGfm },
+          { default: remarkMath },
+          { default: remarkRehype },
+          { default: rehypeKatex },
+          { default: rehypeStringify },
+          { default: remarkEmoji }
+        ] = await Promise.all([
+          import('https://cdn.jsdelivr.net/npm/unified@11/+esm'),
+          import('https://cdn.jsdelivr.net/npm/remark-parse@11/+esm'),
+          import('https://cdn.jsdelivr.net/npm/remark-gfm@4/+esm'),
+          import('https://cdn.jsdelivr.net/npm/remark-math@6/+esm'),
+          import('https://cdn.jsdelivr.net/npm/remark-rehype@11/+esm'),
+          import('https://cdn.jsdelivr.net/npm/rehype-katex@7/+esm'),
+          import('https://cdn.jsdelivr.net/npm/rehype-stringify@10/+esm'),
+          import('https://cdn.jsdelivr.net/npm/remark-emoji@4/+esm')
+        ]);
+
+        const remarkOffsetPlugin = () => (tree) => {
+          const walk = (node) => {
+            if (node.position) {
+              node.data = node.data || {};
+              node.data.hProperties = node.data.hProperties || {};
+              node.data.hProperties['data-offset-start'] = String(node.position.start.offset);
+              node.data.hProperties['data-offset-end'] = String(node.position.end.offset);
+              
+              // Apply hover-able class to meaningful content nodes
+              const syncableTypes = ['text', 'strong', 'emphasis', 'inlineCode', 'link', 'image', 'heading', 'paragraph', 'listItem', 'blockquote', 'code', 'tableCell'];
+              if (syncableTypes.includes(node.type)) {
+                node.data.hProperties.className = [...(node.data.hProperties.className || []), 'cursor-sync-target'];
+              }
+            }
+            if (node.children) node.children.forEach(walk);
+          };
+          walk(tree);
         };
 
-        const inlineMath = {
-          name: 'inlineMath', level: 'inline',
-          start(src) { return src.indexOf('$'); },
-          tokenizer(src) {
-            const match = /^\$([^\s$][^$\n]*?[^\s$]|[^\s$])\$/.exec(src);
-            if (match) return { type: 'inlineMath', raw: match[0], text: match[1] };
-          },
-          renderer(token) {
-            return window.katex.renderToString(token.text, { throwOnError: false, displayMode: false });
-          }
-        };
+        const proc = unified()
+          .use(remarkParse)
+          .use(remarkGfm)
+          .use(remarkMath)
+          .use(remarkEmoji)
+          .use(remarkOffsetPlugin)
+          .use(remarkRehype, { allowDangerousHtml: true })
+          .use(rehypeKatex)
+          .use(rehypeStringify, { allowDangerousHtml: true });
 
-        window.marked.use({ extensions: [blockMath, inlineMath] });
-        window.marked.setOptions({ gfm: true, breaks: true });
+        setProcessor(() => proc);
+        setLoadingState('');
         
-        // Trigger initial parse update once loaded
-        setContent(c => { updatePreview(c); return c; });
+        // Use a slight delay to ensure state has propagated
+        setTimeout(() => {
+          setContent(c => { updatePreview(c, proc); return c; });
+        }, 100);
+      } catch (err) {
+        console.error("Unified load failed, falling back to Marked.js", err);
+        setLoadingState('Sync limited (Marked.js)');
+        // Brief toast for diagnostics if sync is critical
+        showToast("AST Parser unavailable (network/CSP), falling back to scrolling only.", "info");
+        
+        await loadScript("https://cdn.jsdelivr.net/npm/marked/marked.min.js");
+        
+        if (window.marked && window.katex) {
+          const blockMath = {
+            name: 'blockMath', level: 'block',
+            start(src) { return src.indexOf('$$'); },
+            tokenizer(src) {
+              const match = /^\$\$([\s\S]+?)\$\$/.exec(src);
+              if (match) return { type: 'blockMath', raw: match[0], text: match[1] };
+            },
+            renderer(token) {
+              return `<div class="katex-display-wrapper py-2">${window.katex.renderToString(token.text, { throwOnError: false, displayMode: true })}</div>`;
+            }
+          };
+
+          const inlineMath = {
+            name: 'inlineMath', level: 'inline',
+            start(src) { return src.indexOf('$'); },
+            tokenizer(src) {
+              const match = /^\$([^\s$][^$\n]*?[^\s$]|[^\s$])\$/.exec(src);
+              if (match) return { type: 'inlineMath', raw: match[0], text: match[1] };
+            },
+            renderer(token) {
+              return window.katex.renderToString(token.text, { throwOnError: false, displayMode: false });
+            }
+          };
+
+          window.marked.use({ extensions: [blockMath, inlineMath] });
+          window.marked.setOptions({ gfm: true, breaks: true });
+          
+          // Trigger initial parse update once loaded
+          setContent(c => { updatePreview(c); return c; });
+        }
+        setLoadingState('');
       }
     };
 
@@ -234,14 +303,25 @@ export default function App() {
     setTocHeadings(headings);
   }, []);
 
-  const updatePreview = useCallback((md) => {
+  const updatePreview = useCallback(async (md, procOverride = null) => {
+    const proc = procOverride || processor;
+    if (proc) {
+      try {
+        const result = await proc.process(md);
+        setParsedHtml(String(result));
+        return;
+      } catch (e) {
+        console.error("Unified process failed", e);
+      }
+    }
+
     const processedMd = parseEmojis(md);
     if (window.marked && window.katex) {
       setParsedHtml(window.marked.parse(processedMd));
     } else {
       setParsedHtml(fallbackParse(processedMd));
     }
-  }, []);
+  }, [processor]);
 
   useEffect(() => {
     localStorage.setItem('gme_draft', content);
@@ -858,6 +938,47 @@ export default function App() {
     textarea.scrollTop = line * lineHeight - (textarea.clientHeight / 2);
   }, [content]);
 
+  const jumpToOffset = useCallback((start, end) => {
+    const textarea = editorRef.current;
+    if (!textarea) return;
+
+    textarea.focus();
+    
+    // Just set the selection without any scrolling
+    requestAnimationFrame(() => {
+      textarea.setSelectionRange(start, end);
+    });
+  }, []);
+
+  const handlePreviewClick = useCallback((e) => {
+    let target = e.target;
+    // Walk up the DOM to find the nearest element with offset data
+    while (target && target !== e.currentTarget) {
+      const start = target.getAttribute('data-offset-start');
+      const end = target.getAttribute('data-offset-end');
+      
+      if (start !== null && end !== null) {
+        // We found a node with offset data. 
+        // Prevent default browser behavior (like link navigation)
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const s = parseInt(start, 10);
+        const e_offset = parseInt(end, 10);
+        
+        if (!isNaN(s) && !isNaN(e_offset)) {
+          jumpToOffset(s, e_offset);
+        }
+        return;
+      }
+      target = target.parentElement;
+    }
+  }, [jumpToOffset]);
+
+  const syncPreviewToEditor = useCallback(() => {
+    // We no longer highlight or scroll the preview on editor cursor movement
+  }, []);
+
   const importLocalFile = async () => {
     if (!('showOpenFilePicker' in window)) {
       showToast('Browser not supported for direct file access.', 'error');
@@ -991,6 +1112,7 @@ export default function App() {
           saveToGitHub={saveToGitHub}
           loadingState={loadingState}
           shortcuts={shortcuts}
+          isUnified={!!processor}
         />
 
         <FormattingToolbar 
@@ -1013,6 +1135,9 @@ export default function App() {
             content={content}
             setContent={setContent}
             handleScroll={handleScroll}
+            onKeyUp={syncPreviewToEditor}
+            onSelect={syncPreviewToEditor}
+            onClick={syncPreviewToEditor}
           />
 
           {viewMode === 'split' && (
@@ -1031,6 +1156,7 @@ export default function App() {
             previewRef={previewRef}
             handleScroll={handleScroll}
             parsedHtml={parsedHtml}
+            onClick={handlePreviewClick}
           />
         </div>
       </div>

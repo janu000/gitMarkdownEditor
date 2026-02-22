@@ -5,6 +5,12 @@ This document tracks the technical implementation status of Git Markdown Editor 
 ## 🟢 Core Editor Engine
 - [x] **Live Markdown Parsing**: Integrated `Marked.js` for GFM support.
 - [x] **Synchronized Scrolling**: High-precision scroll syncing between Editor (`textarea`) and Preview (`div`).
+- [x] **Token-Level Cursor Syncing**:
+    - [x] **AST Parsing**: Migrated to `unified`, `remark`, and `rehype` for exact character offset tracking.
+    - [x] **HTML Injection**: Custom rehype plugin injecting `data-offset-start` and `data-offset-end` attributes.
+    - [x] **Bi-directional Sync**: 
+        - [x] Preview -> Editor: Clicking elements in preview jumps editor to exact offset.
+        - [x] Editor -> Preview: Editor cursor movement highlights and scrolls to corresponding element in preview.
 - [x] **View Modes**:
     - [x] `edit`: Full-screen editor.
     - [x] `split`: 50/50 or custom ratio split.

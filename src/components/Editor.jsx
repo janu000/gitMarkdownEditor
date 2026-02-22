@@ -6,7 +6,10 @@ const Editor = ({
   editorRef, 
   content, 
   setContent, 
-  handleScroll 
+  handleScroll,
+  onKeyUp,
+  onSelect,
+  onClick
 }) => {
   if (viewMode === 'preview') return null;
 
@@ -21,6 +24,9 @@ const Editor = ({
         value={content}
         onChange={(e) => setContent(e.target.value)}
         onScroll={handleScroll}
+        onKeyUp={onKeyUp}
+        onSelect={onSelect}
+        onClick={onClick}
         className="flex-1 w-full bg-transparent text-gray-900 dark:text-gray-300 font-mono text-sm leading-relaxed p-6 resize-none focus:outline-none custom-scrollbar"
         placeholder="Start typing your markdown here..."
         spellCheck="false"
