@@ -378,7 +378,7 @@ export default function App() {
     setLoadingState('');
   }, [apiRequest, showToast, setRepos]);
 
-  const verifyGitHubToken = useCallback(async (token) => {
+  const verifyGitHubToken = useCallback(async (token, silent = false) => {
     setLoadingState('verifying');
     try {
       const user = await fetch('https://api.github.com/user', {
@@ -392,14 +392,21 @@ export default function App() {
       setGhUser(user);
       setShowAuthModal(false);
       fetchRepos(token);
-      showToast('Connected to GitHub');
+      if (!silent) showToast('Connected to GitHub');
     } catch (_error) {
       localStorage.removeItem('gh_token');
       setGhToken('');
-      showToast('Invalid GitHub Token', 'error');
+      if (!silent) showToast('Invalid GitHub Token', 'error');
     }
     setLoadingState('');
   }, [fetchRepos, setGhToken, setGhUser, setShowAuthModal, showToast]);
+
+  useEffect(() => {
+    const savedToken = localStorage.getItem('gh_token');
+    if (savedToken) {
+      verifyGitHubToken(savedToken, true);
+    }
+  }, [verifyGitHubToken]);
 
   const fetchRepoContents = async (repoFullName, path = '') => {
     setLoadingState('fetching');

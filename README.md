@@ -6,50 +6,51 @@ A powerful, browser-based Markdown editor built with React and Vite, offering se
 ## Features
 
 ✨ **Rich Markdown Editing**
-- Live WYSIWYG preview with synchronized scrolling
-- GitHub Flavored Markdown (GFM) support
-- Real-time preview with multiple view modes
+- **Live WYSIWYG Preview**: Real-time rendering with synchronized scrolling between the editor and preview panes.
+- **GFM Support**: Full support for GitHub Flavored Markdown (via Marked.js).
+- **Multiple View Modes**: 
+  - **Split View**: Side-by-side editor and live preview.
+  - **Edit Mode**: Focused, full-width Markdown editor.
+  - **Preview Mode**: Clean, full-width rendered view.
+- **Dynamic Syntax Highlighting**: Inlined and block code formatting with themed backgrounds.
 
 📐 **Advanced Math Support**
-- KaTeX-powered inline and block mathematical formulas
-- Syntax: `$inline formula$` and `$$block formula$$`
-- Seamless rendering alongside standard Markdown
+- **KaTeX Integration**: High-performance LaTeX math rendering for both inline and block formulas.
+- **Syntax**: Use `$inline formula$` for inline math and `$$block formula$$` for standalone math blocks.
+- **CDN Loading**: Dynamically loads KaTeX resources only when needed.
 
 🔗 **GitHub Integration**
-- Direct synchronization with your GitHub repositories
-- Browse and edit files from any of your repos
-- Commit changes directly back to GitHub
-- Support for subdirectories and nested file browsing
-- Manual repository entry for non-owned repos
+- **Direct Sync**: Authenticate with a Personal Access Token (PAT) to manage files directly in your GitHub repositories.
+- **Repository Explorer**: Browse owned and collaborator repositories with support for nested directories.
+- **File Management**: Create, rename, delete, and edit files directly within the GitHub repository.
+- **Optimistic UI**: Real-time feedback for file operations with "Pending/Syncing" states while GitHub API calls complete.
+- **Manual Repository Entry**: Access any public or accessible repository by entering `owner/repo`.
+- **Privacy Controls**: Hide or restore specific repositories from your explorer view.
 
-🎨 **Smart UI**
-- GitHub-inspired dark theme
-- Multiple view modes:
-  - **Split View**: Editor on left, live preview on right
-  - **Edit Mode**: Full-width editor
-  - **Preview Mode**: Full-width preview
-- Responsive sidebar with repository explorer
-- Keyboard shortcuts for quick formatting
-- Toast notifications for user feedback
+🎨 **Smart & Responsive UI**
+- **Interactive Resizing**: Drag-and-drop handles to adjust sidebar width and the editor/preview split ratio.
+- **Theme Support**: Seamlessly toggle between Light and GitHub-inspired Dark mode (persisted in `localStorage`).
+- **Toast Notifications**: Real-time feedback for operations like saves, commits, and errors.
+- **Responsive Sidebar**: Toggleable explorer for maximum writing space.
 
 💾 **Local & Cloud Storage**
-- Auto-save drafts to browser localStorage
-- Persistent GitHub authentication tokens (localStorage)
-- Hidden repository management
-- Support for `.md`, `.txt`, and `.mdx` files
-- Local File System Access: Open and save files directly to your local machine using the File System Access API.
+- **Auto-Save Drafts**: Your work-in-progress is automatically saved to browser `localStorage` to prevent data loss.
+- **Local Workspace**: Manage local files directly in the browser's storage without a GitHub connection.
+- **File System Access API**: Import and save files directly to your computer's local file system (in supported browsers).
+- **PDF Export**: Generate high-quality PDF documents from your Markdown using the built-in print styling.
+- **Download as Markdown**: Quickly save your current work as a `.md` file to your local machine.
 
 🛠️ **Formatting Toolbar**
 Quick-insert buttons for:
 - Text styles (bold, italic, strikethrough)
-- Headings (H1, H2, H3)
+- Headings (H1, H2)
 - Links and images
 - Code blocks and inline code
-- Lists (unordered)
+- Lists (unordered, ordered, and task lists)
 - Blockquotes
 - Tables
-- Mathematical formulas
-- Checkboxes
+- Mathematical formulas (KaTeX)
+- Checkboxes (Task Lists)
 
 ## Getting Started
 
@@ -168,11 +169,18 @@ $$E = mc^2$$
 
 ## Keyboard Shortcuts
 
-Here is a list of keyboard shortcuts to enhance your editing workflow:
+Enhance your editing workflow with these intuitive shortcuts:
 
-### File Operations
-*   **Save/Commit**: `Ctrl/Cmd + S`
+### File & System
+*   **Save / Commit**: `Ctrl/Cmd + S`
 *   **Export to PDF**: `Ctrl/Cmd + P`
+*   **Toggle Sidebar**: `Ctrl/Cmd + Alt + O`
+*   **Toggle Theme**: `Ctrl/Cmd + Alt + D`
+
+### View Modes
+*   **Toggle Editor Only View**: `Ctrl/Cmd + Shift + 1`
+*   **Toggle Split View**: `Ctrl/Cmd + Shift + 2`
+*   **Toggle Preview Only View**: `Ctrl/Cmd + Shift + 3`
 
 ### Text Formatting
 *   **Bold**: `Ctrl/Cmd + B`
@@ -182,7 +190,7 @@ Here is a list of keyboard shortcuts to enhance your editing workflow:
 *   **Image**: `Ctrl/Cmd + Alt + I`
 
 ### Structural Elements
-*   **Unordered List**: `Ctrl/Cmd + Shift + U`
+*   **Bullet List**: `Ctrl/Cmd + Shift + U`
 *   **Numbered List**: `Ctrl/Cmd + Shift + O`
 *   **Task List**: `Ctrl/Cmd + Shift + L`
 *   **Blockquote**: `Ctrl/Cmd + Shift + Q`
@@ -190,13 +198,6 @@ Here is a list of keyboard shortcuts to enhance your editing workflow:
 *   **Inline Code**: `Ctrl/Cmd + Alt + \``
 *   **Table**: `Ctrl/Cmd + Alt + T`
 *   **Math Block**: `Ctrl/Cmd + Alt + M`
-
-### View and UI
-*   **Toggle Sidebar**: `Ctrl/Cmd + Alt + O`
-*   **Toggle Theme (Light/Dark)**: `Ctrl/Cmd + Alt + D`
-*   **Toggle Editor Only View**: `Ctrl/Cmd + Shift + 1`
-*   **Toggle Split View**: `Ctrl/Cmd + Shift + 2`
-*   **Toggle Preview Only View**: `Ctrl/Cmd + Shift + 3`
 
 ## Project Structure
 

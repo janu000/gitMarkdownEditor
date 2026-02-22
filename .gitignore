@@ -24,3 +24,6 @@ dist-ssr
 *.sw?
 GEMINI.md
 md2pdf.html
+
+.cursor/*
+.gemini/*
