@@ -1,0 +1,28 @@
+---
+description: React and JSX conventions for MarkHub
+globs: "**/*.jsx"
+alwaysApply: false
+---
+
+# React & JSX Conventions
+
+## Patterns in This Codebase
+
+- **Single-file app**: Main logic lives in `src/App.jsx`. “Conceptual” modules are marked with comments like `// CONCEPTUAL FILE: path/to/thing`; they are inline helpers/components, not real files. When adding new behavior, add it in the same file and keep the comment convention, unless the project has decided to extract real modules.
+- **Functional components only**: No class components.
+- **State**: `useState` for local UI state; `useEffect` for syncing to localStorage and for loading Marked/KaTeX from CDN.
+- **Styling**: Tailwind utility classes. Use `dark:` for dark mode. Prefer existing patterns (e.g. `text-gray-600 dark:text-gray-400`, `bg-gray-100 dark:bg-gray-800`).
+- **Icons**: Lucide React (e.g. `Github`, `Save`, `FileText`). Import from `lucide-react`.
+- **Toasts**: Inline `Toast` component; show by setting toast state (message + type `'error'` or success). No external toast library.
+
+## Do
+
+- Use existing localStorage keys (`markhub_draft`, `gh_token`, `markhub_hidden_repos`, `markhub_local_workspace`, `theme`) when adding persistence.
+- Keep accessibility in mind (e.g. `title` on icon buttons, semantic HTML).
+- Use `className` for Tailwind; avoid inline styles unless necessary.
+
+## Avoid
+
+- Introducing new global state libraries unless agreed; state is local + localStorage.
+- Adding Marked/KaTeX as npm deps without updating the CDN-loading logic in `App.jsx` (or replacing it).
+- Breaking the existing view modes (Editor Only, Split, Preview Only) or keyboard shortcuts documented in README.

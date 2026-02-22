@@ -1,0 +1,47 @@
+---
+description: Project overview and codebase memory for Git Markdown Editor (MarkHub)
+alwaysApply: true
+---
+
+# Git Markdown Editor (MarkHub) – Codebase Memory
+
+## What This Project Is
+
+- **Name**: Git Markdown Editor; internal name **MarkHub**.
+- **Purpose**: Browser-based Markdown editor with live preview, GitHub sync, and optional local file access (File System Access API).
+- **Stack**: React 19, Vite 7, Tailwind CSS, Lucide React. Marked.js and KaTeX are loaded from CDN at runtime (not in package.json).
+
+## Project Layout
+
+- **Entry**: `index.html` → `src/main.jsx` → `src/App.jsx`.
+- **Source**: Almost all app logic lives in `src/App.jsx` (~1000 lines). The file uses comment blocks to denote conceptual modules (e.g. `// CONCEPTUAL FILE: utils/encoding.js`, `components/Toast.jsx`); these are not separate files.
+- **Styles**: `src/index.css` (Tailwind + custom, including `.markdown-body` and `.katex-display`).
+- **Config**: `vite.config.js`, `tailwind.config.js`, `postcss.config.js`, `eslint.config.js`.
+
+## Key Conventions
+
+- **State & persistence**: Draft, theme, GitHub token, hidden repos, and local workspace file list are kept in React state and synced to **localStorage**:
+  - `markhub_draft` – current editor content
+  - `theme` – `'light'` | `'dark'`
+  - `gh_token` – GitHub Personal Access Token (classic, `repo` scope)
+  - `markhub_hidden_repos` – JSON array of repo full names to hide
+  - `markhub_local_workspace` – JSON array for local file workspace
+- **GitHub**: REST API v3; token is only sent to GitHub. Supports browse repos, open/edit `.md`/`.mdx`/`.txt`, commit, conflict handling (Keep Local / Keep Remote / Keep Remote & Save Local as New File).
+- **Markdown**: GFM via Marked (CDN); math via KaTeX (CDN). Inline `$...$`, block `$$...$$`.
+- **UI**: GitHub-inspired dark theme; view modes: Editor Only, Split, Preview Only. Sidebar for repo/file tree; toasts for feedback.
+
+## Where to Change What
+
+- **Editor behavior, preview, toolbar**: `src/App.jsx` (state, effects, handlers, inline utils/components).
+- **Markdown/math loading and parsing**: `src/App.jsx` (script/link injection, `marked`/`katex` usage).
+- **Global styles and print/PDF**: `src/index.css`.
+- **Features and roadmap**: `FEATURES.md`; user-facing docs in `README.md`.
+
+## NPM Scripts
+
+- `npm run dev` – Vite dev server (e.g. localhost:5173).
+- `npm run build` – production build.
+- `npm run lint` – ESLint.
+- `npm run preview` – preview production build.
+
+When adding features or refactors, keep this structure and naming in mind; prefer extending the existing patterns in `App.jsx` unless the team has decided to split into real modules.
