@@ -16,4 +16,4 @@ quote: mod+shift+q
 code_block: mod+alt+c
 inline_code: mod+alt+`
 table: mod+alt+t
-math_block: mod+alt+m
+math_block: mod+alt+x

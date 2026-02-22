@@ -54,7 +54,7 @@ The **Git Markdown Editor** is a professional-grade, browser-based Markdown envi
 | **Code Block** | `⌘ + Alt + C` | `Ctrl + Alt + C` |
 | **Inline Code** | `` ⌘ + Alt + ` `` | `` Ctrl + Alt + ` `` |
 | **Table** | `⌘ + Alt + T` | `Ctrl + Alt + T` |
-| **Math Block** | `⌘ + Alt + M` | `Ctrl + Alt + M` |
+| **Math Block** | `⌘ + Alt + X` | `Ctrl + Alt + X` |
 
 ## 🛠️ Technical Architecture
 
@@ -103,9 +103,16 @@ The Git Markdown Editor is **100% client-side**.
 - **Token Privacy**: Your GitHub Personal Access Tokens are stored only in your browser's `localStorage` and never sent to third-party servers.
 - **Data Privacy**: Your content is transmitted directly between your browser and the official GitHub API.
 
-### CSP Compliance
-- **Main Application (Production)**: The primary build is CSP-compliant but includes `'unsafe-eval'` to support dynamic script loading and runtime optimizations required by certain environments or dependencies.
-- **Standalone Version (`html-standalone/`)**: This zero-setup version strictly requires both `'unsafe-eval'` and `'unsafe-inline'` for on-the-fly compilation of JSX and styles.
+
+## 🤝 Collaboration & Feedback
+
+We love community involvement! Whether you're fixing a bug, suggesting a feature, or improving documentation, your help is welcome.
+
+- **Found a bug?** Please open an [issue](https://github.com/janu000/gitMarkdownEditor/issues) with a detailed description and steps to reproduce.
+- **Have an idea?** We're always looking for ways to make the editor better. Feel free to share your thoughts in the discussions.
+- **Want to contribute?** Fork the repo, create a branch, and submit a PR. We'll review it as soon as possible!
+
+Let's build the best browser-based Markdown experience together. ✨
 
 ## 📝 License
-Distributed under the MIT License. See `LICENSE` for more information.
+Distributed under the MIT License. See [LICENSE](LICENSE) for more information.

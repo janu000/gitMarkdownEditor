@@ -1,6 +1,6 @@
 import React, { memo, useMemo, useRef } from 'react';
 import { 
-  Github, FileText, Folder, Plus, ArrowLeft, RefreshCcw, 
+  Github, FileText, Folder, Plus, ArrowLeft, ArrowDown, RefreshCcw, 
   EyeOff, Trash2, FileEdit, FileUp, LogOut, Loader2, GitBranch,
   Keyboard, Hash, ChevronRight, ChevronDown
 } from 'lucide-react';
@@ -112,7 +112,10 @@ const Sidebar = memo(({
     <div id="main-sidebar" className="flex-shrink-0 bg-gray-50 dark:bg-[#161b22] border-r border-gray-200 dark:border-gray-800 flex flex-col transition-none overflow-hidden relative" style={{ width: sidebarWidth }}>
       <div className="h-14 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-800 shrink-0">
         <span className="font-bold flex items-center text-gray-900 dark:text-gray-100 truncate">
-          <Github className="w-5 h-5 mr-2 text-indigo-600 dark:text-indigo-400 shrink-0" /> Explorer
+          <span className="text-indigo-600 dark:text-indigo-400 font-mono font-bold text-xl mr-2 flex items-center">
+            <Github className="w-[1rem] h-[1rem] mr-0.2 -mt-[2px]" strokeWidth={2.8}/>M&gt;_
+          </span> 
+          Explorer
         </span>
       </div>
       <div className="flex-1 overflow-y-auto p-3 space-y-4 custom-scrollbar">

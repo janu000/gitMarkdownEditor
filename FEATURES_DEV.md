@@ -50,7 +50,6 @@ This document tracks the technical implementation status of Git Markdown Editor 
 - [x] **Download/Export**: 
     - [x] Download as `.md` file.
     - [x] Export to PDF via `window.print()` and CSS `@media print`.
-- [ ] **IndexedDB Persistence**: Support for larger files/projects beyond `localStorage` limits.
 
 ## 🎨 UI/UX & Layout
 - [x] **Responsive Sidebar**: Resizable sidebar with `isResizingSidebar` state.
