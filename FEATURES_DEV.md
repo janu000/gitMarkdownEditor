@@ -1,6 +1,6 @@
-# MarkHub Development Feature Checklist
+# Git Markdown Editor Development Feature Checklist
 
-This document tracks the technical implementation status of MarkHub features. It serves as a reference for developers to understand the current capabilities and planned improvements.
+This document tracks the technical implementation status of Git Markdown Editor features. It serves as a reference for developers to understand the current capabilities and planned improvements.
 
 ## 🟢 Core Editor Engine
 - [x] **Live Markdown Parsing**: Integrated `Marked.js` for GFM support.
@@ -10,7 +10,7 @@ This document tracks the technical implementation status of MarkHub features. It
     - [x] `split`: 50/50 or custom ratio split.
     - [x] `preview`: Full-screen rendered HTML.
 - [x] **Toolbar Utilities**: `insertText` and `insertListItem` helper functions for cursor-aware formatting.
-- [x] **Autosave**: Debounced/Effect-based persistence to `localStorage` (`markhub_draft`).
+- [x] **Autosave**: Debounced/Effect-based persistence to `localStorage` (`gme_draft`).
 - [ ] **Rich Text / WYSIWYG**: Direct editing in the preview pane.
 - [ ] **Find & Replace**: Search functionality within the editor.
 
@@ -20,18 +20,18 @@ This document tracks the technical implementation status of MarkHub features. It
 - [x] **Repository Browser**:
     - [x] List owned/collaborator repos (filtered by `push` permission).
     - [x] Manual repository entry (`owner/repo`).
-    - [x] Repository hiding/blacklisting (`markhub_hidden_repos`).
+    - [x] Repository hiding/blacklisting (`gme_hidden_repos`).
 - [x] **File Explorer**:
     - [x] Recursive directory navigation (`pathStack`).
     - [x] File CRUD: Create, Rename, Delete with optimistic UI updates.
     - [x] Binary/Unsupported file filtering.
 - [x] **Commit Logic**: Base64 encoding/decoding for UTF-8 content sync.
 - [x] **Pending Operations**: State tracking for async operations (`pendingOps`) to show "Syncing" status.
-- [ ] **Branch Management**: Support for switching and creating branches.
+- [x] **Branch Management**: Support for switching and creating branches.
 - [ ] **Pull Request Integration**: Create PRs directly from the editor.
 
 ## 🟠 Local Workspace & File System
-- [x] **In-Browser Workspace**: Virtual file system stored in `localStorage` (`markhub_local_workspace`).
+- [x] **In-Browser Workspace**: Virtual file system stored in `localStorage` (`gme_local_workspace`).
 - [x] **File System Access API**: `window.showOpenFilePicker` for native file system interaction.
 - [x] **Local File CRUD**: Create, rename, and delete local virtual files.
 - [x] **Download/Export**: 
@@ -56,10 +56,13 @@ This document tracks the technical implementation status of MarkHub features. It
     - [x] Dynamic CDN injection for styles and scripts.
 - [x] **Code Highlighting**: Basic themed styling for code blocks.
 - [ ] **Mermaid.js Diagrams**: Support for flowcharts and diagrams.
-- [ ] **Emoji Support**: Native emoji picker or `:emoji:` shortcodes.
+- [x] **Emoji Support**: Native emoji picker and `:emoji:` shortcodes.
+- [x] **Categorized Emoji Picker**: Organized sections for Gitmojis, Status, Docs, and Infra.
 
 ## 🛠 Technical Debt & Maintenance
-- [ ] **Component Decomposition**: Break down the monolithic `App.jsx` into modular components.
+- [x] **Component Decomposition**: Break down the monolithic `App.jsx` into modular components.
 - [ ] **Unit Testing**: Add Vitest/Jest for utility functions (encoding, parsing).
 - [ ] **E2E Testing**: Add Playwright/Cypress for GitHub flow verification.
 - [ ] **Type Safety**: Migrate to TypeScript for better state management.
+
+

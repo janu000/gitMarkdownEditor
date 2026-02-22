@@ -3,7 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MarkHub Editor</title>
+    <title>Git Markdown Editor</title>
+
+    <!-- 
+      Content Security Policy:
+      - 'unsafe-eval' and 'unsafe-inline' are REQUIRED for @babel/standalone and Tailwind CSS CDN 
+        to compile JSX and styles at runtime. 
+      - If you are hosting this in a production environment with strict security requirements, 
+        pre-compile your code and remove these directives.
+    -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.tailwindcss.com https://unpkg.com https://esm.sh; style-src 'self' 'unsafe-inline' https://cdn.tailwindcss.com https://esm.sh; font-src 'self' https://esm.sh; img-src 'self' data: https://avatars.githubusercontent.com https://raw.githubusercontent.com; connect-src 'self' https://api.github.com;">
 
     <!-- Tailwind CSS for styling -->
     <script src="https://cdn.tailwindcss.com"></script>
@@ -85,12 +94,12 @@
         function App() {
           // --- Editor State ---
           const [content, setContent] = useState(() => {
-            const savedDraft = localStorage.getItem('markhub_draft');
+            const savedDraft = localStorage.getItem('gme_draft');
             if (savedDraft) {
               return savedDraft;
             }
             // Load README.md content if no draft is found
-            return `# Welcome to MarkHub
+            return `# Welcome to Git Markdown Editor
 
 A powerful, browser-based Markdown editor with seamless GitHub integration for syncing and managing your documentation directly from your browser.
 
@@ -173,7 +182,7 @@ To enable GitHub synchronization:
 1. Go to GitHub Settings → Developer settings → [Personal access tokens](https://github.com/settings/tokens)
 2. Click "Generate new token (classic)"
 3. Set the scope to \`repo\` (Full control of private repositories)
-4. Copy the token and paste it into MarkHub
+4. Copy the token and paste it into Git Markdown Editor
 
 ⚠️ **Security Note**: Keep your token private. It's stored in your browser's localStorage and never sent to external servers (only to GitHub's official API).
 
@@ -274,11 +283,11 @@ The file is self-contained and requires no build process or dependencies to be i
 
 ## Local Storage
 
-MarkHub stores the following in your browser's localStorage for persistence:
+Git Markdown Editor stores the following in your browser's localStorage for persistence:
 
-- \`markhub_draft\`: Current editor content
-- \`gh_token\`: GitHub Personal Access Token (if connected)
-- \`markhub_hidden_repos\`: List of hidden repositories
+- \`gme_draft\`: Current editor content
+- \`gme_gh_token\`: GitHub Personal Access Token (if connected)
+- \`gme_hidden_repos\`: List of hidden repositories
 
 ⚠️ **Privacy Warning**: Store sensitive data carefully. Your GitHub token is stored locally in plain text.
 
@@ -491,7 +500,7 @@ For issues, feature requests, or questions:
           const currentRepoRef = useRef(null); // Ref to store the latest currentRepo
 
           // --- GitHub State ---
-          const [ghToken, setGhToken] = useState(() => localStorage.getItem('gh_token') || '');
+          const [ghToken, setGhToken] = useState(() => localStorage.getItem('gme_gh_token') || '');
           const [ghUser, setGhUser] = useState(null);
           const [repos, setRepos] = useState([]);
           const [currentRepo, setCurrentRepo] = useState(null);
@@ -507,18 +516,18 @@ For issues, feature requests, or questions:
             activeFileRef.current = activeFile;
           }, [activeFile]);
           const [manualRepo, setManualRepo] = useState(''); // For manually entering owner/repo
-          const [hiddenRepos, setHiddenRepos] = useState(() => JSON.parse(localStorage.getItem('markhub_hidden_repos') || '[]'));
+          const [hiddenRepos, setHiddenRepos] = useState(() => JSON.parse(localStorage.getItem('gme_hidden_repos') || '[]'));
           
           // --- Local File State ---
           const [localFileHandle, setLocalFileHandle] = useState(null);
           const [localFileName, setLocalFileName] = useState('');
 
           // --- Workspace State (New) ---
-          const [localWorkspaceFiles, setLocalWorkspaceFiles] = useState(() => JSON.parse(localStorage.getItem('markhub_local_workspace') || '[]')); // [{ path, name, type, content }]
+          const [localWorkspaceFiles, setLocalWorkspaceFiles] = useState(() => JSON.parse(localStorage.getItem('gme_local_workspace') || '[]')); // [{ path, name, type, content }]
           const [pendingOps, setPendingOps] = useState({}); // { [path]: { action: 'add'|'delete', file?: object, content?: string } }
 
           useEffect(() => {
-            localStorage.setItem('markhub_local_workspace', JSON.stringify(localWorkspaceFiles));
+            localStorage.setItem('gme_local_workspace', JSON.stringify(localWorkspaceFiles));
           }, [localWorkspaceFiles]);
 
           // --- UI State ---
@@ -589,7 +598,7 @@ For issues, feature requests, or questions:
 
           // --- Autosave & Parsing ---
           useEffect(() => {
-            localStorage.setItem('markhub_draft', content);
+            localStorage.setItem('gme_draft', content);
             updatePreview(content);
           }, [content]);
 
@@ -801,13 +810,13 @@ For issues, feature requests, or questions:
                 return res.json();
               });
               setGhToken(token);
-              localStorage.setItem('gh_token', token);
+              localStorage.setItem('gme_gh_token', token);
               setGhUser(user);
               setShowAuthModal(false);
               fetchRepos(token);
               showToast('Connected to GitHub');
             } catch (err) {
-              localStorage.removeItem('gh_token');
+              localStorage.removeItem('gme_gh_token');
               setGhToken('');
               showToast('Invalid GitHub Token', 'error');
             }
@@ -949,7 +958,7 @@ For issues, feature requests, or questions:
             setLoadingState('saving');
             try {
               const body = {
-                message: `Update ${currentActiveFile.name} via MarkHub`,
+                message: `Update ${currentActiveFile.name} via Git Markdown Editor`,
                 content: utf8_to_b64(content),
                 sha: currentActiveFile.sha
               };
@@ -1009,14 +1018,14 @@ For issues, feature requests, or questions:
                 
                 // Create new file
                 const createBody = {
-                  message: `Rename ${fileToRename.name} to ${newName} via MarkHub`,
+                  message: `Rename ${fileToRename.name} to ${newName} via Git Markdown Editor`,
                   content: sourceData.content.replace(/\n/g, ''), 
                 };
                 const createRes = await apiRequest(`/repos/${currentRepo}/contents/${newPath}`, 'PUT', createBody);
 
                 // Delete old file
                 const deleteBody = {
-                  message: `Rename ${fileToRename.name} to ${newName} (cleanup) via MarkHub`,
+                  message: `Rename ${fileToRename.name} to ${newName} (cleanup) via Git Markdown Editor`,
                   sha: sourceData.sha
                 };
                 await apiRequest(`/repos/${currentRepo}/contents/${fileToRename.path}`, 'DELETE', deleteBody);
@@ -1113,7 +1122,7 @@ For issues, feature requests, or questions:
 
                 // Normal Delete
                 const body = {
-                  message: `Delete ${fileToDelete.name} via MarkHub`,
+                  message: `Delete ${fileToDelete.name} via Git Markdown Editor`,
                   sha: fileToDelete.sha,
                 };
                 await apiRequest(`/repos/${currentRepo}/contents/${fileToDelete.path}`, 'DELETE', body);
@@ -1189,7 +1198,7 @@ For issues, feature requests, or questions:
             (async () => {
               try {
                 const body = {
-                  message: `Create ${fileName} via MarkHub`,
+                  message: `Create ${fileName} via Git Markdown Editor`,
                   content: utf8_to_b64(initialContent),
                 };
                 const data = await apiRequest(`/repos/${currentRepo}/contents/${filePath}`, 'PUT', body);
@@ -1332,7 +1341,7 @@ For issues, feature requests, or questions:
             setRepos([]);
             setCurrentRepo(null);
             setActiveFile(null);
-            localStorage.removeItem('gh_token');
+            localStorage.removeItem('gme_gh_token');
             showToast('Disconnected from GitHub');
           };
 
@@ -1511,7 +1520,7 @@ For issues, feature requests, or questions:
                                       onClick={() => {
                                         const updated = [...hiddenRepos, repo.full_name];
                                         setHiddenRepos(updated);
-                                        localStorage.setItem('markhub_hidden_repos', JSON.stringify(updated));
+                                        localStorage.setItem('gme_hidden_repos', JSON.stringify(updated));
                                       }}
                                       className="opacity-0 group-hover:opacity-100 px-2 py-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-all rounded-r"
                                       title="Hide from list"
@@ -1528,7 +1537,7 @@ For issues, feature requests, or questions:
                               {hiddenRepos.length > 0 && (
                                 <div className="px-1 -mt-2 mb-2">
                                   <button 
-                                    onClick={() => { setHiddenRepos([]); localStorage.removeItem('markhub_hidden_repos'); }}
+                                    onClick={() => { setHiddenRepos([]); localStorage.removeItem('gme_hidden_repos'); }}
                                     className="text-[10px] uppercase tracking-wider text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                                   >
                                     Restore {hiddenRepos.length} hidden repo{hiddenRepos.length !== 1 ? 's' : ''}
@@ -1716,7 +1725,7 @@ For issues, feature requests, or questions:
                         <>
                           <span className="text-gray-500">{currentRepo} / </span>
                           <span className="text-gray-900 dark:text-gray-200 ml-1 font-medium">{activeFile.name}</span>
-                          {content !== localStorage.getItem('markhub_draft') && <span className="w-2 h-2 rounded-full bg-yellow-500 ml-2" title="Unsaved changes"></span>}
+                          {content !== localStorage.getItem('gme_draft') && <span className="w-2 h-2 rounded-full bg-yellow-500 ml-2" title="Unsaved changes"></span>}
                         </>
                       ) : localFileName ? (
                         <>
