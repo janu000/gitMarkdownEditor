@@ -3,7 +3,7 @@ import { GripVertical } from 'lucide-react';
 
 // Utils
 import { utf8_to_b64, b64_to_utf8 } from './utils/encoding';
-import { fallbackParse } from './utils/markdown';
+import { fallbackParse, inlineParse } from './utils/markdown';
 import { parseEmojis } from './utils/emojis';
 import { loadShortcuts, matchesShortcut } from './utils/shortcutManager';
 
@@ -85,7 +85,7 @@ export default function App() {
   const [localFileName, setLocalFileName] = useState('');
   const [localWorkspaceFiles, setLocalWorkspaceFiles] = useState(() => JSON.parse(localStorage.getItem('gme_local_workspace') || '[]'));
   const [pendingOps, setPendingOps] = useState({}); 
-
+  const [tocHeadings, setTocHeadings] = useState([]);
   // --- UI State ---
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -215,6 +215,25 @@ export default function App() {
   }, []);
 
   // --- Autosave & Parsing Updates ---
+  const updateTOC = useCallback((fileContent, filePath) => {
+    const lines = fileContent.split('\n');
+    const headings = lines.reduce((acc, line, index) => {
+      const match = line.match(/^(#{1,6})\s+(.*)$/);
+      if (match) {
+        acc.push({
+          level: match[1].length,
+          name: inlineParse(match[2]),
+          rawName: match[2],
+          line: index,
+          type: 'heading',
+          path: `${filePath}#L${index + 1}`
+        });
+      }
+      return acc;
+    }, []);
+    setTocHeadings(headings);
+  }, []);
+
   const updatePreview = useCallback((md) => {
     const processedMd = parseEmojis(md);
     if (window.marked && window.katex) {
@@ -227,7 +246,14 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('gme_draft', content);
     updatePreview(content);
-  }, [content, updatePreview]);
+    
+    // Live update TOC if we are currently looking at it for the active file
+    if (pathStack.length > 0 && pathStack[pathStack.length - 1].isTOC && activeFile) {
+      if (pathStack[pathStack.length - 1].path === activeFile.path) {
+        updateTOC(content, activeFile.path);
+      }
+    }
+  }, [content, updatePreview, pathStack, activeFile, updateTOC]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -330,10 +356,12 @@ export default function App() {
   }, [insertListItem]);
 
   // --- GitHub API Interactions ---
-  const apiRequest = useCallback(async (endpoint, method = 'GET', body = null, customToken = null) => {
+  const apiRequest = useCallback(async (endpoint, method = 'GET', body = null, customToken = null, useCache = false) => {
     const tokenToUse = customToken || ghToken;
     let url = `https://api.github.com${endpoint}`;
-    if (method === 'GET') {
+    
+    // Only add cache-buster if we explicitly want to skip cache
+    if (method === 'GET' && !useCache) {
       url += `${url.includes('?') ? '&' : '?'}t=${new Date().getTime()}`;
     }
 
@@ -344,7 +372,9 @@ export default function App() {
         'Accept': 'application/vnd.github.v3+json',
         'Content-Type': 'application/json',
       },
-      cache: 'no-store',
+      // Use 'default' (let the browser/CDN handle it) if useCache is true, 
+      // otherwise force 'no-store' for a fresh request.
+      cache: useCache ? 'default' : 'no-store',
       body: body ? JSON.stringify(body) : null
     });
     if (!response.ok) throw new Error(`GitHub API Error: ${response.status}`);
@@ -402,21 +432,23 @@ export default function App() {
     }
   }, [verifyGitHubToken]);
 
-  const fetchRepoContents = async (repoFullName, path = '', branch = null) => {
+  const fetchRepoContents = async (repoFullName, path = '', branch = null, forceRefreshBranches = false) => {
     setLoadingState('fetching');
     try {
       let targetBranch = branch || currentBranch;
       
-      // ONLY fetch repo info and branches if we are switching to a DIFFERENT repository
-      // OR if we don't have ANY branch state yet.
-      if (repoFullName !== currentRepo || !targetBranch) {
+      // Fetch repo info and branches if:
+      // 1. Switching to a DIFFERENT repository
+      // 2. We don't have ANY branch state yet
+      // 3. User explicitly requested a force refresh (e.g. via Update button)
+      if (repoFullName !== currentRepo || !targetBranch || forceRefreshBranches) {
         const [repoInfo, branchesData] = await Promise.all([
           apiRequest(`/repos/${repoFullName}`),
           apiRequest(`/repos/${repoFullName}/branches`)
         ]);
         
         setBranches(branchesData);
-        if (!branch) {
+        if (!branch && !currentBranch) {
           targetBranch = repoInfo.default_branch;
           setCurrentBranch(targetBranch);
         }
@@ -436,9 +468,45 @@ export default function App() {
     setLoadingState('');
   };
 
+  const loadTOC = async (file) => {
+    if (file.type === 'dir') return;
+    if (!file.name.match(/\.(md|txt|mdx)$/i)) {
+      showToast('TOC only supported for Markdown files', 'error');
+      return;
+    }
+
+    let fileContent = '';
+    if (!currentRepo) {
+      fileContent = file.content || '';
+    } else {
+      setLoadingState('fetching');
+      try {
+        const data = await apiRequest(`/repos/${currentRepo}/contents/${file.path}?ref=${currentBranch}`, 'GET', null, null, true);
+        fileContent = b64_to_utf8(data.content);
+      } catch (_error) {
+        showToast('Failed to load file for TOC', 'error');
+        setLoadingState('');
+        return;
+      }
+      setLoadingState('');
+    }
+
+    updateTOC(fileContent, file.path);
+    setPathStack([...pathStack, { ...file, isTOC: true }]);
+  };
+
   const getWorkspaceFiles = () => {
+    if (pathStack.length > 0 && pathStack[pathStack.length - 1].isTOC) {
+      return tocHeadings;
+    }
+
     if (currentRepo) {
-      let files = repoContents.filter(f => !pendingOps[f.path] || pendingOps[f.path].action !== 'delete');
+      // Filter out files that are being deleted OR being updated (to replace with pending version)
+      let files = repoContents.filter(f => {
+        const op = pendingOps[f.path];
+        if (!op) return true;
+        return op.action !== 'delete' && op.action !== 'add';
+      });
       const pendingAdds = Object.values(pendingOps).filter(op => op.action === 'add' && op.file).map(op => ({ ...op.file, status: 'pending' }));
       files = [...files, ...pendingAdds];
       return files.sort((a, b) => {
@@ -469,23 +537,38 @@ export default function App() {
     }
 
     setLoadingState('saving');
-    try {
-      const body = {
-        message: `Update ${currentActiveFile.name} via Git Markdown Editor`,
-        content: utf8_to_b64(content),
-        sha: currentActiveFile.sha,
-        branch: branchContext
-      };
-      const data = await apiRequest(`/repos/${repoContext}/contents/${currentActiveFile.path}`, 'PUT', body);
-      setActiveFile({ ...currentActiveFile, sha: data.content.sha });
-      showToast('Successfully committed to GitHub!');
-    } catch (_error) {
-      showToast('Failed to save to GitHub', 'error');
-    }
-    setLoadingState('');
+    // Optimistic Update
+    setPendingOps(prev => ({ 
+      ...prev, 
+      [currentActiveFile.path]: { action: 'add', file: { ...currentActiveFile, status: 'pending' }, content: content } 
+    }));
+    showToast(`Committing ${currentActiveFile.name}...`);
+
+    (async () => {
+      try {
+        const body = {
+          message: `Update ${currentActiveFile.name} via Git Markdown Editor`,
+          content: utf8_to_b64(content),
+          sha: currentActiveFile.sha,
+          branch: branchContext
+        };
+        const data = await apiRequest(`/repos/${repoContext}/contents/${currentActiveFile.path}`, 'PUT', body);
+        const updatedFile = { ...currentActiveFile, sha: data.content.sha };
+        
+        setPendingOps(prev => { const newState = { ...prev }; delete newState[currentActiveFile.path]; return newState; });
+        setActiveFile(updatedFile);
+        showToast('Successfully committed to GitHub!');
+        // Force reload from GitHub with no-store to ensure cache is updated and sync is verified
+        await loadFile(updatedFile, true);
+      } catch (_error) {
+        setPendingOps(prev => { const newState = { ...prev }; delete newState[currentActiveFile.path]; return newState; });
+        showToast('Failed to save to GitHub', 'error');
+      }
+      setLoadingState('');
+    })();
   }, [content, localWorkspaceFiles, showToast, apiRequest]);
 
-  const loadFile = async (file) => {
+  const loadFile = async (file, forceFresh = false) => {
     if (file.type === 'dir') {
       setPathStack([...pathStack, file]);
       if (currentRepo) fetchRepoContents(currentRepo, file.path);
@@ -518,12 +601,12 @@ export default function App() {
 
     setLoadingState('fetching');
     try {
-      const data = await apiRequest(`/repos/${currentRepo}/contents/${file.path}?ref=${currentBranch}`);
+      const data = await apiRequest(`/repos/${currentRepo}/contents/${file.path}?ref=${currentBranch}`, 'GET', null, null, !forceFresh);
       const decodedContent = b64_to_utf8(data.content);
       setContent(decodedContent);
       setActiveFile({ path: file.path, sha: data.sha, name: file.name });
       setLocalFileName('');     
-      showToast(`Loaded ${file.name}`);
+      showToast(forceFresh ? `Synced with GitHub` : `Loaded ${file.name}`);
     } catch (_error) {
       showToast('Failed to load file', 'error');
     }
@@ -757,6 +840,24 @@ export default function App() {
     showToast(`Downloaded ${fileName}`);
   };
 
+  const jumpToLine = useCallback((line) => {
+    const textarea = editorRef.current;
+    if (!textarea) return;
+
+    const lines = content.split('\n');
+    let offset = 0;
+    for (let i = 0; i < Math.min(line, lines.length); i++) {
+        offset += lines[i].length + 1; // +1 for the newline
+    }
+
+    textarea.focus();
+    textarea.setSelectionRange(offset, offset);
+    
+    // Smooth scroll into view
+    const lineHeight = 24; // Approximation based on text-sm and leading-relaxed
+    textarea.scrollTop = line * lineHeight - (textarea.clientHeight / 2);
+  }, [content]);
+
   const importLocalFile = async () => {
     if (!('showOpenFilePicker' in window)) {
       showToast('Browser not supported for direct file access.', 'error');
@@ -858,6 +959,8 @@ export default function App() {
         currentBranch={currentBranch}
         setCurrentBranch={setCurrentBranch}
         createBranch={createBranch}
+        loadTOC={loadTOC}
+        jumpToLine={jumpToLine}
       />
 
       {isSidebarOpen && (

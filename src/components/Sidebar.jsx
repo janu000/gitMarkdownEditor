@@ -1,8 +1,8 @@
-import React, { memo, useMemo } from 'react';
+import React, { memo, useMemo, useRef } from 'react';
 import { 
   Github, FileText, Folder, Plus, ArrowLeft, RefreshCcw, 
   EyeOff, Trash2, FileEdit, FileUp, LogOut, Loader2, GitBranch,
-  Keyboard
+  Keyboard, Hash, ChevronRight, ChevronDown
 } from 'lucide-react';
 
 const Sidebar = memo(({
@@ -34,9 +34,77 @@ const Sidebar = memo(({
   branches,
   currentBranch,
   setCurrentBranch,
-  createBranch
+  createBranch,
+  loadTOC,
+  jumpToLine
 }) => {
   const workspaceFiles = useMemo(() => getWorkspaceFiles(), [getWorkspaceFiles]);
+  const clickTimerRef = useRef(null);
+  const [collapsedPaths, setCollapsedPaths] = React.useState(new Set());
+
+  const isAtTOC = useMemo(() => pathStack.length > 0 && pathStack[pathStack.length - 1].isTOC, [pathStack]);
+
+  const toggleCollapse = (e, path) => {
+    e.stopPropagation();
+    setCollapsedPaths(prev => {
+      const next = new Set(prev);
+      if (next.has(path)) next.delete(path);
+      else next.add(path);
+      return next;
+    });
+  };
+
+  // Filter visible items based on collapse state
+  const visibleItems = useMemo(() => {
+    if (!isAtTOC) return workspaceFiles;
+    
+    const visible = [];
+    let hiddenLevel = Infinity;
+
+    for (const item of workspaceFiles) {
+      if (item.type !== 'heading') {
+        visible.push(item);
+        continue;
+      }
+
+      if (item.level <= hiddenLevel) {
+        hiddenLevel = Infinity;
+        visible.push(item);
+        
+        if (collapsedPaths.has(item.path)) {
+          hiddenLevel = item.level;
+        }
+      }
+    }
+    return visible;
+  }, [workspaceFiles, isAtTOC, collapsedPaths]);
+
+  const getHeaderStyle = (level) => {
+    switch (level) {
+      case 1: return "text-sm mt-1 mb-0 text-gray-900 dark:text-white leading-tight";
+      case 2: return "text-[13px] mt-0.5 mb-0 text-gray-800 dark:text-gray-100 leading-tight";
+      case 3: return "text-[12px] mt-0.5 mb-0 text-gray-700 dark:text-gray-200 leading-tight";
+      default: return "text-[11px] mt-0 mb-0 text-gray-600 dark:text-gray-400 leading-tight";
+    }
+  };
+
+  const handleFileClick = (file) => {
+    if (file.type === 'heading') {
+      jumpToLine(file.line);
+      return;
+    }
+
+    if (clickTimerRef.current) {
+      clearTimeout(clickTimerRef.current);
+      clickTimerRef.current = null;
+      loadTOC(file);
+    } else {
+      clickTimerRef.current = setTimeout(() => {
+        loadFile(file);
+        clickTimerRef.current = null;
+      }, 250);
+    }
+  };
 
   if (!isSidebarOpen) return null;
 
@@ -66,21 +134,47 @@ const Sidebar = memo(({
                 </div>
               </div>
               <ul className="space-y-1">
-                {workspaceFiles.map(file => (
-                  <li key={file.path}>
-                    <div className="flex items-center group">
-                      <button onClick={() => loadFile(file)} className={`flex-1 flex items-center px-2 py-1.5 rounded text-sm transition-colors text-left group min-w-0 ${activeFile?.path === file.path ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300' : 'hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}`}>
-                        <FileText className="w-4 h-4 mr-2 text-gray-500 shrink-0" />
-                        <span className="flex-1 truncate min-w-0" title={file.name}>{file.name}</span>
-                      </button>
-                      <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={(e) => { e.stopPropagation(); renameFile(file); }} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all rounded mr-1"><FileEdit className="w-4 h-4" /></button>
-                        <button onClick={(e) => { e.stopPropagation(); deleteFile(file); }} className="p-1 hover:bg-red-100 dark:hover:bg-red-900/50 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-all rounded"><Trash2 className="w-4 h-4" /></button>
+                {visibleItems.map((file, idx) => {
+                  const hasChildren = isAtTOC && file.type === 'heading' && workspaceFiles[workspaceFiles.indexOf(file) + 1]?.level > file.level;
+                  const isCollapsed = collapsedPaths.has(file.path);
+
+                  return (
+                    <li key={file.type === 'heading' ? `heading-${idx}` : file.path} className="relative">
+                      <div className="flex items-center group">
+                        {isAtTOC && file.type === 'heading' && hasChildren && (
+                          <button 
+                            onClick={(e) => toggleCollapse(e, file.path)}
+                            className="p-0.5 hover:bg-gray-200 dark:hover:bg-gray-800 rounded absolute z-10 transition-colors"
+                            style={{ left: `${(file.level - 1) * 0.75 + 0.125}rem` }}
+                          >
+                            {isCollapsed ? <ChevronRight className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />}
+                          </button>
+                        )}
+                        <button 
+                          onClick={() => handleFileClick(file)} 
+                          className={`flex-1 flex items-center px-2 rounded transition-colors text-left group min-w-0 ${file.type === 'heading' ? `${getHeaderStyle(file.level)} py-0.5` : `text-sm py-1.5 ${activeFile?.path === file.path && !isAtTOC ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300' : 'hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}`}`}
+                          style={file.type === 'heading' ? { paddingLeft: `${(file.level - 1) * 0.75 + 1}rem` } : {}}
+                        >
+                          {file.type !== 'heading' && <FileText className="w-4 h-4 mr-2 text-gray-500 shrink-0" />}
+                          <span 
+                            className="flex-1 truncate min-w-0" 
+                            title={file.rawName || file.name}
+                            dangerouslySetInnerHTML={file.type === 'heading' ? { __html: file.name } : undefined}
+                          >
+                            {file.type !== 'heading' ? file.name : null}
+                          </span>
+                        </button>
+                        {file.type !== 'heading' && (
+                          <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={(e) => { e.stopPropagation(); renameFile(file); }} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all rounded mr-1"><FileEdit className="w-4 h-4" /></button>
+                            <button onClick={(e) => { e.stopPropagation(); deleteFile(file); }} className="p-1 hover:bg-red-100 dark:hover:bg-red-900/50 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-all rounded"><Trash2 className="w-4 h-4" /></button>
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  </li>
-                ))}
-                {workspaceFiles.length === 0 && <p className="text-xs text-gray-500 px-2 italic">No files</p>}
+                    </li>
+                  );
+                })}
+                {visibleItems.length === 0 && <p className="text-xs text-gray-500 px-2 italic">No files</p>}
               </ul>
             </div>
           </div>
@@ -129,68 +223,124 @@ const Sidebar = memo(({
             ) : (
               <div>
                 <div className="flex items-center justify-between mb-2 px-1">
-                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider truncate" title={currentRepo}>{currentRepo}</h3>
+                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider truncate" title={currentRepo}>{isAtTOC ? pathStack[pathStack.length-1].name : currentRepo}</h3>
                   <div className="flex space-x-1">
-                    <button onClick={() => { if (pathStack.length > 0) { const ns = [...pathStack]; ns.pop(); setPathStack(ns); fetchRepoContents(currentRepo, ns.length > 0 ? ns[ns.length - 1].path : ''); } else { setCurrentRepo(null); setPathStack([]); } }} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xs bg-gray-200 dark:bg-gray-800 px-1.5 py-1 rounded"><ArrowLeft className="w-3 h-3" /></button>
-                    <button onClick={importLocalFile} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xs bg-gray-200 dark:bg-gray-800 px-1.5 py-1 rounded"><FileUp className="w-3 h-3" /></button>
-                    <button onClick={() => createFile(prompt('Enter new file name:') || 'untitled.md')} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xs bg-gray-200 dark:bg-gray-800 px-1.5 py-1 rounded"><Plus className="w-3 h-3" /></button>
-                    <button onClick={() => fetchRepoContents(currentRepo, pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '')} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xs bg-gray-200 dark:bg-gray-800 px-1.5 py-1 rounded"><RefreshCcw className="w-3 h-3" /></button>
+                    <button onClick={() => { 
+                      if (isAtTOC) {
+                        const ns = [...pathStack];
+                        ns.pop();
+                        setPathStack(ns);
+                        return;
+                      }
+
+                      if (pathStack.length > 0) {
+                        const ns = [...pathStack];
+                        ns.pop();
+                        setPathStack(ns);
+                        fetchRepoContents(currentRepo, ns.length > 0 ? ns[ns.length - 1].path : '');
+                      } else {
+                        setCurrentRepo(null);
+                        setPathStack([]);
+                        // Clear branch state when going back to repo list
+                        setCurrentBranch('');
+                        setBranches([]);
+                      }
+                    }} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xs bg-gray-200 dark:bg-gray-800 px-1.5 py-1 rounded"><ArrowLeft className="w-3 h-3" /></button>
+                    {!isAtTOC && (
+                      <>
+                        <button onClick={importLocalFile} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xs bg-gray-200 dark:bg-gray-800 px-1.5 py-1 rounded"><FileUp className="w-3 h-3" /></button>
+                        <button onClick={() => createFile(prompt('Enter new file name:') || 'untitled.md')} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xs bg-gray-200 dark:bg-gray-800 px-1.5 py-1 rounded"><Plus className="w-3 h-3" /></button>
+                        <button onClick={() => fetchRepoContents(currentRepo, pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '', null, true)} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xs bg-gray-200 dark:bg-gray-800 px-1.5 py-1 rounded" title="Refresh file list and branches"><RefreshCcw className="w-3 h-3" /></button>
+                      </>
+                    )}
                   </div>
                 </div>
 
-                <div className="px-1 mb-4">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <div className="flex items-center text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                      <GitBranch className="w-3 h-3 mr-1" /> Branch
+                {!isAtTOC && (
+                  <div className="px-1 mb-4">
+                    <div className="flex items-center justify-between mb-1.5">
+                      <div className="flex items-center text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                        <GitBranch className="w-3 h-3 mr-1" /> Branch
+                      </div>
+                      <button 
+                        onClick={() => createBranch(prompt('New branch name:'))} 
+                        className="text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                        title="New Branch"
+                      >
+                        <Plus className="w-3 h-3" />
+                      </button>
                     </div>
-                    <button 
-                      onClick={() => createBranch(prompt('New branch name:'))} 
-                      className="text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                      title="New Branch"
+                    <select 
+                      value={currentBranch} 
+                      onChange={(e) => {
+                        setCurrentBranch(e.target.value);
+                        fetchRepoContents(currentRepo, '', e.target.value);
+                      }}
+                      className="w-full bg-white dark:bg-[#0d1117] border border-gray-300 dark:border-gray-700 rounded px-2 py-1.5 text-xs text-gray-900 dark:text-gray-200 focus:outline-none appearance-none cursor-pointer hover:border-gray-400 dark:hover:border-gray-600 transition-colors"
                     >
-                      <Plus className="w-3 h-3" />
-                    </button>
+                      {branches.map(b => (
+                        <option key={b.name} value={b.name}>{b.name}</option>
+                      ))}
+                    </select>
                   </div>
-                  <select 
-                    value={currentBranch} 
-                    onChange={(e) => {
-                      setCurrentBranch(e.target.value);
-                      fetchRepoContents(currentRepo, '', e.target.value);
-                    }}
-                    className="w-full bg-white dark:bg-[#0d1117] border border-gray-300 dark:border-gray-700 rounded px-2 py-1.5 text-xs text-gray-900 dark:text-gray-200 focus:outline-none appearance-none cursor-pointer hover:border-gray-400 dark:hover:border-gray-600 transition-colors"
-                  >
-                    {branches.map(b => (
-                      <option key={b.name} value={b.name}>{b.name}</option>
-                    ))}
-                  </select>
-                </div>
+                )}
 
-                {pathStack.length > 0 && (
+                {pathStack.length > 0 && !isAtTOC && (
                   <button onClick={() => { const ns = [...pathStack]; ns.pop(); setPathStack(ns); fetchRepoContents(currentRepo, ns.length > 0 ? ns[ns.length - 1].path : ''); }} className="w-full flex items-center px-2 py-1.5 hover:bg-gray-200 dark:hover:bg-gray-800 rounded text-sm text-gray-600 dark:text-gray-400 mb-1">
                     <ArrowLeft className="w-4 h-4 mr-2 shrink-0" /><span className="truncate">.. / {pathStack[pathStack.length-1].name}</span>
                   </button>
                 )}
                 {loadingState === 'fetching' ? <div className="flex justify-center p-4"><Loader2 className="w-5 h-5 animate-spin text-gray-500" /></div> : (
                   <ul className="space-y-1">
-                    {workspaceFiles.map(file => (
-                      <li key={file.sha || file.path}>
-                        <div className={`flex items-center group ${file.status === 'pending' ? 'opacity-70' : ''}`}>
-                          <button onClick={() => loadFile(file)} className={`flex-1 flex items-center px-2 py-1.5 rounded text-sm transition-colors text-left group min-w-0 ${activeFile?.path === file.path ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300' : 'hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}`}>
-                            {file.type === 'dir' ? <Folder className="w-4 h-4 mr-2 text-blue-500 dark:text-blue-400 shrink-0" /> : <FileText className={`w-4 h-4 mr-2 shrink-0 ${file.status === 'pending' ? 'text-amber-500 animate-pulse' : 'text-gray-500'}`} />}
-                            <span className={`flex-1 truncate min-w-0 ${file.status === 'pending' ? 'text-amber-600 dark:text-amber-400 italic' : ''}`} title={file.name}>
-                              {file.name} {file.status === 'pending' && <span className="text-[10px] ml-1 opacity-75">(Syncing)</span>}
-                            </span>
-                          </button>
-                          {file.type === 'file' && (
-                            <div className={`flex items-center transition-opacity ${file.status === 'pending' ? 'opacity-0' : 'opacity-0 group-hover:opacity-100'}`}>
-                              <button onClick={(e) => { e.stopPropagation(); renameFile(file); }} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded mr-1"><FileEdit className="w-4 h-4" /></button>
-                              <button onClick={(e) => { e.stopPropagation(); deleteFile(file); }} className="p-1 hover:bg-red-100 dark:hover:bg-red-900/50 text-gray-400 hover:text-red-500 dark:hover:text-red-400 rounded"><Trash2 className="w-4 h-4" /></button>
-                            </div>
-                          )}
-                        </div>
-                      </li>
-                    ))}
-                    {workspaceFiles.length === 0 && <p className="text-xs text-gray-500 px-2 italic">Empty folder</p>}
+                    {visibleItems.map((file, idx) => {
+                      const hasChildren = isAtTOC && file.type === 'heading' && workspaceFiles[workspaceFiles.indexOf(file) + 1]?.level > file.level;
+                      const isCollapsed = collapsedPaths.has(file.path);
+
+                      return (
+                        <li key={file.type === 'heading' ? `heading-${idx}` : (file.sha || file.path)} className="relative">
+                          <div className={`flex items-center group ${file.status === 'pending' ? 'opacity-70' : ''}`}>
+                            {isAtTOC && file.type === 'heading' && hasChildren && (
+                              <button 
+                                onClick={(e) => toggleCollapse(e, file.path)}
+                                className="p-0.5 hover:bg-gray-200 dark:hover:bg-gray-800 rounded absolute z-10 transition-colors"
+                                style={{ left: `${(file.level - 1) * 0.75 + 0.125}rem` }}
+                              >
+                                {isCollapsed ? <ChevronRight className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />}
+                              </button>
+                            )}
+                            <button 
+                              onClick={() => handleFileClick(file)} 
+                              className={`flex-1 flex items-center px-2 rounded transition-colors text-left group min-w-0 ${file.type === 'heading' ? `${getHeaderStyle(file.level)} py-0.5` : `text-sm py-1.5 ${activeFile?.path === file.path && !isAtTOC ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300' : 'hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}`}`}
+                              style={file.type === 'heading' ? { paddingLeft: `${(file.level - 1) * 0.75 + 1}rem` } : {}}
+                            >
+                              {file.type !== 'heading' && (
+                                  file.type === 'dir' ? (
+                                      <Folder className="w-4 h-4 mr-2 text-blue-500 dark:text-blue-400 shrink-0" />
+                                  ) : (
+                                      <FileText className={`w-4 h-4 mr-2 shrink-0 ${file.status === 'pending' ? 'text-amber-500 animate-pulse' : 'text-gray-500'}`} />
+                                  )
+                              )}
+                              <span 
+                                className={`flex-1 truncate min-w-0 ${file.status === 'pending' ? 'text-amber-600 dark:text-amber-400 italic' : ''}`} 
+                                title={file.rawName || file.name}
+                                dangerouslySetInnerHTML={file.type === 'heading' ? { __html: file.name } : undefined}
+                              >
+                                {file.type !== 'heading' ? (
+                                  <>{file.name} {file.status === 'pending' && <span className="text-[10px] ml-1 opacity-75">(Syncing)</span>}</>
+                                ) : null}
+                              </span>
+                            </button>
+                            {file.type === 'file' && !isAtTOC && (
+                              <div className={`flex items-center transition-opacity ${file.status === 'pending' ? 'opacity-0' : 'opacity-0 group-hover:opacity-100'}`}>
+                                <button onClick={(e) => { e.stopPropagation(); renameFile(file); }} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded mr-1"><FileEdit className="w-4 h-4" /></button>
+                                <button onClick={(e) => { e.stopPropagation(); deleteFile(file); }} className="p-1 hover:bg-red-100 dark:hover:bg-red-900/50 text-gray-400 hover:text-red-500 dark:hover:text-red-400 rounded"><Trash2 className="w-4 h-4" /></button>
+                              </div>
+                            )}
+                          </div>
+                        </li>
+                      );
+                    })}
+                    {visibleItems.length === 0 && <p className="text-xs text-gray-500 px-2 italic">{isAtTOC ? 'No headings' : 'Empty folder'}</p>}
                   </ul>
                 )}
               </div>

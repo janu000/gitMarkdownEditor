@@ -52,7 +52,7 @@ The **Git Markdown Editor** is a professional-grade, browser-based Markdown envi
 | **Task List** | `⌘ + Shift + L` | `Ctrl + Shift + L` |
 | **Quote** | `⌘ + Shift + Q` | `Ctrl + Shift + Q` |
 | **Code Block** | `⌘ + Alt + C` | `Ctrl + Alt + C` |
-| **Inline Code** | `⌘ + Alt + \`` | `Ctrl + Alt + \`` |
+| **Inline Code** | `` ⌘ + Alt + ` `` | `` Ctrl + Alt + ` `` |
 | **Table** | `⌘ + Alt + T` | `Ctrl + Alt + T` |
 | **Math Block** | `⌘ + Alt + M` | `Ctrl + Alt + M` |
 
@@ -104,8 +104,8 @@ The Git Markdown Editor is **100% client-side**.
 - **Data Privacy**: Your content is transmitted directly between your browser and the official GitHub API.
 
 ### CSP Compliance
-- **Main Application (Production)**: The primary build is fully CSP-compliant and **does not require `unsafe-eval`**. It uses pre-compiled assets for maximum security.
-- **Standalone Version (`html-standalone/`)**: This zero-setup version uses `@babel/standalone` and the Tailwind CSS CDN, which **require `unsafe-eval` and `unsafe-inline`** for runtime compilation.
+- **Main Application (Production)**: The primary build is CSP-compliant but includes `'unsafe-eval'` to support dynamic script loading and runtime optimizations required by certain environments or dependencies.
+- **Standalone Version (`html-standalone/`)**: This zero-setup version strictly requires both `'unsafe-eval'` and `'unsafe-inline'` for on-the-fly compilation of JSX and styles.
 
 ## 📝 License
 Distributed under the MIT License. See `LICENSE` for more information.

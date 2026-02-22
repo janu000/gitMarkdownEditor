@@ -1,3 +1,14 @@
+export const inlineParse = (text) => {
+  if (!text) return '';
+  let html = text.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  
+  html = html.replace(/`([^`]+)`/g, '<code class="bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded text-[10px] text-pink-600 dark:text-pink-400 font-mono">$1</code>');
+  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong class="font-bold text-gray-900 dark:text-white">$1</strong>');
+  html = html.replace(/\*([^*]+)\*/g, '<em class="italic">$1</em>');
+  
+  return html;
+};
+
 export const fallbackParse = (md) => {
   if (!md) return '';
   let html = md.replace(/</g, '&lt;').replace(/>/g, '&gt;');

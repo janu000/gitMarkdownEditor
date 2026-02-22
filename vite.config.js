@@ -29,10 +29,10 @@ function agentDebugPlugin() {
 // https://vitejs.dev/config/
 export default defineConfig({
   // 👇 ADD THIS SERVER BLOCK 👇
-  server: {
-    host: true, // This allows connections from outside localhost (like your Docker container)
-    port: 5173, // Keep the default Vite port explicit
-  },
+  // server: {
+  //   host: true, // This allows connections from outside localhost (like your Docker container)
+  //   port: 5173, // Keep the default Vite port explicit
+  // },
   // 👆 ---------------------- 👆
   plugins: [
     react(),

@@ -9,6 +9,13 @@ This document tracks the technical implementation status of Git Markdown Editor 
     - [x] `edit`: Full-screen editor.
     - [x] `split`: 50/50 or custom ratio split.
     - [x] `preview`: Full-screen rendered HTML.
+- [x] **Table of Contents Explorer**:
+    - [x] Double-click any Markdown file to browse headings as a virtual directory layer.
+    - [x] **Inline Rendering**: Correctly renders bold, italic, and code formatting within headings.
+    - [x] **Hierarchy**: Dynamic font sizing, spacing, and indenting based on heading level.
+    - [x] **Interactivity**: Expand/Collapse sub-headings via chevron toggles.
+    - [x] **Live Updates**: TOC syncs in real-time as you type in the active file.
+    - [x] **Deep Linking**: Click heading to jump directly to the line in the editor.
 - [x] **Toolbar Utilities**: `insertText` and `insertListItem` helper functions for cursor-aware formatting.
 - [x] **Autosave**: Debounced/Effect-based persistence to `localStorage` (`gme_draft`).
 - [ ] **Rich Text / WYSIWYG**: Direct editing in the preview pane.
@@ -17,6 +24,7 @@ This document tracks the technical implementation status of Git Markdown Editor 
 ## 🔵 GitHub Integration (REST API v3)
 - [x] **Authentication**: PAT-based auth with `repo` scope validation.
 - [x] **Token Persistence**: Automatic verification on component mount for seamless sessions.
+    - [x] **Resilient Logic**: Token is only removed on explicit 401 errors, not transient network issues.
 - [x] **Repository Browser**:
     - [x] List owned/collaborator repos (filtered by `push` permission).
     - [x] Manual repository entry (`owner/repo`).
@@ -26,8 +34,13 @@ This document tracks the technical implementation status of Git Markdown Editor 
     - [x] File CRUD: Create, Rename, Delete with optimistic UI updates.
     - [x] Binary/Unsupported file filtering.
 - [x] **Commit Logic**: Base64 encoding/decoding for UTF-8 content sync.
-- [x] **Pending Operations**: State tracking for async operations (`pendingOps`) to show "Syncing" status.
+    - [x] **Optimistic Commits**: Sidebar shows "Syncing" status immediately upon commit.
+- [x] **Smart Caching**:
+    - [x] **Latency Reduction**: Uses browser cache for file reads to speed up navigation.
+    - [x] **Freshness**: Uses `no-store` for directory listing and metadata changes.
+    - [x] **Post-Commit Sync**: Automatically performs a cache-busting reload after successful commits.
 - [x] **Branch Management**: Support for switching and creating branches.
+    - [x] **Force Refresh**: Update button re-syncs the complete branch list from GitHub.
 - [ ] **Pull Request Integration**: Create PRs directly from the editor.
 
 ## 🟠 Local Workspace & File System
@@ -46,7 +59,11 @@ This document tracks the technical implementation status of Git Markdown Editor 
     - [x] Dark/Light mode toggle.
     - [x] System preference detection (`prefers-color-scheme`).
 - [x] **Toast System**: Global notification overlay for feedback.
-- [x] **Keyboard Shortcuts**: Global `keydown` listener for 15+ formatting and system commands.
+- [x] **Keyboard Shortcut System**:
+    - [x] **YAML Defaults**: Configuration-driven shortcuts via `shortcuts.yaml`.
+    - [x] **Customization UI**: Dedicated modal for recording personal client-side shortcuts.
+    - [x] **Persistence**: Overrides saved to `localStorage` (`gme_custom_shortcuts`).
+    - [x] **Contextual Tooltips**: Toolbars dynamically display the active keyboard shortcuts on hover.
 - [x] **Loading States**: Granular loading indicators for `fetching`, `verifying`, and `saving`.
 
 ## 📐 Advanced Rendering
