@@ -61,14 +61,21 @@ export default function useMarkdownParser(showToast, setLoadingState) {
               let end = node.position.end.offset;
 
               // Refine selection for table cells and list items to exclude delimiters
-              if (node.type === 'tableCell' || node.type === 'listItem') {
+              if (node.type === 'tableCell') {
                 const rawContent = file.value.slice(start, end);
-                const trimmedMatch = rawContent.match(/^([\s|*-]*)(.*?)[\s|]*$/s);
+                const trimmedMatch = rawContent.match(/^([\s|]*)(.*?)[\s|]*$/s);
                 if (trimmedMatch) {
                   const leadingLength = trimmedMatch[1].length;
                   const actualContentLength = trimmedMatch[2].length;
                   start += leadingLength;
                   end = start + actualContentLength;
+                }
+              } else if (node.type === 'listItem') {
+                const rawContent = file.value.slice(start, end);
+                const trimmedMatch = rawContent.match(/^([\s\-*+]*|[\s\d.]*)(.*)$/s);
+                if (trimmedMatch) {
+                  const leadingLength = trimmedMatch[1].length;
+                  start += leadingLength;
                 }
               }
 
