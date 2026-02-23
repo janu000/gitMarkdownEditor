@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useDeferredValue, useMemo } from 'react';
 
-// Utils
+// ... (rest of imports remains the same)
 import { loadShortcuts, matchesShortcut } from './utils/shortcutManager';
 
 // Components
@@ -70,6 +70,9 @@ export default function App() {
   const [shortcuts, setShortcuts] = useState(loadShortcuts());
   const [localFileName, setLocalFileName] = useState('');
 
+  // Use deferred value for expensive operations like parsing
+  const deferredContent = useDeferredValue(content);
+
   // --- Shared State for Hooks ---
   const [activeFile, setActiveFile] = useState(null); 
   const [pendingOps, setPendingOps] = useState({}); 
@@ -84,9 +87,15 @@ export default function App() {
     localWorkspaceFiles, createLocalFile, renameLocalFile, deleteLocalFile, updateLocalFileContent
   } = useWorkspace(showToast);
 
-  // Sync refs and persistence
+  // Sync refs and persistence (debounced for performance)
   useEffect(() => { activeFileRef.current = activeFile; }, [activeFile]);
-  useEffect(() => { localStorage.setItem('gme_draft', content); }, [content]);
+  
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      localStorage.setItem('gme_draft', content);
+    }, 1000);
+    return () => clearTimeout(handler);
+  }, [content]);
 
   // --- Hooks ---
   const { 
@@ -121,20 +130,24 @@ export default function App() {
 
   const handleExportPdf = useCallback(() => window.print(), []);
 
-  useShortcuts(shortcuts, {
+  const actions = useMemo(() => ({
     saveToGitHub, handleExportPdf, 
     insertText, insertListItem, insertNumberedList, insertTaskList
-  });
+  }), [saveToGitHub, handleExportPdf, insertText, insertListItem, insertNumberedList, insertTaskList]);
+
+  const handleExportPdfCallback = useCallback(() => handleExportPdf(), [handleExportPdf]);
+
+  useShortcuts(shortcuts, actions);
 
   // --- Effects ---
   useEffect(() => {
-    updatePreview(content);
+    updatePreview(deferredContent);
     if (pathStack.length > 0 && pathStack[pathStack.length - 1].isTOC && activeFile) {
       if (pathStack[pathStack.length - 1].path === activeFile.path) {
-        updateTOC(content, activeFile.path);
+        updateTOC(deferredContent, activeFile.path);
       }
     }
-  }, [content, updatePreview, pathStack, activeFile, updateTOC]);
+  }, [deferredContent, updatePreview, pathStack, activeFile, updateTOC]);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -385,7 +398,7 @@ export default function App() {
           viewMode={viewMode}
           setViewMode={setViewMode}
           handleDownload={handleDownload}
-          handleExportPdf={handleExportPdf}
+          handleExportPdf={handleExportPdfCallback}
           saveToGitHub={handleSave}
           loadingState={loadingState}
           shortcuts={shortcuts}

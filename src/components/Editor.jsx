@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { memo, useState, useEffect, useRef, useCallback } from 'react';
 
-const Editor = ({ 
+const Editor = memo(({ 
   viewMode, 
   splitRatio, 
   editorRef, 
@@ -11,6 +11,36 @@ const Editor = ({
   onSelect,
   onClick
 }) => {
+  const [localContent, setLocalContent] = useState(content);
+  const lastPushedContentRef = useRef(content);
+
+  // Sync from parent if content changes externally (e.g. file load, formatting)
+  useEffect(() => {
+    if (content !== lastPushedContentRef.current) {
+      setLocalContent(content);
+      lastPushedContentRef.current = content;
+    }
+  }, [content]);
+
+  // Sync to parent with debounce to avoid excessive App re-renders
+  useEffect(() => {
+    if (localContent === content) return;
+
+    const handler = setTimeout(() => {
+      lastPushedContentRef.current = localContent;
+      setContent(localContent);
+    }, 100);
+
+    return () => clearTimeout(handler);
+  }, [localContent, setContent, content]);
+
+  const handleBlur = useCallback(() => {
+    if (localContent !== content) {
+      lastPushedContentRef.current = localContent;
+      setContent(localContent);
+    }
+  }, [localContent, content, setContent]);
+
   if (viewMode === 'preview') return null;
 
   return (
@@ -21,8 +51,9 @@ const Editor = ({
     >
       <textarea
         ref={editorRef}
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
+        value={localContent}
+        onChange={(e) => setLocalContent(e.target.value)}
+        onBlur={handleBlur}
         onScroll={handleScroll}
         onKeyUp={onKeyUp}
         onSelect={onSelect}
@@ -33,6 +64,8 @@ const Editor = ({
       />
     </div>
   );
-};
+});
+
+Editor.displayName = 'Editor';
 
 export default Editor;

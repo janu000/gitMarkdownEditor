@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { 
   Columns, Sun, Moon, Edit3, Eye, Download, Printer, Save, Loader2 
 } from 'lucide-react';
 import { formatShortcut } from '../utils/shortcutManager';
 
-const Toolbar = ({
+const Toolbar = memo(({
   isSidebarOpen,
   setIsSidebarOpen,
   activeFile,
@@ -77,6 +77,8 @@ const Toolbar = ({
       </div>
     </div>
   );
-};
+});
+
+Toolbar.displayName = 'Toolbar';
 
 export default Toolbar;

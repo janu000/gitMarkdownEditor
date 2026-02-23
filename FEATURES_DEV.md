@@ -81,6 +81,14 @@ This document tracks the technical implementation status of Git Markdown Editor 
 - [x] **Emoji Support**: Native emoji picker and `:emoji:` shortcodes.
 - [x] **Categorized Emoji Picker**: Organized sections for Gitmojis, Status, Docs, and Infra.
 
+## ⚡ Performance Optimizations
+- [x] **Smooth Typing**:
+    - [x] **Interruptible Rendering**: Integrated `useDeferredValue` (React 19) to prioritize user input over expensive Markdown parsing.
+    - [x] **Component Memoization**: Exhaustive use of `React.memo` for Editor, Preview, Sidebar, and Toolbars to eliminate redundant re-renders.
+    - [x] **Debounced Persistence**: Local storage autosave is debounced to reduce disk I/O during rapid typing.
+- [ ] **Web Worker Parsing**: Move `unified` processing to a background thread.
+- [ ] **Incremental TOC Updates**: Only re-parse headers for changed lines.
+
 ## 🛠 Technical Debt & Maintenance
 - [x] **Component Decomposition**: Break down the monolithic `App.jsx` into modular components.
 - [ ] **Unit Testing**: Add Vitest/Jest for utility functions (encoding, parsing).

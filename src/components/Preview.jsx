@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { memo } from 'react';
 
-const Preview = ({ 
+const Preview = memo(({ 
   viewMode, 
   splitRatio, 
   previewRef, 
@@ -24,6 +24,8 @@ const Preview = ({
       </div>
     </div>
   );
-};
+});
+
+Preview.displayName = 'Preview';
 
 export default Preview;

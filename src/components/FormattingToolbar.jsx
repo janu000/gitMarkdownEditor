@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { 
   Bold, Italic, Heading1, Heading2, List, ListOrdered, CheckSquare, 
   Quote, Link as LinkIcon, Image as ImageIcon, Table, Code, Sigma, 
@@ -8,7 +8,7 @@ import ToolButton from './ToolButton';
 import { emojiCategories } from '../utils/emojis';
 import { formatShortcut } from '../utils/shortcutManager';
 
-const FormattingToolbar = ({ 
+const FormattingToolbar = memo(({ 
   viewMode, 
   insertText, 
   insertListItem, 
@@ -73,6 +73,8 @@ const FormattingToolbar = ({
       </div>
     </div>
   );
-};
+});
+
+FormattingToolbar.displayName = 'FormattingToolbar';
 
 export default FormattingToolbar;

@@ -150,6 +150,7 @@ export default function useMarkdownParser(showToast, setLoadingState) {
   }, [setLoadingState, showToast]);
 
   const updateTOC = useCallback((fileContent, filePath) => {
+    // Basic debounce check handled by effect in App.jsx or wrapper here
     const lines = fileContent.split('\n');
     const headings = lines.reduce((acc, line, index) => {
       const match = line.match(/^(#{1,6})\s+(.*)$/);
