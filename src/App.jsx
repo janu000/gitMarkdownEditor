@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback, useDeferredValue, useMemo } from 'react';
 
-// ... (rest of imports remains the same)
+// Utils
 import { loadShortcuts, matchesShortcut } from './utils/shortcutManager';
 
 // Components
@@ -21,6 +21,7 @@ import useGitHub from './hooks/useGitHub';
 import useFormatting from './hooks/useFormatting';
 import useShortcuts from './hooks/useShortcuts';
 import useWorkspace from './hooks/useWorkspace';
+import useSyncScroll from './hooks/useSyncScroll';
 
 // Safely attempt to load README.md
 const readmeFiles = import.meta.glob('../README.md', { query: '?raw', eager: true, import: 'default' });
@@ -44,6 +45,7 @@ export default function App() {
   // --- Refs ---
   const editorRef = useRef(null);
   const previewRef = useRef(null);
+  const mainAreaRef = useRef(null);
   const emojiPickerRef = useRef(null);
   const activeFileRef = useRef(null);
 
@@ -64,6 +66,7 @@ export default function App() {
 
   const [viewMode, setViewMode] = useState('split');
   const [syntaxHighlighting, setSyntaxHighlighting] = useState(true);
+  const [syncScroll, setSyncScroll] = useState(true);
   const [loadingState, setLoadingState] = useState('');
   const [toast, setToast] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -101,14 +104,14 @@ export default function App() {
 
   // --- Hooks ---
   const { 
-    sidebarWidth, splitRatio, setSplitRatio, 
+    sidebarWidth, splitRatio, tempSplitRatio, setSplitRatio, 
     isResizingSidebar, setIsResizingSidebar, 
     isResizingSplit, setIsResizingSplit, 
     isSidebarOpen, setIsSidebarOpen 
-  } = useLayoutResizer(editorRef);
+  } = useLayoutResizer(mainAreaRef);
 
   const { 
-    parsedHtml, processor, tocHeadings, 
+    parsedHtml, tocHeadings, isExpensive,
     updateTOC, updatePreview 
   } = useMarkdownParser(showToast, setLoadingState);
 
@@ -140,11 +143,24 @@ export default function App() {
   const handleExportPdfCallback = useCallback(() => handleExportPdf(), [handleExportPdf]);
 
   useShortcuts(shortcuts, actions);
+  useSyncScroll(editorRef, previewRef, syncScroll && viewMode === 'split');
 
   // --- Effects ---
   useEffect(() => {
-    updatePreview(deferredContent, activeFile?.path);
-  }, [deferredContent, updatePreview, activeFile]);
+    // Adaptive Debounce based on parsing complexity
+    const delay = isExpensive ? 300 : 0;
+    
+    if (delay === 0) {
+      updatePreview(deferredContent, activeFile?.path);
+      return;
+    }
+
+    const handler = setTimeout(() => {
+      updatePreview(deferredContent, activeFile?.path);
+    }, delay);
+    
+    return () => clearTimeout(handler);
+  }, [deferredContent, updatePreview, activeFile, isExpensive]);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -260,19 +276,8 @@ export default function App() {
         scrollIntoView: true
       });
       view.focus();
-    } else {
-      // Fallback for textarea (if still used anywhere)
-      const lines = content.split('\n');
-      let offset = 0;
-      for (let i = 0; i < Math.min(line, lines.length); i++) {
-          offset += lines[i].length + 1;
-      }
-      view.focus();
-      view.setSelectionRange(offset, offset);
-      const lineHeight = 24; 
-      view.scrollTop = line * lineHeight - (view.clientHeight / 2);
     }
-  }, [content]);
+  }, []);
 
   const jumpToOffset = useCallback((start, end) => {
     const view = editorRef.current;
@@ -284,11 +289,6 @@ export default function App() {
         scrollIntoView: true
       });
       view.focus();
-    } else {
-      view.focus();
-      requestAnimationFrame(() => {
-        view.setSelectionRange(start, end);
-      });
     }
   }, []);
 
@@ -329,101 +329,13 @@ export default function App() {
     }
   };
 
-  const scrollMasterRef = useRef(null);
-  const scrollTimeoutRef = useRef(null);
-
-  const handleScroll = useCallback((e) => {
-    if (viewMode !== 'split') return;
-
-    const isEditor = editorRef.current instanceof EditorView && e.target === editorRef.current.scrollDOM;
-    const isPreview = e.target === previewRef.current;
-    const currentSide = isEditor ? 'editor' : (isPreview ? 'preview' : null);
-
-    if (!currentSide || (scrollMasterRef.current && scrollMasterRef.current !== currentSide)) return;
-
-    scrollMasterRef.current = currentSide;
-    clearTimeout(scrollTimeoutRef.current);
-    scrollTimeoutRef.current = setTimeout(() => { scrollMasterRef.current = null; }, 150);
-
-    requestAnimationFrame(() => {
-      if (currentSide === 'editor' && previewRef.current) {
-        const view = editorRef.current;
-        const scrollTop = view.scrollDOM.scrollTop;
-        const previewElements = Array.from(previewRef.current.querySelectorAll('[data-offset-start]'));
-        if (previewElements.length < 2) return;
-
-        // Find the two preview elements that straddle the current editor position
-        let i = 0;
-        for (; i < previewElements.length - 1; i++) {
-          const offset = parseInt(previewElements[i+1].getAttribute('data-offset-start'), 10);
-          const line = view.state.doc.lineAt(Math.min(offset, view.state.doc.length));
-          const lineTop = view.lineBlockAt(line.from).top;
-          if (lineTop > scrollTop) break;
-        }
-
-        const el1 = previewElements[i];
-        const el2 = previewElements[i + 1] || el1;
-
-        const off1 = parseInt(el1.getAttribute('data-offset-start'), 10);
-        const off2 = parseInt(el2.getAttribute('data-offset-start'), 10);
-        
-        const line1 = view.state.doc.lineAt(Math.min(off1, view.state.doc.length));
-        const line2 = view.state.doc.lineAt(Math.min(off2, view.state.doc.length));
-        
-        const t1 = view.lineBlockAt(line1.from).top;
-        const t2 = view.lineBlockAt(line2.from).top;
-
-        // Calculate progress between the two anchors in the editor
-        const progress = t1 === t2 ? 0 : (scrollTop - t1) / (t2 - t1);
-
-        // Interpolate between the two anchors in the preview
-        const p1 = el1.offsetTop;
-        const p2 = el2.offsetTop;
-        const targetScroll = p1 + (p2 - p1) * progress - 20;
-
-        if (Math.abs(previewRef.current.scrollTop - targetScroll) > 1) {
-          previewRef.current.scrollTop = targetScroll;
-        }
-      } else if (currentSide === 'preview' && editorRef.current instanceof EditorView) {
-        const previewContainer = previewRef.current;
-        const scrollTop = previewContainer.scrollTop + 20;
-        const previewElements = Array.from(previewContainer.querySelectorAll('[data-offset-start]'));
-        if (previewElements.length < 2) return;
-
-        let i = 0;
-        for (; i < previewElements.length - 1; i++) {
-          if (previewElements[i+1].offsetTop > scrollTop) break;
-        }
-
-        const el1 = previewElements[i];
-        const el2 = previewElements[i + 1] || el1;
-
-        const p1 = el1.offsetTop;
-        const p2 = el2.offsetTop;
-        const progress = p1 === p2 ? 0 : (scrollTop - p1) / (p2 - p1);
-
-        const off1 = parseInt(el1.getAttribute('data-offset-start'), 10);
-        const off2 = parseInt(el2.getAttribute('data-offset-start'), 10);
-        
-        const view = editorRef.current;
-        const line1 = view.state.doc.lineAt(Math.min(off1, view.state.doc.length));
-        const line2 = view.state.doc.lineAt(Math.min(off2, view.state.doc.length));
-        
-        const t1 = view.lineBlockAt(line1.from).top;
-        const t2 = view.lineBlockAt(line2.from).top;
-
-        const targetScroll = t1 + (t2 - t1) * progress;
-
-        if (Math.abs(view.scrollDOM.scrollTop - targetScroll) > 1) {
-          view.scrollDOM.scrollTop = targetScroll;
-        }
-      }
-    });
-  }, [viewMode]);
-
   return (
     <div className="flex h-screen w-full bg-white dark:bg-[#0d1117] text-gray-900 dark:text-gray-200 font-sans overflow-hidden selection:bg-indigo-500/30">
       {toast && <Toast type={toast.type} message={toast.message} />}
+
+      {(isResizingSidebar || isResizingSplit) && (
+        <div className="fixed inset-0 z-[100] cursor-col-resize select-none" />
+      )}
 
       <AuthModal 
         showAuthModal={showAuthModal} 
@@ -497,56 +409,73 @@ export default function App() {
           setViewMode={setViewMode}
           syntaxHighlighting={syntaxHighlighting}
           setSyntaxHighlighting={setSyntaxHighlighting}
+          syncScroll={syncScroll}
+          setSyncScroll={setSyncScroll}
           handleDownload={handleDownload}
           handleExportPdf={handleExportPdfCallback}
           saveToGitHub={handleSave}
           loadingState={loadingState}
           shortcuts={shortcuts}
-          isUnified={!!processor}
         />
 
-        <FormattingToolbar 
-          viewMode={viewMode}
-          insertText={insertText}
-          insertListItem={insertListItem}
-          insertNumberedList={insertNumberedList}
-          insertTaskList={insertTaskList}
-          showEmojiPicker={showEmojiPicker}
-          setShowEmojiPicker={setShowEmojiPicker}
-          emojiPickerRef={emojiPickerRef}
-          shortcuts={shortcuts}
-        />
-
-        <div className="flex-1 flex overflow-hidden relative">
-          <CodeMirrorEditor 
-            viewMode={viewMode}
-            splitRatio={splitRatio}
-            editorRef={editorRef}
-            content={content}
-            setContent={setContent}
-            handleScroll={handleScroll}
-            theme={theme}
-            syntaxHighlighting={syntaxHighlighting}
-          />
+        <div ref={mainAreaRef} className="flex-1 flex overflow-hidden relative">
+          {/* Editor Column */}
+          {(viewMode === 'edit' || viewMode === 'split') && (
+            <div 
+              className="flex flex-col h-full bg-white dark:bg-[#0d1117]"
+              style={viewMode === 'split' ? { width: `${tempSplitRatio * 100}%` } : { flex: 1 }}
+            >
+              <FormattingToolbar 
+                viewMode={viewMode}
+                insertText={insertText}
+                insertListItem={insertListItem}
+                insertNumberedList={insertNumberedList}
+                insertTaskList={insertTaskList}
+                showEmojiPicker={showEmojiPicker}
+                setShowEmojiPicker={setShowEmojiPicker}
+                emojiPickerRef={emojiPickerRef}
+                shortcuts={shortcuts}
+              />
+              <div className="flex-1 overflow-hidden">
+                <CodeMirrorEditor 
+                  editorRef={editorRef}
+                  content={content}
+                  setContent={setContent}
+                  theme={theme}
+                  syntaxHighlighting={syntaxHighlighting}
+                />
+              </div>
+            </div>
+          )}
 
           {viewMode === 'split' && (
             <div 
               id="split-resizer" 
-              className="w-1 cursor-col-resize bg-gray-200 dark:bg-gray-800 hover:bg-indigo-500/50 active:bg-indigo-500 transition-colors z-10 flex items-center justify-center group" 
+              className="w-1 cursor-col-resize hover:bg-indigo-500/30 active:bg-indigo-500 transition-colors z-10 flex items-center justify-center group bg-transparent" 
               onMouseDown={() => { setIsResizingSplit(true); document.body.style.cursor = 'col-resize'; }}
             >
-              <div className="h-8 w-0.5 bg-gray-400 dark:bg-gray-600 rounded group-hover:bg-white transition-colors" />
+              <div className="h-full w-px bg-gray-200 dark:bg-gray-800 group-hover:bg-indigo-500 group-active:bg-indigo-500 transition-colors" />
             </div>
           )}
 
-          <Preview 
-            viewMode={viewMode}
-            splitRatio={splitRatio}
-            previewRef={previewRef}
-            handleScroll={handleScroll}
-            parsedHtml={parsedHtml}
-            onClick={handlePreviewClick}
-          />
+          {/* Preview Column */}
+          {(viewMode === 'preview' || viewMode === 'split') && (
+            <div 
+              className={`flex flex-col h-full bg-white dark:bg-[#0d1117] ${viewMode === 'split' ? 'border-l border-gray-200 dark:border-gray-800' : ''}`}
+              style={viewMode === 'split' ? { width: `${(1 - tempSplitRatio) * 100}%` } : { flex: 1 }}
+            >
+              <div className="h-10 bg-gray-50 dark:bg-[#0d1117] border-b border-gray-200 dark:border-gray-800 flex items-center px-4 shrink-0">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">Preview</span>
+              </div>
+              <div className="flex-1 overflow-hidden">
+                <Preview 
+                  previewRef={previewRef}
+                  parsedHtml={parsedHtml}
+                  onClick={handlePreviewClick}
+                />
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

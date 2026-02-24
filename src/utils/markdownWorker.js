@@ -55,30 +55,30 @@ async function initProcessor() {
     ]);
 
     const remarkOffsetPlugin = () => (tree, file) => {
-      const chunkOffset = file.data.chunkOffset || 0;
       const walk = (node) => {
         if (node.position) {
           node.data = node.data || {};
           node.data.hProperties = node.data.hProperties || {};
-          let start = node.position.start.offset + chunkOffset;
-          let end = node.position.end.offset + chunkOffset;
+          let start = node.position.start.offset;
+          let end = node.position.end.offset;
           if (node.type === 'tableCell') {
             const rawContent = file.value.slice(node.position.start.offset, node.position.end.offset);
             const trimmedMatch = rawContent.match(/^([\s|]*)(.*?)[\s|]*$/s);
             if (trimmedMatch) {
               const leadingLength = trimmedMatch[1].length;
-              start = node.position.start.offset + chunkOffset + leadingLength;
+              start = node.position.start.offset + leadingLength;
               end = start + trimmedMatch[2].length;
             }
           } else if (node.type === 'listItem') {
             const rawContent = file.value.slice(node.position.start.offset, node.position.end.offset);
             const trimmedMatch = rawContent.match(/^([\s\-*+]*|[\s\d.]*)(.*)$/s);
             if (trimmedMatch) {
-              start = node.position.start.offset + chunkOffset + trimmedMatch[1].length;
+              start = node.position.start.offset + trimmedMatch[1].length;
             }
           }
           node.data.hProperties['data-offset-start'] = String(start);
           node.data.hProperties['data-offset-end'] = String(end);
+          
           const syncableTypes = ['text', 'strong', 'emphasis', 'inlineCode', 'link', 'image', 'heading', 'paragraph', 'listItem', 'blockquote', 'code', 'tableCell'];
           if (syncableTypes.includes(node.type)) {
             node.data.hProperties.className = [...(node.data.hProperties.className || []), 'cursor-sync-target'];
@@ -160,18 +160,24 @@ self.onmessage = async (e) => {
     if (chunkCache.size > 200) chunkCache.clear();
 
     for (const chunk of chunks) {
-      const cacheKey = chunk.text + definitions; // Include definitions in cache key for safety
+      const cacheKey = chunk.text + definitions; 
+      let html;
       if (chunkCache.has(cacheKey)) {
-        htmlChunks.push(chunkCache.get(cacheKey));
+        html = chunkCache.get(cacheKey);
       } else {
         const result = await processor.process({ 
           value: chunk.text + '\n\n' + definitions, 
-          data: { chunkOffset: chunk.offset } 
+          data: { chunkOffset: 0 } 
         });
-        const html = String(result);
+        html = String(result);
         chunkCache.set(cacheKey, html);
-        htmlChunks.push(html);
       }
+
+      // Re-base relative offsets from cache to absolute offsets for this chunk
+      const rebasedHtml = html.replace(/data-offset-(start|end)="(\d+)"/g, (match, type, val) => {
+        return `data-offset-${type}="${parseInt(val, 10) + chunk.offset}"`;
+      });
+      htmlChunks.push(rebasedHtml);
     }
 
     self.postMessage({ 

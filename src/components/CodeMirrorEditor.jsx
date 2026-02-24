@@ -1,6 +1,6 @@
 import React, { memo, useEffect, useRef } from 'react';
 import { EditorView, basicSetup } from 'codemirror';
-import { EditorState, Compartment } from '@codemirror/state';
+import { EditorState, Compartment, Transaction } from '@codemirror/state';
 import { markdown } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
 import { syntaxHighlighting as cmSyntaxHighlighting, HighlightStyle } from '@codemirror/language';
@@ -73,12 +73,9 @@ const getBaseTheme = (theme) => EditorView.theme({
 });
 
 const CodeMirrorEditor = memo(({ 
-  viewMode, 
-  splitRatio, 
   editorRef, 
   content, 
   setContent, 
-  handleScroll,
   theme,
   syntaxHighlighting
 }) => {
@@ -107,11 +104,13 @@ const CodeMirrorEditor = memo(({
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
             clearTimeout(debounceTimer);
+            const syncDelay = update.state.doc.length < 10000 ? 10 : 300;
+            
             debounceTimer = setTimeout(() => {
               const newContent = update.state.doc.toString();
               contentRef.current = newContent;
               setContent(newContent);
-            }, 300);
+            }, syncDelay);
           }
         })
       ]
@@ -125,12 +124,8 @@ const CodeMirrorEditor = memo(({
     viewRef.current = view;
     if (editorRef) editorRef.current = view;
 
-    const scroller = view.scrollDOM;
-    scroller.addEventListener('scroll', handleScroll);
-
     return () => {
       clearTimeout(debounceTimer);
-      scroller.removeEventListener('scroll', handleScroll);
       view.destroy();
     };
   }, []);
@@ -158,22 +153,25 @@ const CodeMirrorEditor = memo(({
   // Sync content from outside (e.g. file load)
   useEffect(() => {
     if (!viewRef.current) return;
-    const currentText = viewRef.current.state.doc.toString();
-    if (content !== currentText) {
-      viewRef.current.dispatch({
-        changes: { from: 0, to: viewRef.current.state.doc.length, insert: content || '' }
+    const view = viewRef.current;
+    const currentText = view.state.doc.toString();
+    
+    if (content !== currentText && content !== contentRef.current) {
+      const selection = view.state.selection;
+      view.dispatch({
+        changes: { from: 0, to: currentText.length, insert: content || '' },
+        selection: selection,
+        annotations: Transaction.remote.of(true)
       });
+      contentRef.current = content;
     }
   }, [content]);
-
-  if (viewMode === 'preview') return null;
 
   return (
     <div 
       id="editor-container" 
       ref={containerRef}
-      className={`h-full bg-white dark:bg-[#0d1117] overflow-hidden custom-scrollbar ${viewMode === 'split' ? '' : 'flex-1'}`} 
-      style={viewMode === 'split' ? { width: `${splitRatio * 100}%` } : {}}
+      className="h-full bg-white dark:bg-[#0d1117] overflow-hidden custom-scrollbar w-full" 
     />
   );
 });

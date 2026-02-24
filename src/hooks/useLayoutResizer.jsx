@@ -1,11 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
-export default function useLayoutResizer(editorRef) {
+export default function useLayoutResizer(containerRef) {
   const [sidebarWidth, setSidebarWidth] = useState(256);
   const [splitRatio, setSplitRatio] = useState(0.5);
+  const [tempSplitRatio, setTempSplitRatio] = useState(0.5); // Fast state for dragging
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
   const [isResizingSplit, setIsResizingSplit] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  
+  const debounceTimerRef = useRef(null);
 
   useEffect(() => {
     const handleMouseMove = (e) => {
@@ -14,17 +17,28 @@ export default function useLayoutResizer(editorRef) {
         setSidebarWidth(newWidth);
       }
       if (isResizingSplit) {
-        const mainArea = editorRef.current?.parentElement?.parentElement;
-        if (mainArea) {
-          const rect = mainArea.getBoundingClientRect();
+        const container = containerRef.current;
+        if (container) {
+          const rect = container.getBoundingClientRect();
           const relativeX = e.clientX - rect.left;
-          const newRatio = Math.max(0.2, Math.min(relativeX / rect.width, 0.8));
-          setSplitRatio(newRatio);
+          const newRatio = Math.max(0.1, Math.min(relativeX / rect.width, 0.9));
+          
+          // Update the fast state immediately
+          setTempSplitRatio(newRatio);
+          
+          // Debounce the heavy state update that triggers re-renders/CM6 resizing
+          clearTimeout(debounceTimerRef.current);
+          debounceTimerRef.current = setTimeout(() => {
+            setSplitRatio(newRatio);
+          }, 16); // ~60fps target
         }
       }
     };
 
     const handleMouseUp = () => {
+      if (isResizingSplit) {
+        setSplitRatio(tempSplitRatio);
+      }
       setIsResizingSidebar(false);
       setIsResizingSplit(false);
       document.body.style.cursor = 'default';
@@ -41,12 +55,13 @@ export default function useLayoutResizer(editorRef) {
       window.removeEventListener('mousemove', handleMouseMove);
       window.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isResizingSidebar, isResizingSplit, editorRef]);
+  }, [isResizingSidebar, isResizingSplit, containerRef, tempSplitRatio]);
 
   return {
     sidebarWidth,
     setSidebarWidth,
     splitRatio,
+    tempSplitRatio,
     setSplitRatio,
     isResizingSidebar,
     setIsResizingSidebar,
