@@ -13,12 +13,42 @@ html, body, #root {
 }
 
 /* Scrollbar */
-.custom-scrollbar::-webkit-scrollbar { width: 8px; height: 8px; }
-.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-.custom-scrollbar::-webkit-scrollbar-thumb { background-color: #d1d5db; border-radius: 4px; }
-.custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #9ca3af; }
-.dark .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #30363d; }
-.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #484f58; }
+.custom-scrollbar::-webkit-scrollbar,
+.custom-scrollbar .cm-scroller::-webkit-scrollbar { 
+  width: 8px; 
+  height: 8px; 
+}
+
+.custom-scrollbar::-webkit-scrollbar-track,
+.custom-scrollbar .cm-scroller::-webkit-scrollbar-track { 
+  background: transparent; 
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb,
+.custom-scrollbar .cm-scroller::-webkit-scrollbar-thumb { 
+  background-color: #d1d5db; 
+  border-radius: 4px; 
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover,
+.custom-scrollbar .cm-scroller::-webkit-scrollbar-thumb:hover { 
+  background-color: #9ca3af; 
+}
+
+.custom-scrollbar::-webkit-scrollbar-button,
+.custom-scrollbar .cm-scroller::-webkit-scrollbar-button { 
+  display: none; 
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb,
+.dark .custom-scrollbar .cm-scroller::-webkit-scrollbar-thumb { 
+  background-color: #30363d; 
+}
+
+.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover,
+.dark .custom-scrollbar .cm-scroller::-webkit-scrollbar-thumb:hover { 
+  background-color: #484f58; 
+}
 
 /* Markdown Global Styles - Light Mode Defaults */
 .markdown-body { color: #1f2937; }

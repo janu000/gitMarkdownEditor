@@ -1,98 +1,161 @@
-# Git Markdown Editor Development Feature Checklist
+# Git Markdown Editor - Feature Analysis
 
-This document tracks the technical implementation status of Git Markdown Editor features. It serves as a reference for developers to understand the current capabilities and planned improvements.
+This document provides a detailed breakdown of all implemented features in the Git Markdown Editor, analyzed at the smallest unit of implementation.
 
-## 🟢 Core Editor Engine
-- [x] **Live Markdown Parsing**: Integrated `Marked.js` for GFM support.
-- [x] **Synchronized Scrolling**: High-precision scroll syncing between Editor (`textarea`) and Preview (`div`).
-- [x] **Token-Level Cursor Syncing**:
-    - [x] **AST Parsing**: Migrated to `unified`, `remark`, and `rehype` for exact character offset tracking.
-    - [x] **HTML Injection**: Custom rehype plugin injecting `data-offset-start` and `data-offset-end` attributes.
-    - [x] **Bi-directional Sync**: 
-        - [x] Preview -> Editor: Clicking elements in preview jumps editor to exact offset.
-        - [x] Editor -> Preview: Editor cursor movement highlights and scrolls to corresponding element in preview.
-- [x] **View Modes**:
-    - [x] `edit`: Full-screen editor.
-    - [x] `split`: 50/50 or custom ratio split.
-    - [x] `preview`: Full-screen rendered HTML.
-- [x] **Table of Contents Explorer**:
-    - [x] Double-click any Markdown file to browse headings as a virtual directory layer.
-    - [x] **Inline Rendering**: Correctly renders bold, italic, and code formatting within headings.
-    - [x] **Hierarchy**: Dynamic font sizing, spacing, and indenting based on heading level.
-    - [x] **Interactivity**: Expand/Collapse sub-headings via chevron toggles.
-    - [x] **Live Updates**: TOC syncs in real-time as you type in the active file.
-    - [x] **Deep Linking**: Click heading to jump directly to the line in the editor.
-- [x] **Toolbar Utilities**: `insertText` and `insertListItem` helper functions for cursor-aware formatting.
-- [x] **Autosave**: Debounced/Effect-based persistence to `localStorage` (`gme_draft`).
-- [ ] **Rich Text / WYSIWYG**: Direct editing in the preview pane.
-- [ ] **Find & Replace**: Search functionality within the editor.
+## 1. Core Architecture & Editor Logic
 
-## 🔵 GitHub Integration (REST API v3)
-- [x] **Authentication**: PAT-based auth with `repo` scope validation.
-- [x] **Token Persistence**: Automatic verification on component mount for seamless sessions.
-    - [x] **Resilient Logic**: Token is only removed on explicit 401 errors, not transient network issues.
-- [x] **Repository Browser**:
-    - [x] List owned/collaborator repos (filtered by `push` permission).
-    - [x] Manual repository entry (`owner/repo`).
-    - [x] Repository hiding/blacklisting (`gme_hidden_repos`).
-- [x] **File Explorer**:
-    - [x] Recursive directory navigation (`pathStack`).
-    - [x] File CRUD: Create, Rename, Delete with optimistic UI updates.
-    - [x] Binary/Unsupported file filtering.
-- [x] **Commit Logic**: Base64 encoding/decoding for UTF-8 content sync.
-    - [x] **Optimistic Commits**: Sidebar shows "Syncing" status immediately upon commit.
-- [x] **Smart Caching**:
-    - [x] **Latency Reduction**: Uses browser cache for file reads to speed up navigation.
-    - [x] **Freshness**: Uses `no-store` for directory listing and metadata changes.
-    - [x] **Post-Commit Sync**: Automatically performs a cache-busting reload after successful commits.
-- [x] **Branch Management**: Support for switching and creating branches.
-    - [x] **Force Refresh**: Update button re-syncs the complete branch list from GitHub.
-- [ ] **Pull Request Integration**: Create PRs directly from the editor.
+### CodeMirror 6 Implementation (Primary)
+- **Engine:** Migrated from a basic `textarea` to a professional **CodeMirror 6** editor.
+- **Syntax Highlighting:** Real-time highlighting for Markdown, GFM, and nested code blocks.
+- **Dynamic Theming:** Seamless switching between Light and Dark modes using CodeMirror `Compartment` and `oneDark` theme.
+- **Performance:** Optimized for large files using virtualization; handles 10,000+ line documents without input lag.
+- **Memory Optimization (Rope Structure):** Leverages CodeMirror's internal B-Tree/Rope data structure by using debounced stringification (300ms) to prevent expensive JavaScript string reallocations on every keystroke.
+- **Smart Editing:** 
+    - Auto-bracket closing.
+    - Smart indentation.
+    - Line wrapping and active line highlighting.
+- **Transaction-based State:** Uses CodeMirror's functional state model for robust undo/redo history and precise programmatic updates.
 
-## 🟠 Local Workspace & File System
-- [x] **In-Browser Workspace**: Virtual file system stored in `localStorage` (`gme_local_workspace`).
-- [x] **File System Access API**: `window.showOpenFilePicker` for native file system interaction.
-- [x] **Local File CRUD**: Create, rename, and delete local virtual files.
-- [x] **Download/Export**: 
-    - [x] Download as `.md` file.
-    - [x] Export to PDF via `window.print()` and CSS `@media print`.
+### State & Persistence
+- **LocalStorage Draft Persistence:** Automatically saves current editor content to `gme_draft` with a 1-second debounce to prevent data loss.
+- **Deferred Rendering:** Uses React 19's `useDeferredValue` for markdown parsing to ensure the editor remains responsive during heavy parsing tasks.
+- **Workspace State Management:** `useWorkspace.jsx` maintains a virtual file system in `localStorage` under `gme_local_workspace`.
 
-## 🎨 UI/UX & Layout
-- [x] **Responsive Sidebar**: Resizable sidebar with `isResizingSidebar` state.
-- [x] **Flexible Split**: Adjustable editor/preview ratio with `isResizingSplit` state.
-- [x] **Theme Engine**: 
-    - [x] Dark/Light mode toggle.
-    - [x] System preference detection (`prefers-color-scheme`).
-- [x] **Toast System**: Global notification overlay for feedback.
-- [x] **Keyboard Shortcut System**:
-    - [x] **YAML Defaults**: Configuration-driven shortcuts via `shortcuts.yaml`.
-    - [x] **Customization UI**: Dedicated modal for recording personal client-side shortcuts.
-    - [x] **Persistence**: Overrides saved to `localStorage` (`gme_custom_shortcuts`).
-    - [x] **Contextual Tooltips**: Toolbars dynamically display the active keyboard shortcuts on hover.
-- [x] **Loading States**: Granular loading indicators for `fetching`, `verifying`, and `saving`.
+### Layout & Resizing
+- **Tri-Pane Layout:** Collapsible Sidebar, Editor, and Preview panes.
+- **Sidebar Resizing:** Interactive dragging to adjust sidebar width (constrained between 150px and 600px).
+- **Split-Pane Resizing:** Interactive dragging to adjust the ratio between Editor and Preview (constrained between 20% and 80%).
+- **View Modes:**
+    - **Edit Mode:** Full-screen editor.
+    - **Split Mode:** Side-by-side editor and preview.
+    - **Preview Mode:** Full-screen rendered output.
+- **Sidebar Toggle:** Ability to completely hide the explorer for focus.
 
-## 📐 Advanced Rendering
-- [x] **KaTeX Integration**: 
-    - [x] Inline math `$ ... $`.
-    - [x] Block math `$$ ... $$`.
-    - [x] Dynamic CDN injection for styles and scripts.
-- [x] **Code Highlighting**: Basic themed styling for code blocks.
-- [ ] **Mermaid.js Diagrams**: Support for flowcharts and diagrams.
-- [x] **Emoji Support**: Native emoji picker and `:emoji:` shortcodes.
-- [x] **Categorized Emoji Picker**: Organized sections for Gitmojis, Status, Docs, and Infra.
+---
 
-## ⚡ Performance Optimizations
-- [x] **Smooth Typing**:
-    - [x] **Interruptible Rendering**: Integrated `useDeferredValue` (React 19) to prioritize user input over expensive Markdown parsing.
-    - [x] **Component Memoization**: Exhaustive use of `React.memo` for Editor, Preview, Sidebar, and Toolbars to eliminate redundant re-renders.
-    - [x] **Debounced Persistence**: Local storage autosave is debounced to reduce disk I/O during rapid typing.
-- [ ] **Web Worker Parsing**: Move `unified` processing to a background thread.
-- [ ] **Incremental TOC Updates**: Only re-parse headers for changed lines.
+## 2. Markdown Parsing & Preview System
 
-## 🛠 Technical Debt & Maintenance
-- [x] **Component Decomposition**: Break down the monolithic `App.jsx` into modular components.
-- [ ] **Unit Testing**: Add Vitest/Jest for utility functions (encoding, parsing).
-- [ ] **E2E Testing**: Add Playwright/Cypress for GitHub flow verification.
-- [ ] **Type Safety**: Migrate to TypeScript for better state management.
+### Incremental Worker-based Parsing
+- **Off-Thread Processing:** Heavy Markdown parsing moved to a Web Worker to keep the UI thread responsive.
+- **Chunked Parsing:** Documents are split into logical chunks (by headers) so only modified sections are re-processed.
+- **Caching Mechanism:** Uses a chunk-based cache to avoid re-parsing unchanged document sections.
+- **Unified AST Parser:** Uses `unified`, `remark-parse`, `remark-gfm`, `remark-math`, `remark-emoji`, `rehype-katex`, and `rehype-stringify`.
 
+### Synchronized Scrolling (Precision Sync)
+- **Piecewise Linear Interpolation:** Uses a monotonic mapping between editor line blocks and preview DOM elements to ensure perfectly smooth, jiggle-free scrolling.
+- **Anchor-based Tracking:** Identifies dual anchor points (straddling elements) and calculates exact sub-pixel progress between them.
+- **Master/Slave Locking:** Implements a directional lock to prevent "sync fighting" and reverse-scrolling during momentum/inertia.
+- **AST Source Mapping:** Custom `remarkOffsetPlugin` injects `data-offset-start` attributes into rendered HTML elements for exact character-to-DOM mapping.
 
+### Math & Equations
+- **KaTeX Integration:** Full support for LaTeX math.
+- **Inline Math:** Rendered via `$ ... $`.
+- **Block Math:** Rendered via `$$ ... $$` with display mode formatting.
+- **Dynamic CSS Loading:** Programmatically injects KaTeX stylesheets into the document head.
+
+### Table of Contents (TOC)
+- **Automatic Extraction:** Scans content for `#{1,6}` headings.
+- **Line Mapping:** Captures the line number for every heading for direct navigation.
+- **Dynamic TOC View:** Sidebar can switch from File Explorer to TOC mode.
+- **Nested Hierarchy:** Supports 6 levels of headings with indented UI.
+- **Collapsible Headings:** Ability to collapse/expand heading sections in the TOC sidebar.
+
+### Preview Features
+- **Click-to-Jump (Sync):** Clicking any element in the preview scrolls the editor to the exact character offset of that element.
+- **GFM Support:** Support for GitHub Flavored Markdown (Tables, Task lists, Strikethrough, Autolinks).
+- **HTML Sanitization:** Safe rendering of dangerous HTML via `allowDangerousHtml` configurations in unified.
+- **Fallback Parser:** Automatically switches to `Marked.js` if the heavy AST parser fails to load (e.g., CSP or network issues).
+
+---
+
+## 3. GitHub Integration (`useGitHub.jsx`)
+
+### Authentication
+- **PAT-based Auth:** Support for GitHub Personal Access Tokens (classic) with `repo` scope.
+- **Secure Persistence:** Tokens stored in `localStorage` and never logged.
+- **Token Verification:** Validates tokens against `/user` endpoint and fetches profile data (avatar, login).
+
+### Repository Management
+- **Repository Explorer:** Fetches and lists all owner and collaborator repositories with push permissions.
+- **Hide/Restore Repos:** Ability to hide specific repositories from the explorer with persistence.
+- **Manual Repository Entry:** Support for accessing repositories not listed (owner/repo).
+- **Branch Switcher:** Fetch and switch between all branches of a repository.
+- **Branch Creation:** Create new branches directly from the current HEAD.
+
+### File Operations (Remote)
+- **Directory Navigation:** Breadcrumb-style path stack for navigating deep repo structures.
+- **File Loading:** Fetches file content and decodes Base64 (UTF-8 safe).
+- **Commit/Save:** Pushes content to GitHub with a default commit message; handles Base64 encoding.
+- **File CRUD:** Create, Rename, and Delete files directly on the remote repository.
+- **Optimistic Updates:** Immediate UI feedback for file operations using `pendingOps` state.
+- **Sync States:** Visual indicators (spinners, "Syncing" text, pulsing icons) for background operations.
+
+---
+
+## 4. Local Workspace & File System
+
+### Virtual File System
+- **Browser-based Storage:** Full CRUD support for files stored in `localStorage`.
+- **Local Draft:** A default scratchpad area that persists across refreshes without needing a named file.
+
+### Native File System Access
+- **Local File Import:** Uses the `window.showOpenFilePicker` (File System Access API) to read files from the user's actual disk into the workspace.
+- **Download:** Export current content as a `.md` file to the user's downloads folder.
+
+---
+
+## 5. Editing & Formatting Features
+
+### Formatting Toolbar
+- **Inline Formatting:** Bold, Italic, Strikethrough, Inline Code.
+- **Block Formatting:** Heading 1, Heading 2, Blockquote, Code Block, Table, Math Block.
+- **List Management:**
+    - Bulleted lists.
+    - Numbered lists with auto-incrementing integers.
+    - Task lists (Checkboxes).
+- **Link & Image Helpers:** Snippet insertion for Markdown links and images.
+
+### Keyboard Shortcuts
+- **Global Listener:** `useShortcuts.jsx` maps keys to editor actions.
+- **YAML Configuration:** Default shortcuts defined in `shortcuts.yaml`.
+- **Customization Interface:** `ShortcutModal.jsx` allows users to record and override any shortcut.
+- **Platform Normalization:** Automatically maps `mod` to `Cmd` on Mac and `Ctrl` on Linux/Windows.
+- **Interactive Recording:** Modal intercepts keys to record new combinations without triggering actions.
+
+### Emoji Support
+- **Emoji Picker:** Categorized popover with hundreds of emojis.
+- **Shortcode Transformation:** (Planned/Partial) - Logic exists in `utils/emojis.js` to parse shortcodes.
+
+---
+
+## 6. UI/UX & Quality of Life
+
+### Theme System
+- **Dark/Light Mode:** Full UI support for GitHub-style light and dark themes.
+- **System Preference Sync:** Defaults to user's OS theme preference.
+- **Transition-less Resizing:** Layout resizing is optimized to prevent UI lag.
+
+### Visual Feedback
+- **Toast Notifications:** Feedback for success, error, and info states (Saved, Deleted, Error, etc.).
+- **Unsaved Changes Indicator:** Visual dot in the toolbar when content differs from the last saved state.
+- **Breadcrumbs:** Path navigation in the sidebar for both Local and GitHub workspaces.
+- **Responsive Preview:** `max-w-3xl` centering for readability.
+
+### Export & Printing
+- **PDF Export:** Specialized CSS `@media print` rules to optimize the preview for printing.
+- **Print Optimization:** Hides UI elements, forces light mode colors, prevents breaking equations/blocks across pages.
+
+### PWA (Progressive Web App)
+- **Vite PWA Plugin:** Configured for offline usage and "Install" support.
+- **Service Worker:** Registered in `main.jsx` for asset caching.
+
+---
+
+## 7. Technical Implementation Details
+
+- **Iconography:** Uses `lucide-react` for consistent, accessible icons.
+- **Styling:** Tailwind CSS for utility-first responsive design.
+- **AST Syncing:** Precise character-to-DOM offset mapping for both "Click-to-Jump" and "Synchronized Scrolling".
+- **UTF-8 Safe Base64:** Custom `utf8_to_b64` and `b64_to_utf8` utilities using `encodeURIComponent` to handle special characters and emojis in GitHub commits.
+- **Custom Vite Debug Logger:** A specialized Vite plugin (`agentDebugPlugin`) that intercepts build/server errors and writes them to `debug.log` for agent-based diagnostics.
+- **Standalone Mode Support:** The project maintains a `html-standalone/index.html` (though noted as discontinued in `GEMINI.md`, the code exists for historical/portable reference).

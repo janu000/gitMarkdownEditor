@@ -9,7 +9,8 @@ import AuthModal from './components/AuthModal';
 import Sidebar from './components/Sidebar';
 import Toolbar from './components/Toolbar';
 import FormattingToolbar from './components/FormattingToolbar';
-import Editor from './components/Editor';
+import { EditorView } from 'codemirror';
+import CodeMirrorEditor from './components/CodeMirrorEditor';
 import Preview from './components/Preview';
 import ShortcutModal from './components/ShortcutModal';
 
@@ -126,7 +127,7 @@ export default function App() {
 
   const { 
     insertText, insertListItem, insertNumberedList, insertTaskList 
-  } = useFormatting(editorRef, setContent);
+  } = useFormatting(editorRef);
 
   const handleExportPdf = useCallback(() => window.print(), []);
 
@@ -141,13 +142,8 @@ export default function App() {
 
   // --- Effects ---
   useEffect(() => {
-    updatePreview(deferredContent);
-    if (pathStack.length > 0 && pathStack[pathStack.length - 1].isTOC && activeFile) {
-      if (pathStack[pathStack.length - 1].path === activeFile.path) {
-        updateTOC(deferredContent, activeFile.path);
-      }
-    }
-  }, [deferredContent, updatePreview, pathStack, activeFile, updateTOC]);
+    updatePreview(deferredContent, activeFile?.path);
+  }, [deferredContent, updatePreview, activeFile]);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -253,26 +249,46 @@ export default function App() {
   };
 
   const jumpToLine = useCallback((line) => {
-    const textarea = editorRef.current;
-    if (!textarea) return;
-    const lines = content.split('\n');
-    let offset = 0;
-    for (let i = 0; i < Math.min(line, lines.length); i++) {
-        offset += lines[i].length + 1;
+    const view = editorRef.current;
+    if (!view) return;
+
+    if (view instanceof EditorView) {
+      const linePos = view.state.doc.line(Math.min(line + 1, view.state.doc.lines));
+      view.dispatch({
+        selection: { anchor: linePos.from },
+        scrollIntoView: true
+      });
+      view.focus();
+    } else {
+      // Fallback for textarea (if still used anywhere)
+      const lines = content.split('\n');
+      let offset = 0;
+      for (let i = 0; i < Math.min(line, lines.length); i++) {
+          offset += lines[i].length + 1;
+      }
+      view.focus();
+      view.setSelectionRange(offset, offset);
+      const lineHeight = 24; 
+      view.scrollTop = line * lineHeight - (view.clientHeight / 2);
     }
-    textarea.focus();
-    textarea.setSelectionRange(offset, offset);
-    const lineHeight = 24; 
-    textarea.scrollTop = line * lineHeight - (textarea.clientHeight / 2);
   }, [content]);
 
   const jumpToOffset = useCallback((start, end) => {
-    const textarea = editorRef.current;
-    if (!textarea) return;
-    textarea.focus();
-    requestAnimationFrame(() => {
-      textarea.setSelectionRange(start, end);
-    });
+    const view = editorRef.current;
+    if (!view) return;
+
+    if (view instanceof EditorView) {
+      view.dispatch({
+        selection: { anchor: start, head: end },
+        scrollIntoView: true
+      });
+      view.focus();
+    } else {
+      view.focus();
+      requestAnimationFrame(() => {
+        view.setSelectionRange(start, end);
+      });
+    }
   }, []);
 
   const handlePreviewClick = useCallback((e) => {
@@ -312,16 +328,97 @@ export default function App() {
     }
   };
 
-  const handleScroll = (e) => {
+  const scrollMasterRef = useRef(null);
+  const scrollTimeoutRef = useRef(null);
+
+  const handleScroll = useCallback((e) => {
     if (viewMode !== 'split') return;
-    const { scrollTop, scrollHeight, clientHeight } = e.target;
-    const scrollRatio = scrollTop / (scrollHeight - clientHeight);
-    if (e.target === editorRef.current && previewRef.current) {
-      previewRef.current.scrollTop = scrollRatio * (previewRef.current.scrollHeight - previewRef.current.clientHeight);
-    } else if (e.target === previewRef.current && editorRef.current) {
-      editorRef.current.scrollTop = scrollRatio * (editorRef.current.scrollHeight - editorRef.current.clientHeight);
-    }
-  };
+
+    const isEditor = editorRef.current instanceof EditorView && e.target === editorRef.current.scrollDOM;
+    const isPreview = e.target === previewRef.current;
+    const currentSide = isEditor ? 'editor' : (isPreview ? 'preview' : null);
+
+    if (!currentSide || (scrollMasterRef.current && scrollMasterRef.current !== currentSide)) return;
+
+    scrollMasterRef.current = currentSide;
+    clearTimeout(scrollTimeoutRef.current);
+    scrollTimeoutRef.current = setTimeout(() => { scrollMasterRef.current = null; }, 150);
+
+    requestAnimationFrame(() => {
+      if (currentSide === 'editor' && previewRef.current) {
+        const view = editorRef.current;
+        const scrollTop = view.scrollDOM.scrollTop;
+        const previewElements = Array.from(previewRef.current.querySelectorAll('[data-offset-start]'));
+        if (previewElements.length < 2) return;
+
+        // Find the two preview elements that straddle the current editor position
+        let i = 0;
+        for (; i < previewElements.length - 1; i++) {
+          const offset = parseInt(previewElements[i+1].getAttribute('data-offset-start'), 10);
+          const line = view.state.doc.lineAt(Math.min(offset, view.state.doc.length));
+          const lineTop = view.lineBlockAt(line.from).top;
+          if (lineTop > scrollTop) break;
+        }
+
+        const el1 = previewElements[i];
+        const el2 = previewElements[i + 1] || el1;
+
+        const off1 = parseInt(el1.getAttribute('data-offset-start'), 10);
+        const off2 = parseInt(el2.getAttribute('data-offset-start'), 10);
+        
+        const line1 = view.state.doc.lineAt(Math.min(off1, view.state.doc.length));
+        const line2 = view.state.doc.lineAt(Math.min(off2, view.state.doc.length));
+        
+        const t1 = view.lineBlockAt(line1.from).top;
+        const t2 = view.lineBlockAt(line2.from).top;
+
+        // Calculate progress between the two anchors in the editor
+        const progress = t1 === t2 ? 0 : (scrollTop - t1) / (t2 - t1);
+
+        // Interpolate between the two anchors in the preview
+        const p1 = el1.offsetTop;
+        const p2 = el2.offsetTop;
+        const targetScroll = p1 + (p2 - p1) * progress - 20;
+
+        if (Math.abs(previewRef.current.scrollTop - targetScroll) > 1) {
+          previewRef.current.scrollTop = targetScroll;
+        }
+      } else if (currentSide === 'preview' && editorRef.current instanceof EditorView) {
+        const previewContainer = previewRef.current;
+        const scrollTop = previewContainer.scrollTop + 20;
+        const previewElements = Array.from(previewContainer.querySelectorAll('[data-offset-start]'));
+        if (previewElements.length < 2) return;
+
+        let i = 0;
+        for (; i < previewElements.length - 1; i++) {
+          if (previewElements[i+1].offsetTop > scrollTop) break;
+        }
+
+        const el1 = previewElements[i];
+        const el2 = previewElements[i + 1] || el1;
+
+        const p1 = el1.offsetTop;
+        const p2 = el2.offsetTop;
+        const progress = p1 === p2 ? 0 : (scrollTop - p1) / (p2 - p1);
+
+        const off1 = parseInt(el1.getAttribute('data-offset-start'), 10);
+        const off2 = parseInt(el2.getAttribute('data-offset-start'), 10);
+        
+        const view = editorRef.current;
+        const line1 = view.state.doc.lineAt(Math.min(off1, view.state.doc.length));
+        const line2 = view.state.doc.lineAt(Math.min(off2, view.state.doc.length));
+        
+        const t1 = view.lineBlockAt(line1.from).top;
+        const t2 = view.lineBlockAt(line2.from).top;
+
+        const targetScroll = t1 + (t2 - t1) * progress;
+
+        if (Math.abs(view.scrollDOM.scrollTop - targetScroll) > 1) {
+          view.scrollDOM.scrollTop = targetScroll;
+        }
+      }
+    });
+  }, [viewMode]);
 
   return (
     <div className="flex h-screen w-full bg-white dark:bg-[#0d1117] text-gray-900 dark:text-gray-200 font-sans overflow-hidden selection:bg-indigo-500/30">
@@ -418,13 +515,14 @@ export default function App() {
         />
 
         <div className="flex-1 flex overflow-hidden relative">
-          <Editor 
+          <CodeMirrorEditor 
             viewMode={viewMode}
             splitRatio={splitRatio}
             editorRef={editorRef}
             content={content}
             setContent={setContent}
             handleScroll={handleScroll}
+            theme={theme}
           />
 
           {viewMode === 'split' && (
