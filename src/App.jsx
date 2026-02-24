@@ -63,6 +63,7 @@ export default function App() {
   });
 
   const [viewMode, setViewMode] = useState('split');
+  const [syntaxHighlighting, setSyntaxHighlighting] = useState(true);
   const [loadingState, setLoadingState] = useState('');
   const [toast, setToast] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -494,6 +495,8 @@ export default function App() {
           setTheme={setTheme}
           viewMode={viewMode}
           setViewMode={setViewMode}
+          syntaxHighlighting={syntaxHighlighting}
+          setSyntaxHighlighting={setSyntaxHighlighting}
           handleDownload={handleDownload}
           handleExportPdf={handleExportPdfCallback}
           saveToGitHub={handleSave}
@@ -523,6 +526,7 @@ export default function App() {
             setContent={setContent}
             handleScroll={handleScroll}
             theme={theme}
+            syntaxHighlighting={syntaxHighlighting}
           />
 
           {viewMode === 'split' && (

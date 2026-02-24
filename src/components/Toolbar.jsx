@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
 import { 
-  Columns, Sun, Moon, Edit3, Eye, Download, Printer, Save, Loader2 
+  Columns, Sun, Moon, Edit3, Eye, Download, Printer, Save, Loader2, Highlighter 
 } from 'lucide-react';
 import { formatShortcut } from '../utils/shortcutManager';
 
@@ -16,6 +16,8 @@ const Toolbar = memo(({
   setTheme,
   viewMode,
   setViewMode,
+  syntaxHighlighting,
+  setSyntaxHighlighting,
   handleDownload,
   handleExportPdf,
   saveToGitHub,
@@ -60,6 +62,13 @@ const Toolbar = memo(({
         </div>
       </div>
       <div className="flex items-center space-x-2">
+        <button 
+          onClick={() => setSyntaxHighlighting(!syntaxHighlighting)} 
+          className={`p-1.5 rounded transition-colors mr-1 ${syntaxHighlighting ? 'text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/10' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200 dark:hover:text-white dark:hover:bg-gray-800'}`}
+          title={syntaxHighlighting ? "Turn Off Syntax Highlighting" : "Turn On Syntax Highlighting"}
+        >
+          <Highlighter className="w-5 h-5" />
+        </button>
         <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-200 dark:hover:text-white dark:hover:bg-gray-800 rounded mr-2">
           {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
         </button>
