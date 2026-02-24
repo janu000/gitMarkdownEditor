@@ -50,6 +50,7 @@ This document provides a detailed breakdown of all implemented features in the G
 - **Sync Scrolling (Clean Reimplementation):** 
     - **Bi-directional Sync:** Scrolling the editor moves the preview and vice-versa.
     - **AST-Level Accuracy:** Uses precise character offsets from the Markdown AST to map editor lines to preview elements.
+    - **Layout Shift Resilience:** Employs `ResizeObserver` and capture-phase image `load` listeners to maintain scroll sync accuracy during dynamic content loading (e.g., images).
     - **Efficient Implementation:** Uses binary search and scroll-caching for smooth performance even on large documents.
     - **Robust Loop Prevention:** Ref-based locking ensures scroll events don't trigger infinite feedback loops.
     - **Toggleable:** Can be enabled/disabled via a dedicated "Sync" button in the toolbar.

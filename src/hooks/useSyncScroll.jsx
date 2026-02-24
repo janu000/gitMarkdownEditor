@@ -162,19 +162,28 @@ export default function useSyncScroll(editorRef, previewRef, active) {
     view.scrollDOM.addEventListener('scroll', editorScrollHandler, { passive: true });
     preview.addEventListener('scroll', previewScrollHandler, { passive: true });
 
-    // MutationObserver to update cache when preview content changes
-    let mutationTimeout;
-    const observer = new MutationObserver(() => {
-      clearTimeout(mutationTimeout);
-      mutationTimeout = setTimeout(updatePreviewCache, 100);
+    // Use ResizeObserver to detect layout changes (including image loads that change size)
+    let resizeTimeout;
+    const resizeObserver = new ResizeObserver(() => {
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(updatePreviewCache, 100);
     });
-    observer.observe(preview, { childList: true, subtree: true });
+    resizeObserver.observe(preview);
+
+    // Also listen for 'load' events (for images) which might not trigger ResizeObserver in all cases
+    const loadHandler = (e) => {
+      if (e.target.tagName === 'IMG') {
+        updatePreviewCache();
+      }
+    };
+    preview.addEventListener('load', loadHandler, { capture: true });
 
     return () => {
       view.scrollDOM.removeEventListener('scroll', editorScrollHandler);
       preview.removeEventListener('scroll', previewScrollHandler);
-      observer.disconnect();
-      clearTimeout(mutationTimeout);
+      resizeObserver.disconnect();
+      preview.removeEventListener('load', loadHandler, { capture: true });
+      clearTimeout(resizeTimeout);
     };
   }, [active, editorRef.current, previewRef.current, handleEditorScroll, handlePreviewScroll, updatePreviewCache]);
 }
