@@ -56,6 +56,7 @@ async function initProcessor() {
 
     const remarkOffsetPlugin = () => (tree, file) => {
       const walk = (node) => {
+        if (node.type === 'footnoteDefinition') return; // Ignore footnotes as anchors
         if (node.position) {
           node.data = node.data || {};
           node.data.hProperties = node.data.hProperties || {};
