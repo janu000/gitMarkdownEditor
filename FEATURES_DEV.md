@@ -49,8 +49,14 @@ This document provides a detailed breakdown of all implemented features in the G
 ### Preview Features
 - **Sync Scrolling (Clean Reimplementation):** 
     - **Bi-directional Sync:** Scrolling the editor moves the preview and vice-versa.
+    - **Center Syncing:** Maps the document position at the *center* of the editor viewport to the *center* of the preview viewport (and vice-versa). It averages over 11 anchor points covering the entire viewport height (0% to 100% in 10% increments) to provide a more intuitive and visually stable scrolling experience, smoothing out jumps from large elements.
     - **AST-Level Accuracy:** Uses precise character offsets from the Markdown AST to map editor lines to preview elements.
-    - **Layout Shift Resilience:** Employs `ResizeObserver` and capture-phase image `load` listeners to maintain scroll sync accuracy during dynamic content loading (e.g., images).
+    - **Layout Shift Resilience:** Employs `ResizeObserver` and capture-phase image `load` listeners to maintain scroll sync accuracy during dynamic content loading.
+    - **Performance Optimizations:** 
+        - **Asynchronous Batching:** Processes element measurements in small batches (100 nodes at a time) with main-thread yielding to prevent UI freezing on large documents.
+        - **Adaptive Debouncing:** Prevents redundant cache recalculations during rapid edits.
+        - **Scroll-Aware Throttling:** Postpones cache updates during active scrolling to avoid layout thrashing.
+        - **Paint-Safe Synchronization:** Uses `requestAnimationFrame` to ensure measurements occur after the browser has completed rendering and layout.
     - **Efficient Implementation:** Uses binary search and scroll-caching for smooth performance even on large documents.
     - **Robust Loop Prevention:** Ref-based locking ensures scroll events don't trigger infinite feedback loops.
     - **Toggleable:** Can be enabled/disabled via a dedicated "Sync" button in the toolbar.

@@ -143,7 +143,7 @@ export default function App() {
   const handleExportPdfCallback = useCallback(() => handleExportPdf(), [handleExportPdf]);
 
   useShortcuts(shortcuts, actions);
-  useSyncScroll(editorRef, previewRef, syncScroll && viewMode === 'split');
+  useSyncScroll(editorRef, previewRef, syncScroll && viewMode === 'split', parsedHtml);
 
   // --- Effects ---
   useEffect(() => {
