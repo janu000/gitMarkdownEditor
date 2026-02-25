@@ -139,6 +139,8 @@ This document provides a detailed breakdown of all implemented features in the G
 
 ## 8. Recent Fixes & Refinements
 
+- **Duplicate Key Fix:** Resolved `Encountered two children with the same key` warning in the Sidebar. The key for file list items was changed from `file.sha || file.path` to strictly `file.path`. This prevents collisions when multiple files have the same content (e.g., empty files sharing the same Git SHA `e69de29bb2d1d6434b8b29ae775ad8c2e48c5391`).
+- **CodeMirror RangeError Fix:** Resolved `Uncaught RangeError: Selection points outside of document` when switching files. The `CodeMirrorEditor` now resets the cursor position to the beginning of the document when content is updated from an external source (like loading a new file), ensuring the previous selection doesn't point past the end of the new content.
 - **Editor-Preview Sync Fix:** Resolved an issue where loading a file would update the preview but fail to update the CodeMirror editor. This was caused by a redundant `useEffect` in `CodeMirrorEditor.jsx` that prematurely updated the internal content reference, blocking the external update detection logic.
 - **Robust Transaction Handling:** Refined the synchronization between the React `content` state and the CodeMirror `EditorState` to ensure external loads (from GitHub or Local Workspace) correctly trigger a document dispatch while avoiding feedback loops from internal editor changes.
 

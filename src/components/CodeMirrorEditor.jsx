@@ -153,10 +153,9 @@ const CodeMirrorEditor = memo(({
     const currentText = view.state.doc.toString();
     
     if (content !== currentText && content !== contentRef.current) {
-      const selection = view.state.selection;
       view.dispatch({
         changes: { from: 0, to: currentText.length, insert: content || '' },
-        selection: selection,
+        selection: { anchor: 0 },
         annotations: Transaction.remote.of(true)
       });
       contentRef.current = content;

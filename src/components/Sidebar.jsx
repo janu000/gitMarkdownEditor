@@ -142,7 +142,7 @@ const Sidebar = memo(({
                   const isCollapsed = collapsedPaths.has(file.path);
 
                   return (
-                    <li key={file.type === 'heading' ? `heading-${idx}` : file.path} className="relative">
+                    <li key={file.path} className="relative">
                       <div className="flex items-center group">
                         {isAtTOC && file.type === 'heading' && hasChildren && (
                           <button 
@@ -300,7 +300,7 @@ const Sidebar = memo(({
                       const isCollapsed = collapsedPaths.has(file.path);
 
                       return (
-                        <li key={file.type === 'heading' ? `heading-${idx}` : (file.sha || file.path)} className="relative">
+                        <li key={file.path} className="relative">
                           <div className={`flex items-center group ${file.status === 'pending' ? 'opacity-70' : ''}`}>
                             {isAtTOC && file.type === 'heading' && hasChildren && (
                               <button 
