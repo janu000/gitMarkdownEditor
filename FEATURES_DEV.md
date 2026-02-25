@@ -137,6 +137,13 @@ This document provides a detailed breakdown of all implemented features in the G
 
 ---
 
+## 8. Recent Fixes & Refinements
+
+- **Editor-Preview Sync Fix:** Resolved an issue where loading a file would update the preview but fail to update the CodeMirror editor. This was caused by a redundant `useEffect` in `CodeMirrorEditor.jsx` that prematurely updated the internal content reference, blocking the external update detection logic.
+- **Robust Transaction Handling:** Refined the synchronization between the React `content` state and the CodeMirror `EditorState` to ensure external loads (from GitHub or Local Workspace) correctly trigger a document dispatch while avoiding feedback loops from internal editor changes.
+
+---
+
 ## 7. Technical Implementation Details
 
 - **Iconography:** Consistent `lucide-react` usage.

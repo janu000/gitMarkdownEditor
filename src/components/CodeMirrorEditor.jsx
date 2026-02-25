@@ -83,10 +83,6 @@ const CodeMirrorEditor = memo(({
   const viewRef = useRef(null);
   const contentRef = useRef(content);
 
-  useEffect(() => {
-    contentRef.current = content;
-  }, [content]);
-
   // Initialize Editor
   useEffect(() => {
     if (!containerRef.current) return;
