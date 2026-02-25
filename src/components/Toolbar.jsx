@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
 import { 
-  Columns, Sun, Moon, Edit3, Eye, Download, Printer, Save, Loader2, Highlighter, Scroll 
+  Columns, Sun, Moon, Edit3, Eye, Download, Printer, Save, Loader2, Highlighter 
 } from 'lucide-react';
 import { formatShortcut } from '../utils/shortcutManager';
 
@@ -18,8 +18,6 @@ const Toolbar = memo(({
   setViewMode,
   syntaxHighlighting,
   setSyntaxHighlighting,
-  syncScroll,
-  setSyncScroll,
   handleDownload,
   handleExportPdf,
   saveToGitHub,
@@ -49,19 +47,6 @@ const Toolbar = memo(({
           ) : (
             <span className="text-gray-500 italic">Local Draft (Unsynced)</span>
           )}
-          
-          <button 
-            onClick={() => setSyncScroll(!syncScroll)}
-            className={`ml-3 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border flex items-center gap-1 transition-colors ${
-              syncScroll 
-                ? 'bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 border-indigo-500/20' 
-                : 'bg-gray-100 text-gray-400 border-gray-200 dark:bg-gray-800 dark:border-gray-700'
-            }`}
-            title={syncScroll ? "Disable Sync Scroll" : "Enable Sync Scroll"}
-          >
-            <Scroll className="w-3 h-3" />
-            {syncScroll ? 'Sync Active' : 'Sync Off'}
-          </button>
 
           {loadingState && (
             <span className="ml-3 flex items-center gap-1 text-[11px] text-gray-500 animate-pulse">

@@ -66,7 +66,6 @@ export default function App() {
 
   const [viewMode, setViewMode] = useState('split');
   const [syntaxHighlighting, setSyntaxHighlighting] = useState(true);
-  const [syncScroll, setSyncScroll] = useState(true);
   const [loadingState, setLoadingState] = useState('');
   const [toast, setToast] = useState(null);
   const [showAuthModal, setShowAuthModal] = useState(false);
@@ -143,7 +142,7 @@ export default function App() {
   const handleExportPdfCallback = useCallback(() => handleExportPdf(), [handleExportPdf]);
 
   useShortcuts(shortcuts, actions);
-  useSyncScroll(editorRef, previewRef, syncScroll && viewMode === 'split', parsedHtml);
+  useSyncScroll(editorRef, previewRef, viewMode === 'split', parsedHtml);
 
   // --- Effects ---
   useEffect(() => {
@@ -409,8 +408,6 @@ export default function App() {
           setViewMode={setViewMode}
           syntaxHighlighting={syntaxHighlighting}
           setSyntaxHighlighting={setSyntaxHighlighting}
-          syncScroll={syncScroll}
-          setSyncScroll={setSyncScroll}
           handleDownload={handleDownload}
           handleExportPdf={handleExportPdfCallback}
           saveToGitHub={handleSave}

@@ -59,8 +59,8 @@ This document provides a detailed breakdown of all implemented features in the G
         - **Paint-Safe Synchronization:** Uses `requestAnimationFrame` to ensure measurements occur after the browser has completed rendering and layout.
     - **Efficient Implementation:** Uses binary search and scroll-caching for smooth performance even on large documents.
     - **Robust Loop Prevention:** Ref-based locking ensures scroll events don't trigger infinite feedback loops.
-    - **Toggleable:** Can be enabled/disabled via a dedicated "Sync" button in the toolbar.
-- **Independent Scrolling:** When sync is disabled, panes scroll independently.
+    - **Active by Default:** Automatically enabled when in split view mode.
+- **Independent Scrolling:** Panes scroll independently when not in split view mode.
 - **Click-to-Jump (Sync):** Clicking any element in the preview scrolls the editor to the exact character offset of that element.
 - **GFM Support:** Support for GitHub Flavored Markdown (Tables, Task lists, Strikethrough, Autolinks).
 - **AST Source Mapping:** Custom `remarkOffsetPlugin` injects `data-offset-start` attributes for exact character-to-DOM mapping.
@@ -143,6 +143,7 @@ This document provides a detailed breakdown of all implemented features in the G
 - **CodeMirror RangeError Fix:** Resolved `Uncaught RangeError: Selection points outside of document` when switching files. The `CodeMirrorEditor` now resets the cursor position to the beginning of the document when content is updated from an external source (like loading a new file), ensuring the previous selection doesn't point past the end of the new content.
 - **Editor-Preview Sync Fix:** Resolved an issue where loading a file would update the preview but fail to update the CodeMirror editor. This was caused by a redundant `useEffect` in `CodeMirrorEditor.jsx` that prematurely updated the internal content reference, blocking the external update detection logic.
 - **Robust Transaction Handling:** Refined the synchronization between the React `content` state and the CodeMirror `EditorState` to ensure external loads (from GitHub or Local Workspace) correctly trigger a document dispatch while avoiding feedback loops from internal editor changes.
+- **Simplified Toolbar:** Removed the "sync active/off" toggle button from the top toolbar as it was deemed unnecessary. Scroll synchronization is now always active when the editor and preview are visible in split view.
 
 ---
 
