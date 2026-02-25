@@ -264,27 +264,21 @@ export default function App() {
     showToast(`Downloaded ${fileName}`);
   };
 
-  const jumpToLine = useCallback((line) => {
+  const jumpTo = useCallback(({ line, offset, endOffset }) => {
     const view = editorRef.current;
-    if (!view) return;
+    if (!view || !(view instanceof EditorView)) return;
 
-    if (view instanceof EditorView) {
+    let target;
+    if (line !== undefined) {
       const linePos = view.state.doc.line(Math.min(line + 1, view.state.doc.lines));
-      view.dispatch({
-        selection: { anchor: linePos.from },
-        scrollIntoView: true
-      });
-      view.focus();
+      target = { anchor: linePos.from };
+    } else if (offset !== undefined) {
+      target = { anchor: offset, head: endOffset ?? offset };
     }
-  }, []);
 
-  const jumpToOffset = useCallback((start, end) => {
-    const view = editorRef.current;
-    if (!view) return;
-
-    if (view instanceof EditorView) {
+    if (target) {
       view.dispatch({
-        selection: { anchor: start, head: end },
+        selection: target,
         scrollIntoView: true
       });
       view.focus();
@@ -302,13 +296,13 @@ export default function App() {
         const s = parseInt(start, 10);
         const e_offset = parseInt(end, 10);
         if (!isNaN(s) && !isNaN(e_offset)) {
-          jumpToOffset(s, e_offset);
+          jumpTo({ offset: s, endOffset: e_offset });
         }
         return;
       }
       target = target.parentElement;
     }
-  }, [jumpToOffset]);
+  }, [jumpTo]);
 
   const importLocalFile = async () => {
     if (!('showOpenFilePicker' in window)) {
@@ -380,7 +374,7 @@ export default function App() {
         setCurrentBranch={setCurrentBranch}
         createBranch={createBranch}
         loadTOC={loadTOC}
-        jumpToLine={jumpToLine}
+        jumpTo={jumpTo}
       />
 
       {isSidebarOpen && (

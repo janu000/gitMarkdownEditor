@@ -16,6 +16,7 @@ This document provides a detailed breakdown of all implemented features in the G
     - Auto-bracket closing.
     - Smart indentation.
     - Line wrapping and active line highlighting.
+    - **Scroll Past End:** Enabled scrolling beyond the last line of the document for better vertical positioning.
 - **Transaction-based State:** Uses CodeMirror's functional state model for robust undo/redo history and precise programmatic updates.
 
 ### Layout & Resizing
@@ -47,16 +48,17 @@ This document provides a detailed breakdown of all implemented features in the G
     - **Caching Mechanism:** Logical cache to avoid re-parsing unchanged document sections.
 
 ### Preview Features
-- **Sync Scrolling (Clean Reimplementation):** 
+- **Sync Scrolling (High Precision):** 
     - **Bi-directional Sync:** Scrolling the editor moves the preview and vice-versa.
-    - **Center Syncing:** Maps the document position at the *center* of the editor viewport to the *center* of the preview viewport (and vice-versa). It averages over 11 anchor points covering the entire viewport height (0% to 100% in 10% increments) to provide a more intuitive and visually stable scrolling experience, smoothing out jumps from large elements.
+    - **Scroller-Relative Linear Interpolation:** Uses actual scroll positions (viewport top) mapped between the editor and preview. This coordinate system accounts for top paddings and header offsets by normalizing both scrollers to a shared content-locked baseline.
+    - **Content-End Mapping:** Explicitly maps the "start of text" to "start of text" and "end of text" to "end of text." This ensures that virtual space (like "scroll past end" padding) doesn't interfere with content alignment.
     - **AST-Level Accuracy:** Uses precise character offsets from the Markdown AST to map editor lines to preview elements.
-    - **Layout Shift Resilience:** Employs `ResizeObserver` and capture-phase image `load` listeners to maintain scroll sync accuracy during dynamic content loading.
+    - **Layout Shift Resilience:** Employs `ResizeObserver` on the actual `.markdown-body` content element and capture-phase image `load` listeners to maintain accuracy during dynamic content loading.
     - **Performance Optimizations:** 
-        - **Asynchronous Batching:** Processes element measurements in small batches (100 nodes at a time) with main-thread yielding to prevent UI freezing on large documents.
-        - **Adaptive Debouncing:** Prevents redundant cache recalculations during rapid edits.
+        - **Asynchronous Batching:** Processes element measurements in small batches (100 nodes at a time) with main-thread yielding to prevent UI freezing.
+        - **Adaptive Debouncing:** Prevents redundant recalculations during rapid edits.
         - **Scroll-Aware Throttling:** Postpones cache updates during active scrolling to avoid layout thrashing.
-        - **Paint-Safe Synchronization:** Uses `requestAnimationFrame` to ensure measurements occur after the browser has completed rendering and layout.
+        - **Paint-Safe Synchronization:** Uses `requestAnimationFrame` to ensure measurements occur after browser layout is stable.
     - **Efficient Implementation:** Uses binary search and scroll-caching for smooth performance even on large documents.
     - **Robust Loop Prevention:** Ref-based locking ensures scroll events don't trigger infinite feedback loops.
     - **Active by Default:** Automatically enabled when in split view mode.
@@ -143,6 +145,8 @@ This document provides a detailed breakdown of all implemented features in the G
 - **CodeMirror RangeError Fix:** Resolved `Uncaught RangeError: Selection points outside of document` when switching files. The `CodeMirrorEditor` now resets the cursor position to the beginning of the document when content is updated from an external source (like loading a new file), ensuring the previous selection doesn't point past the end of the new content.
 - **Editor-Preview Sync Fix:** Resolved an issue where loading a file would update the preview but fail to update the CodeMirror editor. This was caused by a redundant `useEffect` in `CodeMirrorEditor.jsx` that prematurely updated the internal content reference, blocking the external update detection logic.
 - **Robust Transaction Handling:** Refined the synchronization between the React `content` state and the CodeMirror `EditorState` to ensure external loads (from GitHub or Local Workspace) correctly trigger a document dispatch while avoiding feedback loops from internal editor changes.
+- **Scroll Past End Aware Sync:** Fixed a scroll offset issue that increased towards the end of the document. The synchronization logic now correctly distinguishes between actual content height and the virtual padding added by the "scroll past end" extension.
+- **Clamped Precision Sync:** Resolved the "growing layout shift" by implementing a fully normalized content-space coordinate system. All measurements are now relative to the absolute start of the text content (`.markdown-body` and `contentDOM`). Added clamped interpolation ratios and a "bottom-lock" mechanism that forces perfect alignment at the end of the document, ensuring drift never accumulates.
 - **Simplified Toolbar:** Removed the "sync active/off" toggle button from the top toolbar as it was deemed unnecessary. Scroll synchronization is now always active when the editor and preview are visible in split view.
 
 ---

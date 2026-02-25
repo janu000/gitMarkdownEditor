@@ -1,5 +1,6 @@
 import React, { memo, useEffect, useRef } from 'react';
-import { EditorView, basicSetup } from 'codemirror';
+import { basicSetup } from 'codemirror';
+import { EditorView, scrollPastEnd } from '@codemirror/view';
 import { EditorState, Compartment, Transaction } from '@codemirror/state';
 import { markdown } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
@@ -97,6 +98,7 @@ const CodeMirrorEditor = memo(({
         highlightConfig.of(syntaxHighlighting ? cmSyntaxHighlighting(theme === 'dark' ? darkHighlightStyle : lightHighlightStyle) : []),
         baseThemeConfig.of(getBaseTheme(theme)),
         EditorView.lineWrapping,
+        scrollPastEnd(),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
             clearTimeout(debounceTimer);

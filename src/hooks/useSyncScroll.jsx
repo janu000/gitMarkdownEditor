@@ -1,246 +1,198 @@
 import { useEffect, useRef, useCallback } from 'react';
-import { EditorView } from 'codemirror';
 
+/**
+ * Linear Interpolation helper
+ */
+const lerp = (a, b, t) => a + (b - a) * t;
+
+/**
+ * High-precision bi-directional scroll synchronization.
+ * Uses scroller-relative coordinates to eliminate layout drift.
+ */
 export default function useSyncScroll(editorRef, previewRef, active, parsedHtml) {
   const isScrollingEditor = useRef(false);
   const isScrollingPreview = useRef(false);
   const scrollTimeout = useRef(null);
-  
-  // Cache for preview element offsets
-  const previewElementsCache = useRef([]);
-
-  const lastUpdateTime = useRef(0);
   const updateTimeout = useRef(null);
+  
+  // Cache for anchor points mapped between scroller coordinate systems
+  const syncCache = useRef(null);
 
-  const updatePreviewCache = useCallback(() => {
+  const updateSyncCache = useCallback(() => {
     if (!previewRef.current || !editorRef.current) return;
     
+    // Clear any pending updates
+    if (updateTimeout.current) clearTimeout(updateTimeout.current);
+
     // Skip updates during active scrolling to prevent layout thrashing
     if (isScrollingEditor.current || isScrollingPreview.current) {
-      if (updateTimeout.current) clearTimeout(updateTimeout.current);
-      updateTimeout.current = setTimeout(updatePreviewCache, 200);
+      updateTimeout.current = setTimeout(updateSyncCache, 200);
       return;
     }
 
-    // Debounce the cache update to avoid rapid re-calculations
-    const now = Date.now();
-    if (now - lastUpdateTime.current < 500) {
-      if (updateTimeout.current) clearTimeout(updateTimeout.current);
-      updateTimeout.current = setTimeout(updatePreviewCache, 500);
-      return;
-    }
-    lastUpdateTime.current = now;
-
-    // Use requestAnimationFrame to ensure the DOM has been painted before we measure it
-    requestAnimationFrame(async () => {
-      if (!previewRef.current || !editorRef.current) return;
-      
-      const container = previewRef.current;
+    requestAnimationFrame(() => {
+      const preview = previewRef.current;
       const view = editorRef.current;
-      const containerRect = container.getBoundingClientRect();
-      const elements = Array.from(container.querySelectorAll('[data-offset-start]'));
-      
+      if (!preview || !view) return;
+
+      const previewRect = preview.getBoundingClientRect();
+      const elements = Array.from(preview.querySelectorAll('[data-offset-start]'));
       if (elements.length === 0) return;
 
-      const newCache = [];
-      const batchSize = 100; // Process in small batches to keep the UI responsive
-      
-      for (let i = 0; i < elements.length; i++) {
-        const el = elements[i];
-        const rect = el.getBoundingClientRect();
-        newCache.push({
-          offset: parseInt(el.getAttribute('data-offset-start'), 10),
-          top: rect.top - containerRect.top + container.scrollTop,
-        });
+      const editorTopOffset = view.contentDOM.offsetTop || 0;
+      const docLength = view.state.doc.length;
 
-        // Yield to the main thread every batchSize elements
-        if (i > 0 && i % batchSize === 0) {
-          await new Promise(resolve => setTimeout(resolve, 0));
+      const anchors = [];
+      for (const el of elements) {
+        const offset = Math.min(parseInt(el.getAttribute('data-offset-start'), 10), docLength);
+        const rect = el.getBoundingClientRect();
+        
+        try {
+          const line = view.lineBlockAt(offset);
+          anchors.push({
+            editorTop: line.top + editorTopOffset,
+            previewTop: rect.top - previewRect.top + preview.scrollTop,
+          });
+        } catch (e) {
+          // Ignore lines that can't be measured
         }
       }
 
-      newCache.sort((a, b) => a.offset - b.offset);
+      // Sort and filter for strict monotonicity
+      anchors.sort((a, b) => a.editorTop - b.editorTop);
 
-      // Strictly Monotonic Filter: ensure both offset AND top are strictly increasing
-      const docLength = view.state.doc.length;
-      const scrollHeight = container.scrollHeight - container.clientHeight;
-
-      const filtered = [{ offset: 0, top: 0 }];
+      const filtered = [{ editorTop: 0, previewTop: 0 }];
       let last = filtered[0];
 
-      for (const current of newCache) {
-        // Only add points that progress both position and offset
-        if (current.offset > last.offset && current.top > last.top) {
-          filtered.push(current);
-          last = current;
+      for (const a of anchors) {
+        if (a.editorTop > last.editorTop && a.previewTop > last.previewTop) {
+          filtered.push(a);
+          last = a;
         }
       }
 
-      // Ensure the final point is the end of document
-      if (docLength > last.offset && scrollHeight > last.top) {
-        filtered.push({ offset: docLength, top: scrollHeight });
-      } else {
-        // Update the last point to be the true bottom if it's close
-        last.offset = docLength;
-        last.top = scrollHeight;
+      // Explicitly map content ends to handle document boundaries
+      try {
+        const lastLine = view.lineBlockAt(docLength);
+        const editorContentEnd = lastLine.bottom + editorTopOffset;
+        const previewContent = preview.querySelector('.markdown-body');
+        const previewContentEnd = previewContent 
+          ? (previewContent.offsetTop + previewContent.offsetHeight) 
+          : preview.scrollHeight;
+
+        if (editorContentEnd > last.editorTop && previewContentEnd > last.previewTop) {
+          filtered.push({ editorTop: editorContentEnd, previewTop: previewContentEnd });
+          last = filtered[filtered.length - 1];
+        }
+      } catch (e) {}
+
+      // Handle "scroll past end" virtual space by mapping absolute scroll limits
+      const editorMax = view.scrollDOM.scrollHeight;
+      const previewMax = preview.scrollHeight;
+      if (editorMax > last.editorTop) {
+        filtered.push({ editorTop: editorMax, previewTop: previewMax });
       }
 
-      previewElementsCache.current = filtered;
+      syncCache.current = filtered;
     });
   }, [previewRef, editorRef]);
 
-  const clearScrollingFlags = useCallback(() => {
+  const performSync = useCallback((source) => {
+    if (!active || !syncCache.current) return;
+
+    if (source === 'editor') {
+      if (isScrollingPreview.current) return;
+      isScrollingEditor.current = true;
+      
+      const scrollTop = editorRef.current.scrollDOM.scrollTop;
+      const anchors = syncCache.current;
+      
+      let low = 0, high = anchors.length - 2;
+      let idx = 0;
+      while (low <= high) {
+        let mid = Math.floor((low + high) / 2);
+        if (anchors[mid].editorTop <= scrollTop) {
+          idx = mid;
+          low = mid + 1;
+        } else {
+          high = mid - 1;
+        }
+      }
+
+      const p1 = anchors[idx], p2 = anchors[idx + 1];
+      const span = p2.editorTop - p1.editorTop;
+      const ratio = span > 0 ? Math.max(0, Math.min(1, (scrollTop - p1.editorTop) / span)) : 0;
+      
+      previewRef.current.scrollTo({
+        top: lerp(p1.previewTop, p2.previewTop, ratio),
+        behavior: 'auto'
+      });
+    } else {
+      if (isScrollingEditor.current) return;
+      isScrollingPreview.current = true;
+      
+      const scrollTop = previewRef.current.scrollTop;
+      const anchors = syncCache.current;
+      
+      let low = 0, high = anchors.length - 2;
+      let idx = 0;
+      while (low <= high) {
+        let mid = Math.floor((low + high) / 2);
+        if (anchors[mid].previewTop <= scrollTop) {
+          idx = mid;
+          low = mid + 1;
+        } else {
+          high = mid - 1;
+        }
+      }
+
+      const p1 = anchors[idx], p2 = anchors[idx + 1];
+      const span = p2.previewTop - p1.previewTop;
+      const ratio = span > 0 ? Math.max(0, Math.min(1, (scrollTop - p1.previewTop) / span)) : 0;
+      
+      editorRef.current.scrollDOM.scrollTo({
+        top: lerp(p1.editorTop, p2.editorTop, ratio),
+        behavior: 'auto'
+      });
+    }
+
     if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
     scrollTimeout.current = setTimeout(() => {
       isScrollingEditor.current = false;
       isScrollingPreview.current = false;
-    }, 150);
-  }, []);
-
-  const handleEditorScroll = useCallback((view) => {
-    if (!active || isScrollingPreview.current || !previewRef.current) return;
-
-    isScrollingEditor.current = true;
-    clearScrollingFlags();
-
-    const cache = previewElementsCache.current;
-    if (cache.length < 2) return;
-
-    const scrollDOM = view.scrollDOM;
-    const rect = scrollDOM.getBoundingClientRect();
-    const previewContainer = previewRef.current;
-    const previewHeight = previewContainer.clientHeight;
-    
-    // Average over multiple anchors covering the entire viewport (0% to 100%)
-    const sampleRatios = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0];
-    let sumTargetScrollTop = 0;
-
-    sampleRatios.forEach(r => {
-      const centerY = rect.top + rect.height * r;
-      // Clamp Y to be within the viewport bounds for better accuracy at edges
-      const clampedY = Math.max(rect.top, Math.min(rect.bottom - 1, centerY));
-      const pos = view.posAtCoords({ x: rect.left + 50, y: clampedY }, false) || 0;
-
-      // Binary search for the segment [p1, p2] containing pos
-      let low = 0, high = cache.length - 2;
-      let idx = 0;
-      while (low <= high) {
-        let mid = Math.floor((low + high) / 2);
-        if (cache[mid].offset <= pos) {
-          idx = mid;
-          low = mid + 1;
-        } else {
-          high = mid - 1;
-        }
-      }
-
-      const p1 = cache[idx];
-      const p2 = cache[idx + 1];
-      const ratio = (pos - p1.offset) / (p2.offset - p1.offset);
-      const targetTop = p1.top + ratio * (p2.top - p1.top);
-      
-      sumTargetScrollTop += (targetTop - r * previewHeight);
-    });
-
-    previewContainer.scrollTo({
-      top: sumTargetScrollTop / sampleRatios.length,
-      behavior: 'auto'
-    });
-  }, [active, previewRef, clearScrollingFlags]);
-
-  const handlePreviewScroll = useCallback(() => {
-    if (!active || isScrollingEditor.current || !editorRef.current || !previewRef.current) return;
-
-    isScrollingPreview.current = true;
-    clearScrollingFlags();
-
-    const cache = previewElementsCache.current;
-    if (cache.length < 2) return;
-
-    const previewContainer = previewRef.current;
-    const previewHeight = previewContainer.clientHeight;
-    const view = editorRef.current;
-    const editorHeight = view.scrollDOM.clientHeight;
-    
-    // Average over multiple anchors covering the entire viewport (0% to 100%)
-    const sampleRatios = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0];
-    let sumTargetEditorTop = 0;
-
-    sampleRatios.forEach(r => {
-      const centerScrollTop = previewContainer.scrollTop + previewHeight * r;
-
-      // Binary search for the segment [p1, p2] containing centerScrollTop
-      let low = 0, high = cache.length - 2;
-      let idx = 0;
-      while (low <= high) {
-        let mid = Math.floor((low + high) / 2);
-        if (cache[mid].top <= centerScrollTop) {
-          idx = mid;
-          low = mid + 1;
-        } else {
-          high = mid - 1;
-        }
-      }
-
-      const p1 = cache[idx];
-      const p2 = cache[idx + 1];
-      const ratio = (centerScrollTop - p1.top) / (p2.top - p1.top);
-      const targetOffset = p1.offset + ratio * (p2.offset - p1.offset);
-
-      if (view instanceof EditorView) {
-        const docLength = view.state.doc.length;
-        const lineBlock = view.lineBlockAt(Math.min(docLength, Math.floor(targetOffset)));
-        sumTargetEditorTop += (lineBlock.top - r * editorHeight);
-      }
-    });
-
-    view.scrollDOM.scrollTo({
-      top: sumTargetEditorTop / sampleRatios.length,
-      behavior: 'auto'
-    });
-  }, [active, editorRef, clearScrollingFlags]);
+    }, 100);
+  }, [active, editorRef, previewRef]);
 
   useEffect(() => {
-    const view = editorRef.current;
+    const editor = editorRef.current;
     const preview = previewRef.current;
+    if (!active || !editor || !preview) return;
 
-    if (!active || !view || !preview) {
-      previewElementsCache.current = [];
-      return;
-    }
+    updateSyncCache();
 
-    // Update cache when content might have changed (actually we should trigger this when parsedHtml changes)
-    updatePreviewCache();
+    const onEditorScroll = () => performSync('editor');
+    const onPreviewScroll = () => performSync('preview');
 
-    const editorScrollHandler = () => handleEditorScroll(view);
-    const previewScrollHandler = () => handlePreviewScroll();
+    editor.scrollDOM.addEventListener('scroll', onEditorScroll, { passive: true });
+    preview.addEventListener('scroll', onPreviewScroll, { passive: true });
 
-    view.scrollDOM.addEventListener('scroll', editorScrollHandler, { passive: true });
-    preview.addEventListener('scroll', previewScrollHandler, { passive: true });
+    const observer = new ResizeObserver(updateSyncCache);
+    observer.observe(preview);
+    const content = preview.querySelector('.markdown-body');
+    if (content) observer.observe(content);
 
-    // Use ResizeObserver to detect layout changes (including image loads that change size)
-    let resizeTimeout;
-    const resizeObserver = new ResizeObserver(() => {
-      clearTimeout(resizeTimeout);
-      resizeTimeout = setTimeout(updatePreviewCache, 100);
-    });
-    resizeObserver.observe(preview);
-
-    // Also listen for 'load' events (for images) which might not trigger ResizeObserver in all cases
     const loadHandler = (e) => {
-      if (e.target.tagName === 'IMG') {
-        updatePreviewCache();
-      }
+      if (e.target.tagName === 'IMG') updateSyncCache();
     };
     preview.addEventListener('load', loadHandler, { capture: true });
 
     return () => {
-      view.scrollDOM.removeEventListener('scroll', editorScrollHandler);
-      preview.removeEventListener('scroll', previewScrollHandler);
-      resizeObserver.disconnect();
+      editor.scrollDOM.removeEventListener('scroll', onEditorScroll);
+      preview.removeEventListener('scroll', onPreviewScroll);
+      observer.disconnect();
       preview.removeEventListener('load', loadHandler, { capture: true });
-      clearTimeout(resizeTimeout);
+      if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
       if (updateTimeout.current) clearTimeout(updateTimeout.current);
     };
-  }, [active, editorRef.current, previewRef.current, handleEditorScroll, handlePreviewScroll, updatePreviewCache, parsedHtml]);
+  }, [active, editorRef.current, previewRef.current, updateSyncCache, performSync, parsedHtml]);
 }

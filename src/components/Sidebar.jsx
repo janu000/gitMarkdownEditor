@@ -36,7 +36,7 @@ const Sidebar = memo(({
   setCurrentBranch,
   createBranch,
   loadTOC,
-  jumpToLine
+  jumpTo
 }) => {
   const workspaceFiles = useMemo(() => getWorkspaceFiles(), [getWorkspaceFiles]);
   const clickTimerRef = useRef(null);
@@ -90,7 +90,7 @@ const Sidebar = memo(({
 
   const handleFileClick = (file) => {
     if (file.type === 'heading') {
-      jumpToLine(file.line);
+      jumpTo({ line: file.line });
       return;
     }
 
