@@ -12,7 +12,6 @@ Because this application is **100% client-side**, there are no intermediate serv
 
 ---
 
-
 ## 🛠️ Deep GitHub Integration
 
 * **Direct API Sync**: Edit files and commit them back to your branches instantly using Base64 UTF-8 syncing.
