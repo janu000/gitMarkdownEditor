@@ -169,6 +169,7 @@ This document provides a detailed breakdown of all implemented features in the G
     2.  Adding a high-priority (16ms) throttled update path in `useSyncScroll` that allows geometry-driven updates to bypass the routine scroll-blocking logic.
     3.  Improving the `requestAnimationFrame` handling with explicit cancellation to ensure the sync map is always built against the latest browser layout state.
 - **Simplified Toolbar:** Removed the "sync active/off" toggle button from the top toolbar as it was deemed unnecessary. Scroll synchronization is now always active when the editor and preview are visible in split view.
+- **Math Rendering Fix:** Resolved an issue where KaTeX equations were not displaying correctly. The application now correctly imports the `katex.min.css` stylesheet in `index.html`, allowing the `rehype-katex` HTML output to be properly styled and rendered in the preview pane.
 
 ---
 
