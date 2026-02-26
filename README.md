@@ -1,60 +1,114 @@
-# System Context & Agent Directives
+# Git Markdown Editor
 
-**Project Name:** Git Markdown Editor
-**Core Stack:** React 19, Vite, Tailwind CSS, Marked.js, KaTeX.
-**Repo Location:** https://github.com/janu000/gitMarkdownEditor/
+A highly performant, browser-based, client-side-only Markdown editor with direct GitHub integration.
 
-## CRITICAL AGENT DIRECTIVES
+[![React](https://img.shields.io/badge/React-19-blue.svg)](https://react.dev/)
+[![Vite](https://img.shields.io/badge/Vite-7-purple.svg)](https://vitejs.dev/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-3.4-38B2AC.svg)](https://tailwindcss.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-1. **BROWSER LOGS ARE YOUR SOURCE OF TRUTH:** After making *any* code change, or if the user reports an issue/error, you MUST check the live state of the application using your MCP browser tools.
-   * *Action:* Use `browser_navigate` to go to `http://host.docker.internal:5173`. Wait for the page to render, and then use `browser_console_get` to retrieve all console logs. 
+## Overview
 
-2. **DOCUMENTATION:** Always update `FEATURES_DEV.md` when making code changes.
+**Git Markdown Editor** is a professional-grade Markdown editing environment built entirely in the browser. It features a robust split-pane live preview, high-precision bi-directional scroll synchronization, and native support for complex formatting like LaTeX math and GitHub Flavored Markdown (GFM). 
 
-3. **ENVIRONMENT LIMITATIONS:** You do not have access to git. You are running in a Docker container.
+What sets this editor apart is its **zero-backend architecture**. It interfaces directly with the GitHub API using Personal Access Tokens (PAT), allowing you to browse repositories, switch branches, create commits, and manage files without any intermediary servers. It also fully supports local offline editing via the Browser File System Access API and robust IndexedDB-based multi-file state persistence.
 
-## Architecture & Technical Context
+## Key Features
 
-Git Markdown Editor is a browser-based, client-side-only Markdown editor. It does not have a traditional backend.
+### 📝 Core Editing Experience
+* **Professional Editor Engine:** Powered by **CodeMirror 6**, supporting large documents with thousands of lines smoothly using virtualization.
+* **Smart Editing:** Auto-bracket closing, smart indentation, line wrapping, and syntax highlighting.
+* **Custom Themes:** Beautiful, unified Light and Dark modes.
+* **Robust Keyboard Shortcuts:** Comprehensive global shortcut mapping.
 
-* **Entry Point:** `src/main.jsx`
+### 🔍 Live Preview & Markdown Engine
+* **High-Precision Sync Scrolling:** Bi-directional scroll synchronization between the editor and preview. Keeps your exact reading/editing point perfectly aligned using AST-level character-to-DOM mapping.
+* **Off-Thread Parsing:** Markdown parsing is offloaded to a Web Worker to ensure UI responsiveness.
+* **Advanced Formatting:** Full support for GitHub Flavored Markdown (Tables, Task lists) and LaTeX math rendering via **KaTeX** (`$inline$` and `$$block$$`).
+* **Table of Contents:** Auto-generated TOC from headers for quick document navigation.
 
-* **Core Application:** `src/App.jsx`
+### 🐙 Direct GitHub Integration
+* **Serverless Architecture:** Authenticate with a standard GitHub PAT.
+* **Repository Management:** Browse repositories, view branches, and switch or create new branches directly in the UI.
+* **Remote File Operations:** Fetch, edit, commit, and push changes directly back to your GitHub repositories with optimistic UI updates.
 
-* **Configuration:** `vite.config.js` (contains the PWA config).
+### 💾 Local Workspace & Persistence
+* **IndexedDB Multi-File Storage:** Automatically saves drafts for all open files via `localforage`. Edit multiple files and switch between them without losing local changes.
+* **Native File System Access:** Open and save local `.md` files directly using the modern Web File System API (`window.showOpenFilePicker`).
+* **PWA Support:** Installable as a Progressive Web App for offline usage.
 
-* **Styling:** Tailwind utility classes directly in `className` attributes. Global styles in `src/index.css`.
+## Technology Stack
 
-### Key Features
+* **Framework:** React 19 + Vite
+* **Styling:** Tailwind CSS
+* **Editor:** CodeMirror 6
+* **Markdown Parsing:** Unified ecosystem (`remark`, `rehype`) running in a Web Worker
+* **Math Rendering:** KaTeX
+* **Storage:** `localforage` (IndexedDB)
+* **Icons:** Lucide React
 
-* **Live Preview:** Split-pane rendering of Markdown and KaTeX math.
+## Getting Started
 
-* **GitHub Sync:** Authenticates via PAT (stored in `localStorage`). Reads/writes directly to the GitHub API.
+### Prerequisites
+* Node.js (v18+ recommended)
+* npm or yarn
 
-* **Local File System:** Uses the Browser File System Access API (`window.showOpenFilePicker`) to edit local files.
+### Installation
 
-## State Management & Logic (Custom Hooks)
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/janu000/gitMarkdownEditor.git
+   cd gitMarkdownEditor
+   ```
 
-The application logic is decentralized into specialized custom hooks to keep `App.jsx` focused on orchestration:
+2. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-* **`useGitHub.jsx`**: Manages all GitHub API interactions, authentication, repository browsing, and remote file operations.
-* **`useWorkspace.jsx`**: Handles the local virtual file system stored in `localStorage`.
-* **`useMarkdownParser.jsx`**: Manages dynamic loading of Markdown engines (`Unified`/`Marked`) and KaTeX, handles parsing logic, and generates the Table of Contents (TOC).
-* **`useLayoutResizer.jsx`**: Contains resizing logic for the sidebar and editor/preview split-pane.
-* **`useFormatting.jsx`**: Provides cursor-aware Markdown formatting utilities (bold, italic, lists, etc.).
-* **`useShortcuts.jsx`**: Centralizes global keyboard shortcut event listeners and action mapping.
+3. Start the development server:
+   ```bash
+   npm run dev
+   ```
 
-## Project Structure
+4. Open your browser and navigate to `http://localhost:5173`.
 
-* `src/`: Application source code.
-    * `main.jsx`: Application entry point.
-    * `App.jsx`: Main container, orchestrating high-level state and component composition.
-    * `components/`: Modular React components (UI).
-        * `Editor.jsx`, `Preview.jsx`, `Sidebar.jsx`, `Toolbar.jsx`, `FormattingToolbar.jsx`, `AuthModal.jsx`, `ShortcutModal.jsx`, `Toast.jsx`.
-    * `hooks/`: Specialized business logic and state management.
-        * `useGitHub.jsx`, `useWorkspace.jsx`, `useMarkdownParser.jsx`, `useLayoutResizer.jsx`, `useFormatting.jsx`, `useShortcuts.jsx`.
-    * `utils/`: Pure utility functions.
-        * `encoding.js`, `markdown.js`, `emojis.js`, `shortcutManager.js`.
-* `public/`: Static assets.
-* `vite.config.js`: Vite configuration and PWA setup.
-* `FEATURES_DEV.md`: Detailed technical checklist of implemented and planned features.
+### Building for Production
+
+To create an optimized production build:
+```bash
+npm run build
+```
+To preview the production build locally:
+```bash
+npm run preview
+```
+
+## Usage Guide
+
+### Connecting to GitHub
+1. Open the application.
+2. Click the "Authenticate" or GitHub icon in the UI.
+3. Enter a standard GitHub Personal Access Token (PAT) with `repo` scope.
+4. Your token is stored securely in your browser's `localStorage` and is never sent anywhere except directly to the GitHub API.
+
+### Editing Files
+* **Local Drafts:** Any text entered into the workspace is automatically saved every 500ms to IndexedDB.
+* **GitHub Repos:** Browse the file tree, select a markdown file, edit it, and use the commit functionality to push changes directly to the remote repository.
+
+### Keyboard Shortcuts
+You can view all mapped keyboard commands directly in the application's Shortcuts Modal (usually mapped to `Ctrl + /` or `Cmd + /`).
+
+## Architecture Highlights
+
+Git Markdown Editor utilizes a decentralized custom hook architecture to manage state and complex logic off the main component:
+* `useGitHub.jsx`: GitHub API interactions, authentication, and remote file operations.
+* `useWorkspace.jsx`: Manages the local virtual file system and active file state.
+* `useMarkdownParser.jsx`: Orchestrates the Web Worker parsing lifecycle with adaptive debouncing.
+* `useSyncScroll.jsx`: The core engine for precise editor/preview scroll synchronization.
+* `useLayoutResizer.jsx`: Handles performant 60fps resizing of the split-pane UI.
+* `markdownWorker.js`: The dedicated Web Worker for non-blocking Markdown processing.
+
+## License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.

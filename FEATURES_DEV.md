@@ -118,6 +118,7 @@ This document provides a detailed breakdown of all implemented features in the G
 ### Virtual File System
 - **Browser-based Storage:** Full CRUD support for files stored in `localStorage`.
 - **Local Draft:** Default scratchpad area that persists across refreshes.
+- **Empty State Fallback:** Displays a dedicated `welcome.md` guide instead of a blank editor when the user first loads the application or deletes their currently active file.
 
 ### Native File System Access
 - **Local File Import:** Uses `window.showOpenFilePicker` to read files from disk into the workspace.

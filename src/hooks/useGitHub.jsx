@@ -3,7 +3,7 @@ import { utf8_to_b64, b64_to_utf8 } from '../utils/encoding';
 import { storage } from '../utils/storage';
 
 export default function useGitHub(showToast, setLoadingState, {
-  content, setContent,
+  content, setContent, defaultContent,
   activeFile, setActiveFile,
   activeFileRef,
   pendingOps, setPendingOps,
@@ -348,7 +348,7 @@ export default function useGitHub(showToast, setLoadingState, {
     setPendingOps(prev => ({ ...prev, [fileToDelete.path]: { action: 'delete' } }));
     if (activeFileRef.current?.path === fileToDelete.path) {
       setActiveFile(null);
-      setContent('');
+      setContent(defaultContent || '');
     }
     showToast(`Deleting ${fileToDelete.name}...`);
 

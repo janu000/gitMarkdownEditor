@@ -27,7 +27,7 @@ Because this application is **100% client-side**, there are no intermediate serv
 
 Don't want to sync to GitHub? GME has you covered for local and offline work:
 
-* **In-Browser Workspace**: Manage a virtual file system right in your browser's `localStorage` for quick drafts.
+* **In-Browser Workspace**: Manage a virtual file system right in your browser. Powered by **IndexedDB**, GME automatically saves your drafts for multiple open files, allowing you to switch between them without losing any work.
 * **Native File Access**: Use the native File System Access API to open, edit, and save files directly to your hard drive.
 * **Flexible Export**: Download your current drafts as `.md` files or export them to professional-grade **PDFs** with custom print styles.
 * **PWA Ready**: Install the editor as a standalone desktop or mobile application for a native app-like experience.

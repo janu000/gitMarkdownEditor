@@ -24,9 +24,9 @@ import useWorkspace from './hooks/useWorkspace';
 import useSyncScroll from './hooks/useSyncScroll';
 import { storage } from './utils/storage';
 
-// Safely attempt to load README.md
-const readmeFiles = import.meta.glob('../README.md', { query: '?raw', eager: true, import: 'default' });
-const defaultContent = Object.keys(readmeFiles).length > 0 ? Object.values(readmeFiles)[0] : null;
+// Safely attempt to load welcome.md
+const welcomeFiles = import.meta.glob('../welcome.md', { query: '?raw', eager: true, import: 'default' });
+const defaultContent = Object.keys(welcomeFiles).length > 0 ? Object.values(welcomeFiles)[0] : null;
 
 const DEFAULT_MARKDOWN = `
 # Welcome to Git Markdown Editor
@@ -123,7 +123,8 @@ export default function App() {
     apiRequest, fetchRepos, verifyGitHubToken, fetchRepoContents,
     saveToGitHub, loadFile, renameFile: renameGHFile, deleteFile: deleteGHFile, createFile: createGHFile, loadTOC, createBranch
   } = useGitHub(showToast, setLoadingState, {
-    content, setContent, activeFile, setActiveFile, activeFileRef,
+    content, setContent, defaultContent: defaultContent !== null ? defaultContent : DEFAULT_MARKDOWN,
+    activeFile, setActiveFile, activeFileRef,
     pendingOps, setPendingOps,
     pathStack, setPathStack, updateTOC,
     setShowAuthModal
@@ -264,7 +265,7 @@ export default function App() {
         deleteLocalFile(file);
         if (activeFile?.path === file.path) {
           setActiveFile(null);
-          setContent('');
+          setContent(defaultContent !== null ? defaultContent : DEFAULT_MARKDOWN);
         }
       }
     }
