@@ -80,7 +80,15 @@ async function initProcessor() {
           node.data.hProperties['data-offset-start'] = String(start);
           node.data.hProperties['data-offset-end'] = String(end);
           
-          const syncableTypes = ['text', 'strong', 'emphasis', 'inlineCode', 'link', 'image', 'heading', 'paragraph', 'listItem', 'blockquote', 'code', 'tableCell'];
+          if (node.type === 'math') {
+            node.data.hName = 'div';
+            node.data.hProperties.className = [...(node.data.hProperties.className || []), 'math', 'math-display'];
+          } else if (node.type === 'inlineMath') {
+            node.data.hName = 'span';
+            node.data.hProperties.className = [...(node.data.hProperties.className || []), 'math', 'math-inline'];
+          }
+
+          const syncableTypes = ['text', 'strong', 'emphasis', 'inlineCode', 'link', 'image', 'heading', 'paragraph', 'listItem', 'blockquote', 'code', 'tableCell', 'math', 'inlineMath'];
           if (syncableTypes.includes(node.type)) {
             node.data.hProperties.className = [...(node.data.hProperties.className || []), 'cursor-sync-target'];
           }
@@ -90,9 +98,65 @@ async function initProcessor() {
       walk(tree);
     };
 
+    const rehypeSyncPlugin = () => (tree) => {
+      const walk = (node) => {
+        if (!node.children) return;
+        for (let i = 0; i < node.children.length; i++) {
+          const child = node.children[i];
+          if (child.type === 'element') {
+            // Fix code blocks: Ensure pre tag has the offset attributes
+            if (child.tagName === 'pre') {
+              const codeNode = child.children?.find(c => c.tagName === 'code');
+              if (codeNode && codeNode.properties?.['data-offset-start']) {
+                child.properties = child.properties || {};
+                child.properties['data-offset-start'] = codeNode.properties['data-offset-start'];
+                child.properties['data-offset-end'] = codeNode.properties['data-offset-end'];
+                const classes = Array.isArray(child.properties.className) ? child.properties.className : (child.properties.className ? [child.properties.className] : []);
+                if (!classes.includes('cursor-sync-target')) {
+                  child.properties.className = [...classes, 'cursor-sync-target'];
+                }
+              }
+            }
+            
+            // Fix math and other custom blocks: Wrap any div/span that has offsets but might be replaced by subsequent plugins
+            const hasOffset = child.properties?.['data-offset-start'];
+            const isPotentialWrapper = child.tagName === 'div' || child.tagName === 'span';
+            const isAlreadyWrapped = child.properties?.className?.includes?.('sync-wrapper');
+
+            if (hasOffset && isPotentialWrapper && !isAlreadyWrapped) {
+              const start = child.properties['data-offset-start'];
+              const end = child.properties['data-offset-end'];
+              const isDisplay = child.tagName === 'div' || (child.properties?.className?.includes?.('math-display'));
+              
+              const wrapper = {
+                type: 'element',
+                tagName: isDisplay ? 'div' : 'span',
+                properties: {
+                  'data-offset-start': start,
+                  'data-offset-end': end,
+                  className: ['cursor-sync-target', 'sync-wrapper', isDisplay ? 'display-wrapper' : 'inline-wrapper']
+                },
+                children: [child]
+              };
+              
+              // Remove attributes from child to avoid duplication and infinite loop
+              delete child.properties['data-offset-start'];
+              delete child.properties['data-offset-end'];
+              
+              node.children[i] = wrapper;
+              walk(wrapper);
+              continue; 
+            }
+          }
+          walk(child);
+        }
+      };
+      walk(tree);
+    };
+
     processor = unified()
       .use(remarkParse).use(remarkGfm).use(remarkMath).use(remarkEmoji).use(remarkOffsetPlugin)
-      .use(remarkRehype, { allowDangerousHtml: true }).use(rehypeKatex).use(rehypeStringify, { allowDangerousHtml: true });
+      .use(remarkRehype, { allowDangerousHtml: true }).use(rehypeSyncPlugin).use(rehypeKatex).use(rehypeStringify, { allowDangerousHtml: true });
   } catch (err) {
     console.error("Worker Unified init failed", err);
     throw err;

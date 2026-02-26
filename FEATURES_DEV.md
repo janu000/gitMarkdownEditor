@@ -176,6 +176,10 @@ This document provides a detailed breakdown of all implemented features in the G
     3.  Improving the `requestAnimationFrame` handling with explicit cancellation to ensure the sync map is always built against the latest browser layout state.
 - **Simplified Toolbar:** Removed the "sync active/off" toggle button from the top toolbar as it was deemed unnecessary. Scroll synchronization is now always active when the editor and preview are visible in split view.
 - **Math Rendering Fix:** Resolved an issue where KaTeX equations were not displaying correctly. The application now correctly imports the `katex.min.css` stylesheet in `index.html`, allowing the `rehype-katex` HTML output to be properly styled and rendered in the preview pane.
+- **Preview-to-Editor Selection Fix:** Resolved an issue where clicking on code blocks or math equations in the preview pane failed to navigate the editor to the corresponding source position. This was fixed by:
+    1.  Implementing a `rehypeSyncPlugin` in the Markdown worker that ensures `data-offset-*` attributes are moved from the inner `code` tag to the outer `pre` tag for code blocks.
+    2.  Wrapping math elements in a `sync-wrapper` div/span that preserves these attributes before they are replaced by the KaTeX rendering engine.
+    3.  Updating the `remarkOffsetPlugin` to explicitly set `hName` and `hProperties` for custom `math` and `inlineMath` node types, ensuring they are correctly carried over during the Remark-to-Rehype conversion.
 
 ---
 
