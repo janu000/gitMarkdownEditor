@@ -132,15 +132,17 @@ export default function App() {
   }, [content, activeFile, currentRepo]);
 
   const { 
-    insertText, insertListItem, insertNumberedList, insertTaskList 
+    insertText, insertListItem, insertNumberedList, insertTaskList,
+    toggleCode, toggleMath
   } = useFormatting(editorRef);
 
   const handleExportPdf = useCallback(() => window.print(), []);
 
   const actions = useMemo(() => ({
     saveToGitHub, handleExportPdf, 
-    insertText, insertListItem, insertNumberedList, insertTaskList
-  }), [saveToGitHub, handleExportPdf, insertText, insertListItem, insertNumberedList, insertTaskList]);
+    insertText, insertListItem, insertNumberedList, insertTaskList,
+    toggleCode, toggleMath
+  }), [saveToGitHub, handleExportPdf, insertText, insertListItem, insertNumberedList, insertTaskList, toggleCode, toggleMath]);
 
   const handleExportPdfCallback = useCallback(() => handleExportPdf(), [handleExportPdf]);
 
@@ -507,6 +509,8 @@ export default function App() {
                 insertListItem={insertListItem}
                 insertNumberedList={insertNumberedList}
                 insertTaskList={insertTaskList}
+                toggleCode={toggleCode}
+                toggleMath={toggleMath}
                 showEmojiPicker={showEmojiPicker}
                 setShowEmojiPicker={setShowEmojiPicker}
                 emojiPickerRef={emojiPickerRef}

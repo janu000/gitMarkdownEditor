@@ -4,7 +4,8 @@ import { matchesShortcut } from '../utils/shortcutManager';
 export default function useShortcuts(shortcuts, actions) {
   const { 
     saveToGitHub, handleExportPdf, 
-    insertText, insertListItem, insertNumberedList, insertTaskList 
+    insertText, insertListItem, insertNumberedList, insertTaskList,
+    toggleCode, toggleMath
   } = actions;
 
   useEffect(() => {
@@ -20,10 +21,10 @@ export default function useShortcuts(shortcuts, actions) {
       if (matchesShortcut(e, shortcuts.numbered_list)) { e.preventDefault(); insertNumberedList(1, 'Numbered item'); }
       if (matchesShortcut(e, shortcuts.task_list)) { e.preventDefault(); insertTaskList('- [ ] ', 'Task'); }
       if (matchesShortcut(e, shortcuts.quote)) { e.preventDefault(); insertText('> ', '', 'Quote'); }
-      if (matchesShortcut(e, shortcuts.code_block)) { e.preventDefault(); insertText('```\n', '\n```', 'code block'); }
-      if (matchesShortcut(e, shortcuts.inline_code)) { e.preventDefault(); insertText('`', '`', 'inline code'); }
+      if (matchesShortcut(e, shortcuts.code_block)) { e.preventDefault(); toggleCode(); }
+      if (matchesShortcut(e, shortcuts.inline_code)) { e.preventDefault(); toggleCode(); }
       if (matchesShortcut(e, shortcuts.table)) { e.preventDefault(); insertText('\n| Header 1 | Header 2 |\n| -------- | -------- |\n| Cell 1   | Cell 2   |\n', '', ''); }
-      if (matchesShortcut(e, shortcuts.math_block)) { e.preventDefault(); insertText('$$\n', '\n$$', 'E = mc^2'); }
+      if (matchesShortcut(e, shortcuts.math_block)) { e.preventDefault(); toggleMath(); }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);

@@ -129,6 +129,8 @@ This document provides a detailed breakdown of all implemented features in the G
 ## 5. Editing & Formatting Features
 
 ### Formatting Toolbar
+- **Toggleable Formatting:** All formatting actions (Bold, Italic, Strikethrough, Lists, etc.) now support toggling. If the selected text or current line already has the formatting applied, the action will remove it.
+- **3-State Toggle (Code/Math):** Code and Math formatting follow a cycle: None → Inline → Block → None. This allows quick switching between inline styles and block styles using the same shortcut or button.
 - **Inline Formatting:** Bold, Italic, Strikethrough, Inline Code.
 - **Block Formatting:** Heading 1, Heading 2, Blockquote, Code Block, Table, Math Block.
 - **List Management:** Bulleted, Numbered (auto-increment), and Task lists.

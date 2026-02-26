@@ -14,6 +14,8 @@ const FormattingToolbar = memo(({
   insertListItem, 
   insertNumberedList, 
   insertTaskList,
+  toggleCode,
+  toggleMath,
   showEmojiPicker,
   setShowEmojiPicker,
   emojiPickerRef,
@@ -41,8 +43,8 @@ const FormattingToolbar = memo(({
 | -------- | -------- |
 | Cell 1   | Cell 2   |
 `, '', '')} title={`Table (${formatShortcut(shortcuts.table)})`} />
-      <ToolButton icon={<Code className="w-4 h-4" />} onClick={() => insertText('```\n', '\n```', 'code block')} title={`Code Block (${formatShortcut(shortcuts.code_block)})`} />
-      <ToolButton icon={<Sigma className="w-4 h-4" />} onClick={() => insertText('$$\n', '\n$$', 'E = mc^2')} title={`Math Block (${formatShortcut(shortcuts.math_block)})`} />
+      <ToolButton icon={<Code className="w-4 h-4" />} onClick={() => toggleCode()} title={`Code (${formatShortcut(shortcuts.code_block)})`} />
+      <ToolButton icon={<Sigma className="w-4 h-4" />} onClick={() => toggleMath()} title={`Math (${formatShortcut(shortcuts.math_block)})`} />
       <ToolButton icon={<Strikethrough className="w-4 h-4" />} onClick={() => insertText('~~', '~~', 'strikethrough text')} title={`Strikethrough (${formatShortcut(shortcuts.strikethrough)})`} />
       
       <div className="relative inline-block">
