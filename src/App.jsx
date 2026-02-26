@@ -1,7 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useDeferredValue, useMemo } from 'react';
-
-// Utils
-import { loadShortcuts, matchesShortcut } from './utils/shortcutManager';
+import React, { useEffect, useRef, useCallback, useDeferredValue, useMemo } from 'react';
 
 // Components
 import Toast from './components/Toast';
@@ -15,6 +12,7 @@ import Preview from './components/Preview';
 import ShortcutModal from './components/ShortcutModal';
 
 // Hooks
+import useStore, { defaultContent, DEFAULT_MARKDOWN } from './store/useStore';
 import useLayoutResizer from './hooks/useLayoutResizer';
 import useMarkdownParser from './hooks/useMarkdownParser';
 import useGitHub from './hooks/useGitHub';
@@ -24,24 +22,6 @@ import useWorkspace from './hooks/useWorkspace';
 import useSyncScroll from './hooks/useSyncScroll';
 import { storage } from './utils/storage';
 
-// Safely attempt to load welcome.md
-const welcomeFiles = import.meta.glob('../welcome.md', { query: '?raw', eager: true, import: 'default' });
-const defaultContent = Object.keys(welcomeFiles).length > 0 ? Object.values(welcomeFiles)[0] : null;
-
-const DEFAULT_MARKDOWN = `
-# Welcome to Git Markdown Editor
-
-Git Markdown Editor is a powerful, browser-based Markdown editor.
-
-### Features
-- **GitHub Integration**: Connect your account and edit files directly from your repos.
-- **Local Workspace**: Edit and save files on your local browser storage.
-- **Live Preview**: See your changes in real-time.
-- **Math Support**: Write equations using KaTeX.
-
-Get started by editing this text or connecting your GitHub account!
-`;
-
 export default function App() {
   // --- Refs ---
   const editorRef = useRef(null);
@@ -50,56 +30,35 @@ export default function App() {
   const emojiPickerRef = useRef(null);
   const activeFileRef = useRef(null);
 
-  // --- Basic State ---
-  const [content, setContent] = useState(defaultContent !== null ? defaultContent : DEFAULT_MARKDOWN);
-  
-  const [theme, setTheme] = useState(() => {
-    if (typeof localStorage !== 'undefined' && localStorage.getItem('theme')) {
-      return localStorage.getItem('theme');
-    }
-    if (window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
-    return 'light';
-  });
-
-  const [viewMode, setViewMode] = useState('split');
-  const [syntaxHighlighting, setSyntaxHighlighting] = useState(true);
-  const [loadingState, setLoadingState] = useState('');
-  const [toast, setToast] = useState(null);
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [showShortcutModal, setShowShortcutModal] = useState(false);
-  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [shortcuts, setShortcuts] = useState(loadShortcuts());
-  const [localFileName, setLocalFileName] = useState('');
+  // --- State from Store ---
+  const {
+    content, setContent,
+    theme, setTheme,
+    viewMode, setViewMode,
+    syntaxHighlighting, setSyntaxHighlighting,
+    loadingState, setLoadingState,
+    toast, showToast,
+    showAuthModal, setShowAuthModal,
+    showShortcutModal, setShowShortcutModal,
+    showEmojiPicker, setShowEmojiPicker,
+    shortcuts, setShortcuts,
+    localFileName, setLocalFileName,
+    activeFile, setActiveFile,
+    pendingOps, setPendingOps,
+    pathStack, setPathStack,
+    modifiedFiles, setModifiedFiles
+  } = useStore();
 
   // Use deferred value for expensive operations like parsing
   const deferredContent = useDeferredValue(content);
-
-  // --- Shared State for Hooks ---
-  const [activeFile, setActiveFile] = useState(() => {
-    const saved = localStorage.getItem('gme_last_active_file');
-    return saved ? JSON.parse(saved) : null;
-  }); 
-  const [pendingOps, setPendingOps] = useState({}); 
-  const [pathStack, setPathStack] = useState([]); 
-  const [modifiedFiles, setModifiedFiles] = useState(new Set());
-
-  const showToast = useCallback((message, type = 'success') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
-  }, []);
 
   const {
     localWorkspaceFiles, createLocalFile, renameLocalFile, deleteLocalFile, updateLocalFileContent
   } = useWorkspace(showToast);
 
-  // Sync refs and persistence (debounced for performance)
+  // Sync refs (debounced for performance)
   useEffect(() => { 
     activeFileRef.current = activeFile; 
-    if (activeFile) {
-      localStorage.setItem('gme_last_active_file', JSON.stringify(activeFile));
-    } else {
-      localStorage.removeItem('gme_last_active_file');
-    }
   }, [activeFile]);
   
   // --- Hooks ---

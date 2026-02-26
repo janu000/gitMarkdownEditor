@@ -9,7 +9,7 @@ A highly performant, browser-based, client-side-only Markdown editor with direct
 
 ## Overview
 
-**Git Markdown Editor** is a professional-grade Markdown editing environment built entirely in the browser. It features a robust split-pane live preview, high-precision bi-directional scroll synchronization, and native support for complex formatting like LaTeX math and GitHub Flavored Markdown (GFM). 
+**Git Markdown Editor** is a professional-grade Markdown editing environment built entirely in the browser. It features a robust split-pane live preview, high-precision bi-directional scroll synchronization, and native support for complex formatting like LaTeX math and GitHub Flavored Markdown (GFM). Try it out on [gitmarkdown.vercel.app](https://gitmarkdown.vercel.app/).
 
 What sets this editor apart is its **zero-backend architecture**. It interfaces directly with the GitHub API using Personal Access Tokens (PAT), allowing you to browse repositories, switch branches, create commits, and manage files without any intermediary servers. It also fully supports local offline editing via the Browser File System Access API and robust IndexedDB-based multi-file state persistence.
 

@@ -166,20 +166,16 @@ export default function useSyncScroll(editorRef, previewRef, active, parsedHtml)
       const scrollTop = previewScroller.scrollTop;
       const viewHeight = previewScroller.clientHeight;
       const targetViewHeight = editorScroller.clientHeight;
-      const maxScroll = previewScroller.scrollHeight - viewHeight;
 
-      if (scrollTop >= maxScroll - 2) {
-        editorScroller.scrollTo({ top: editorScroller.scrollHeight - targetViewHeight, behavior: 'auto' });
-      } else {
-        const transitionProgress = Math.min(1, scrollTop / (viewHeight * 0.5));
-        const effectiveFocusPct = transitionProgress * TARGET_FOCUS_PCT;
+      const transitionProgress = Math.min(1, scrollTop / (viewHeight * 0.5));
+      const effectiveFocusPct = transitionProgress * TARGET_FOCUS_PCT;
 
-        const sourceFocus = scrollTop + (viewHeight * effectiveFocusPct);
-        const anchors = syncCache.current;
-        
-        let low = 0, high = anchors.length - 2;
-        let idx = 0;
-        while (low <= high) {
+      const sourceFocus = scrollTop + (viewHeight * effectiveFocusPct);
+      const anchors = syncCache.current;
+      
+      let low = 0, high = anchors.length - 2;
+      let idx = 0;
+      while (low <= high) {
           let mid = Math.floor((low + high) / 2);
           if (anchors[mid].previewTop <= sourceFocus) {
             idx = mid;
@@ -198,7 +194,6 @@ export default function useSyncScroll(editorRef, previewRef, active, parsedHtml)
           top: targetFocus - (targetViewHeight * effectiveFocusPct),
           behavior: 'auto'
         });
-      }
     }
 
     if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
