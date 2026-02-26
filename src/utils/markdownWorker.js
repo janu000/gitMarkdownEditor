@@ -16,7 +16,7 @@ const inlineParse = (text) => {
 async function initDOM() {
   if (self.document) return;
   try {
-    const { parseHTML } = await import('https://esm.sh/linkedom');
+    const { parseHTML } = await import('linkedom');
     const { document, DOMParser, Node, Element, window, CustomEvent } = parseHTML('<!DOCTYPE html><html><body></body></html>');
     self.document = document;
     self.document.compatMode = 'CSS1Compat';
@@ -44,14 +44,14 @@ async function initProcessor() {
       { default: rehypeStringify },
       { default: remarkEmoji }
     ] = await Promise.all([
-      import('https://esm.sh/unified@11'),
-      import('https://esm.sh/remark-parse@11'),
-      import('https://esm.sh/remark-gfm@4'),
-      import('https://esm.sh/remark-math@6'),
-      import('https://esm.sh/remark-rehype@11'),
-      import('https://esm.sh/rehype-katex@7'),
-      import('https://esm.sh/rehype-stringify@10'),
-      import('https://esm.sh/remark-emoji@4')
+      import('unified'),
+      import('remark-parse'),
+      import('remark-gfm'),
+      import('remark-math'),
+      import('remark-rehype'),
+      import('rehype-katex'),
+      import('rehype-stringify'),
+      import('remark-emoji')
     ]);
 
     const remarkOffsetPlugin = () => (tree, file) => {
