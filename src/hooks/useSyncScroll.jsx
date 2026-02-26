@@ -14,23 +14,38 @@ export default function useSyncScroll(editorRef, previewRef, active, parsedHtml)
   const isScrollingPreview = useRef(false);
   const scrollTimeout = useRef(null);
   const updateTimeout = useRef(null);
+  const lastUpdate = useRef(0);
+  const rafId = useRef(null);
   
   // Cache for anchor points mapped between scroller coordinate systems
   const syncCache = useRef(null);
 
-  const updateSyncCache = useCallback(() => {
+  const updateSyncCache = useCallback((force = false) => {
     if (!previewRef.current || !editorRef.current) return;
     
-    // Clear any pending updates
-    if (updateTimeout.current) clearTimeout(updateTimeout.current);
-
-    // Skip updates during active scrolling to prevent layout thrashing
-    if (isScrollingEditor.current || isScrollingPreview.current) {
-      updateTimeout.current = setTimeout(updateSyncCache, 200);
+    const now = Date.now();
+    // Throttle updates: 16ms if forced (60fps), 100ms otherwise
+    const limit = force ? 16 : 100;
+    
+    if (!force && now - lastUpdate.current < limit) {
+      if (updateTimeout.current) clearTimeout(updateTimeout.current);
+      updateTimeout.current = setTimeout(() => updateSyncCache(force), limit);
       return;
     }
 
-    requestAnimationFrame(() => {
+    // Skip updates during active scrolling to prevent layout thrashing,
+    // UNLESS it's a forced update (e.g. from a layout shift or CM measurement)
+    if (!force && (isScrollingEditor.current || isScrollingPreview.current)) {
+      if (updateTimeout.current) clearTimeout(updateTimeout.current);
+      updateTimeout.current = setTimeout(() => updateSyncCache(), 200);
+      return;
+    }
+
+    lastUpdate.current = now;
+
+    if (rafId.current) cancelAnimationFrame(rafId.current);
+    
+    rafId.current = requestAnimationFrame(() => {
       const preview = previewRef.current;
       const view = editorRef.current;
       if (!preview || !view) return;
@@ -58,7 +73,6 @@ export default function useSyncScroll(editorRef, previewRef, active, parsedHtml)
         }
       }
 
-      // Sort and filter for strict monotonicity
       anchors.sort((a, b) => a.editorTop - b.editorTop);
 
       const filtered = [{ editorTop: 0, previewTop: 0 }];
@@ -71,7 +85,6 @@ export default function useSyncScroll(editorRef, previewRef, active, parsedHtml)
         }
       }
 
-      // Explicitly map content ends to handle document boundaries
       try {
         const lastLine = view.lineBlockAt(docLength);
         const editorContentEnd = lastLine.bottom + editorTopOffset;
@@ -86,7 +99,6 @@ export default function useSyncScroll(editorRef, previewRef, active, parsedHtml)
         }
       } catch (e) {}
 
-      // Handle "scroll past end" virtual space by mapping absolute scroll limits
       const editorMax = view.scrollDOM.scrollHeight;
       const previewMax = preview.scrollHeight;
       if (editorMax > last.editorTop) {
@@ -94,6 +106,7 @@ export default function useSyncScroll(editorRef, previewRef, active, parsedHtml)
       }
 
       syncCache.current = filtered;
+      rafId.current = null;
     });
   }, [previewRef, editorRef]);
 
@@ -160,7 +173,7 @@ export default function useSyncScroll(editorRef, previewRef, active, parsedHtml)
     scrollTimeout.current = setTimeout(() => {
       isScrollingEditor.current = false;
       isScrollingPreview.current = false;
-    }, 100);
+    }, 50); // Reduced from 100ms for snappier lock release
   }, [active, editorRef, previewRef]);
 
   useEffect(() => {
@@ -168,7 +181,7 @@ export default function useSyncScroll(editorRef, previewRef, active, parsedHtml)
     const preview = previewRef.current;
     if (!active || !editor || !preview) return;
 
-    updateSyncCache();
+    updateSyncCache(true);
 
     const onEditorScroll = () => performSync('editor');
     const onPreviewScroll = () => performSync('preview');
@@ -176,13 +189,14 @@ export default function useSyncScroll(editorRef, previewRef, active, parsedHtml)
     editor.scrollDOM.addEventListener('scroll', onEditorScroll, { passive: true });
     preview.addEventListener('scroll', onPreviewScroll, { passive: true });
 
-    const observer = new ResizeObserver(updateSyncCache);
+    const observer = new ResizeObserver(() => updateSyncCache(true));
     observer.observe(preview);
+    observer.observe(editor.scrollDOM);
     const content = preview.querySelector('.markdown-body');
     if (content) observer.observe(content);
 
     const loadHandler = (e) => {
-      if (e.target.tagName === 'IMG') updateSyncCache();
+      if (e.target.tagName === 'IMG') updateSyncCache(true);
     };
     preview.addEventListener('load', loadHandler, { capture: true });
 
@@ -193,6 +207,11 @@ export default function useSyncScroll(editorRef, previewRef, active, parsedHtml)
       preview.removeEventListener('load', loadHandler, { capture: true });
       if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
       if (updateTimeout.current) clearTimeout(updateTimeout.current);
+      if (rafId.current) cancelAnimationFrame(rafId.current);
     };
   }, [active, editorRef.current, previewRef.current, updateSyncCache, performSync, parsedHtml]);
+
+  return updateSyncCache;
 }
+
+

@@ -142,7 +142,7 @@ export default function App() {
   const handleExportPdfCallback = useCallback(() => handleExportPdf(), [handleExportPdf]);
 
   useShortcuts(shortcuts, actions);
-  useSyncScroll(editorRef, previewRef, viewMode === 'split', parsedHtml);
+  const triggerSyncUpdate = useSyncScroll(editorRef, previewRef, viewMode === 'split', parsedHtml);
 
   // --- Effects ---
   useEffect(() => {
@@ -434,6 +434,7 @@ export default function App() {
                   setContent={setContent}
                   theme={theme}
                   syntaxHighlighting={syntaxHighlighting}
+                  onUpdate={() => triggerSyncUpdate(true)}
                 />
               </div>
             </div>

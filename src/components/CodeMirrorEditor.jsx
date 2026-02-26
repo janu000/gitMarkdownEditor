@@ -78,11 +78,17 @@ const CodeMirrorEditor = memo(({
   content, 
   setContent, 
   theme,
-  syntaxHighlighting
+  syntaxHighlighting,
+  onUpdate
 }) => {
   const containerRef = useRef(null);
   const viewRef = useRef(null);
   const contentRef = useRef(content);
+  const onUpdateRef = useRef(onUpdate);
+
+  useEffect(() => {
+    onUpdateRef.current = onUpdate;
+  }, [onUpdate]);
 
   // Initialize Editor
   useEffect(() => {
@@ -109,6 +115,10 @@ const CodeMirrorEditor = memo(({
               contentRef.current = newContent;
               setContent(newContent);
             }, syncDelay);
+          }
+          
+          if (onUpdateRef.current && (update.docChanged || update.geometryChanged || update.viewportChanged)) {
+            onUpdateRef.current(update);
           }
         })
       ]

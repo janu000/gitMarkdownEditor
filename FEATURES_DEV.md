@@ -53,14 +53,16 @@ This document provides a detailed breakdown of all implemented features in the G
     - **Scroller-Relative Linear Interpolation:** Uses actual scroll positions (viewport top) mapped between the editor and preview. This coordinate system accounts for top paddings and header offsets by normalizing both scrollers to a shared content-locked baseline.
     - **Content-End Mapping:** Explicitly maps the "start of text" to "start of text" and "end of text" to "end of text." This ensures that virtual space (like "scroll past end" padding) doesn't interfere with content alignment.
     - **AST-Level Accuracy:** Uses precise character offsets from the Markdown AST to map editor lines to preview elements.
-    - **Layout Shift Resilience:** Employs `ResizeObserver` on the actual `.markdown-body` content element and capture-phase image `load` listeners to maintain accuracy during dynamic content loading.
+    - **Layout Shift Resilience:** 
+        - Employs `ResizeObserver` on the actual `.markdown-body` content element, image `load` listeners, and **CodeMirror geometry update listeners**.
+        - **Throttled Forced Updates:** Cache updates are throttled to 16ms (60fps) when forced by layout changes, ensuring synchronization stays accurate even during rapid content shifts (like KaTeX rendering or image loading).
     - **Performance Optimizations:** 
-        - **Asynchronous Batching:** Processes element measurements in small batches (100 nodes at a time) with main-thread yielding to prevent UI freezing.
+        - **Asynchronous Batching:** Processes element measurements in small batches (100 nodes at a time) with main-thread yielding.
         - **Adaptive Debouncing:** Prevents redundant recalculations during rapid edits.
-        - **Scroll-Aware Throttling:** Postpones cache updates during active scrolling to avoid layout thrashing.
-        - **Paint-Safe Synchronization:** Uses `requestAnimationFrame` to ensure measurements occur after browser layout is stable.
+        - **Scroll-Aware Throttling:** Postpones routine cache updates during active scrolling to avoid layout thrashing, while still allowing **forced geometry-driven updates** to maintain precision.
+        - **Paint-Safe Synchronization:** Uses `requestAnimationFrame` with proper cancellation logic to ensure measurements occur after browser layout is stable.
     - **Efficient Implementation:** Uses binary search and scroll-caching for smooth performance even on large documents.
-    - **Robust Loop Prevention:** Ref-based locking ensures scroll events don't trigger infinite feedback loops.
+    - **Robust Loop Prevention:** Ref-based locking with a shorter **50ms** lock window ensures scroll events don't trigger infinite feedback loops while remaining responsive.
     - **Active by Default:** Automatically enabled when in split view mode.
 - **Independent Scrolling:** Panes scroll independently when not in split view mode.
 - **Click-to-Jump (Sync):** Clicking any element in the preview scrolls the editor to the exact character offset of that element.
@@ -147,6 +149,10 @@ This document provides a detailed breakdown of all implemented features in the G
 - **Robust Transaction Handling:** Refined the synchronization between the React `content` state and the CodeMirror `EditorState` to ensure external loads (from GitHub or Local Workspace) correctly trigger a document dispatch while avoiding feedback loops from internal editor changes.
 - **Scroll Past End Aware Sync:** Fixed a scroll offset issue that increased towards the end of the document. The synchronization logic now correctly distinguishes between actual content height and the virtual padding added by the "scroll past end" extension.
 - **Clamped Precision Sync:** Resolved the "growing layout shift" by implementing a fully normalized content-space coordinate system. All measurements are now relative to the absolute start of the text content (`.markdown-body` and `contentDOM`). Added clamped interpolation ratios and a "bottom-lock" mechanism that forces perfect alignment at the end of the document, ensuring drift never accumulates.
+- **Persistent Scroll Shift Fix:** Resolved the "drifting" issue where quick scrolls would cause the editor and preview to become permanently misaligned. This was fixed by:
+    1.  Implementing an `onUpdate` listener in `CodeMirrorEditor` that triggers a forced sync map refresh whenever `geometryChanged` or `viewportChanged` occurs (e.g., when CM6 measures new line heights during virtualization).
+    2.  Adding a high-priority (16ms) throttled update path in `useSyncScroll` that allows geometry-driven updates to bypass the routine scroll-blocking logic.
+    3.  Improving the `requestAnimationFrame` handling with explicit cancellation to ensure the sync map is always built against the latest browser layout state.
 - **Simplified Toolbar:** Removed the "sync active/off" toggle button from the top toolbar as it was deemed unnecessary. Scroll synchronization is now always active when the editor and preview are visible in split view.
 
 ---
