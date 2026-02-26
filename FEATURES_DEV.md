@@ -19,6 +19,15 @@ This document provides a detailed breakdown of all implemented features in the G
     - **Scroll Past End:** Enabled scrolling beyond the last line of the document for better vertical positioning.
 - **Transaction-based State:** Uses CodeMirror's functional state model for robust undo/redo history and precise programmatic updates.
 
+### Multi-File Persistence (IndexedDB)
+- **Engine:** Migrated from single-key `localStorage` to a robust **IndexedDB** solution using `localforage`.
+- **Dual-Versioning System:** Every opened file is stored in two states:
+    - `original_[path]`: The baseline text fetched from GitHub. Updates only on initial load or successful commit.
+    - `draft_[path]`: The user's active workspace. Updates continuously via auto-save.
+- **Per-File Auto-Save:** Implemented a **500ms debounced auto-save** that persists the current editor state specifically to the active file's IndexedDB draft record.
+- **Session Restoration:** The application now remembers the last active file via `gme_last_active_file` in `localStorage` and automatically restores its latest local draft (or re-fetches from GitHub) on startup.
+- **Conflict Resilience:** By storing the `original` baseline, the system can eventually support diffing and conflict resolution between local drafts and remote GitHub changes.
+
 ### Layout & Resizing
 - **Tri-Pane Layout:** Collapsible Sidebar, Editor, and Preview panes.
 - **Optimized Resizing:** 
@@ -51,7 +60,8 @@ This document provides a detailed breakdown of all implemented features in the G
 - **Sync Scrolling (High Precision):** 
     - **Bi-directional Sync:** Scrolling the editor moves the preview and vice-versa.
     - **Focus-Point Alignment (20%):** Maps a focus point 20% down from the top of each viewport to keep the reading/editing area perfectly aligned.
-    - **Smooth Zero-Point Transition:** To ensure a clean start, the focus-point offset dynamically scales. At the absolute top (`scrollTop = 0`), the logic uses a 0% offset (Top-to-Top). As you scroll, this offset smoothly interpolates to the full 20% over the first half-viewport of movement. This eliminates "snapping" and ensures both panes always start exactly at the top together.
+    - **IndexedDB Multi-File Migration:** Replaced the fragile single-file `localStorage` draft system with a scalable IndexedDB solution. This allows users to work on multiple files simultaneously without losing changes when switching between them. Key technical changes include the introduction of `src/utils/storage.js` and the refactoring of `useGitHub.jsx` to prioritize local drafts over redundant network re-fetching.
+- **Smooth Zero-Point Transition:** To ensure a clean start, the focus-point offset dynamically scales. At the absolute top (`scrollTop = 0`), the logic uses a 0% offset (Top-to-Top). As you scroll, this offset smoothly interpolates to the full 20% over the first half-viewport of movement. This eliminates "snapping" and ensures both panes always start exactly at the top together.
     - **Boundary-Lock:** Reaching the end of one pane forces the other to its absolute bottom to handle virtual padding differences.
     - **Scroller-Relative Interpolation:** Uses actual scroll positions mapped between the editor and preview scrollers.
     - **Content-End Mapping:** Explicitly maps the "start of text" to "start of text" and "end of text" to "end of text." This ensures that virtual space (like "scroll past end" padding) doesn't interfere with content alignment.
@@ -135,6 +145,7 @@ This document provides a detailed breakdown of all implemented features in the G
 ### Theme System
 - **Dark/Light Mode:** Full UI support for GitHub-style themes.
 - **Visual Feedback:** Toast notifications, unsaved changes indicators, and breadcrumbs.
+- **Visual Edit Highlighting:** The Sidebar now provides immediate visual feedback for files with unsaved changes. An **amber dot indicator** and color shift are applied to any file whose local IndexedDB draft differs from its original baseline. This tracking is path-aware and persists across file switches and app restarts.
 
 ### Export & Printing
 - **PDF Export:** Optimized `@media print` rules for the preview pane.

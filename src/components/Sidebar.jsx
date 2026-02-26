@@ -36,7 +36,8 @@ const Sidebar = memo(({
   setCurrentBranch,
   createBranch,
   loadTOC,
-  jumpTo
+  jumpTo,
+  modifiedFiles = new Set()
 }) => {
   const workspaceFiles = useMemo(() => getWorkspaceFiles(), [getWorkspaceFiles]);
   const clickTimerRef = useRef(null);
@@ -158,13 +159,22 @@ const Sidebar = memo(({
                           className={`flex-1 flex items-center px-2 rounded transition-colors text-left group min-w-0 ${file.type === 'heading' ? `${getHeaderStyle(file.level)} py-0.5` : `text-sm py-1.5 ${activeFile?.path === file.path && !isAtTOC ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300' : 'hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}`}`}
                           style={file.type === 'heading' ? { paddingLeft: `${(file.level - 1) * 0.75 + 1}rem` } : {}}
                         >
-                          {file.type !== 'heading' && <FileText className="w-4 h-4 mr-2 text-gray-500 shrink-0" />}
+                          {file.type !== 'heading' && <FileText className={`w-4 h-4 mr-2 shrink-0 ${modifiedFiles.has(`local/${file.path}`) ? 'text-amber-500' : 'text-gray-500'}`} />}
                           <span 
                             className="flex-1 truncate min-w-0" 
                             title={file.rawName || file.name}
                             dangerouslySetInnerHTML={file.type === 'heading' ? { __html: file.name } : undefined}
                           >
-                            {file.type !== 'heading' ? file.name : null}
+                            {file.type !== 'heading' ? (
+                              <div className="flex items-center justify-between">
+                                <span className="truncate">{file.name}</span>
+                                <div className="w-4 h-4 flex items-center justify-center ml-2 shrink-0">
+                                  {modifiedFiles.has(`local/${file.path}`) && (
+                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" title="Unsaved changes" />
+                                  )}
+                                </div>
+                              </div>
+                            ) : null}
                           </span>
                         </button>
                         {file.type !== 'heading' && (
@@ -320,21 +330,32 @@ const Sidebar = memo(({
                                   file.type === 'dir' ? (
                                       <Folder className="w-4 h-4 mr-2 text-blue-500 dark:text-blue-400 shrink-0" />
                                   ) : (
-                                      <FileText className={`w-4 h-4 mr-2 shrink-0 ${file.status === 'pending' ? 'text-amber-500 animate-pulse' : 'text-gray-500'}`} />
+                                      <FileText className={`w-4 h-4 mr-2 shrink-0 ${modifiedFiles.has(`${currentRepo}/${file.path}`) ? 'text-amber-500' : 'text-gray-500'}`} />
                                   )
                               )}
                               <span 
-                                className={`flex-1 truncate min-w-0 ${file.status === 'pending' ? 'text-amber-600 dark:text-amber-400 italic' : ''}`} 
+                                className="flex-1 truncate min-w-0" 
                                 title={file.rawName || file.name}
                                 dangerouslySetInnerHTML={file.type === 'heading' ? { __html: file.name } : undefined}
                               >
                                 {file.type !== 'heading' ? (
-                                  <>{file.name} {file.status === 'pending' && <span className="text-[10px] ml-1 opacity-75">(Syncing)</span>}</>
+                                  <div className="flex items-center justify-between">
+                                    <span className="truncate">{file.name}</span>
+                                    <div className="w-4 h-4 flex items-center justify-center ml-2 shrink-0">
+                                      {file.status === 'pending' ? (
+                                        <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-500" />
+                                      ) : (
+                                        modifiedFiles.has(`${currentRepo}/${file.path}`) && (
+                                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500" title="Unsaved changes" />
+                                        )
+                                      )}
+                                    </div>
+                                  </div>
                                 ) : null}
                               </span>
                             </button>
                             {file.type === 'file' && !isAtTOC && (
-                              <div className={`flex items-center transition-opacity ${file.status === 'pending' ? 'opacity-0' : 'opacity-0 group-hover:opacity-100'}`}>
+                              <div className={`flex items-center transition-opacity opacity-0 ${file.status === 'pending' ? 'pointer-events-none' : 'group-hover:opacity-100'}`}>
                                 <button onClick={(e) => { e.stopPropagation(); renameFile(file); }} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded mr-1"><FileEdit className="w-4 h-4" /></button>
                                 <button onClick={(e) => { e.stopPropagation(); deleteFile(file); }} className="p-1 hover:bg-red-100 dark:hover:bg-red-900/50 text-gray-400 hover:text-red-500 dark:hover:text-red-400 rounded"><Trash2 className="w-4 h-4" /></button>
                               </div>

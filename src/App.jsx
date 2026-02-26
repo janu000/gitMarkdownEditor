@@ -22,6 +22,7 @@ import useFormatting from './hooks/useFormatting';
 import useShortcuts from './hooks/useShortcuts';
 import useWorkspace from './hooks/useWorkspace';
 import useSyncScroll from './hooks/useSyncScroll';
+import { storage } from './utils/storage';
 
 // Safely attempt to load README.md
 const readmeFiles = import.meta.glob('../README.md', { query: '?raw', eager: true, import: 'default' });
@@ -50,11 +51,7 @@ export default function App() {
   const activeFileRef = useRef(null);
 
   // --- Basic State ---
-  const [content, setContent] = useState(() => {
-    const savedDraft = localStorage.getItem('gme_draft');
-    if (savedDraft) return savedDraft;
-    return defaultContent !== null ? defaultContent : DEFAULT_MARKDOWN;
-  });
+  const [content, setContent] = useState(defaultContent !== null ? defaultContent : DEFAULT_MARKDOWN);
   
   const [theme, setTheme] = useState(() => {
     if (typeof localStorage !== 'undefined' && localStorage.getItem('theme')) {
@@ -78,9 +75,13 @@ export default function App() {
   const deferredContent = useDeferredValue(content);
 
   // --- Shared State for Hooks ---
-  const [activeFile, setActiveFile] = useState(null); 
+  const [activeFile, setActiveFile] = useState(() => {
+    const saved = localStorage.getItem('gme_last_active_file');
+    return saved ? JSON.parse(saved) : null;
+  }); 
   const [pendingOps, setPendingOps] = useState({}); 
   const [pathStack, setPathStack] = useState([]); 
+  const [modifiedFiles, setModifiedFiles] = useState(new Set());
 
   const showToast = useCallback((message, type = 'success') => {
     setToast({ message, type });
@@ -92,15 +93,15 @@ export default function App() {
   } = useWorkspace(showToast);
 
   // Sync refs and persistence (debounced for performance)
-  useEffect(() => { activeFileRef.current = activeFile; }, [activeFile]);
+  useEffect(() => { 
+    activeFileRef.current = activeFile; 
+    if (activeFile) {
+      localStorage.setItem('gme_last_active_file', JSON.stringify(activeFile));
+    } else {
+      localStorage.removeItem('gme_last_active_file');
+    }
+  }, [activeFile]);
   
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      localStorage.setItem('gme_draft', content);
-    }, 1000);
-    return () => clearTimeout(handler);
-  }, [content]);
-
   // --- Hooks ---
   const { 
     sidebarWidth, splitRatio, tempSplitRatio, setSplitRatio, 
@@ -127,6 +128,48 @@ export default function App() {
     pathStack, setPathStack, updateTOC,
     setShowAuthModal
   });
+
+  // Restore session on mount
+  useEffect(() => {
+    const savedActiveFile = localStorage.getItem('gme_last_active_file');
+    if (savedActiveFile) {
+      const file = JSON.parse(savedActiveFile);
+      loadFile(file);
+    }
+  }, []); // Only once on mount
+
+  // Per-file Auto-save to IndexedDB & Modified State Tracking
+  useEffect(() => {
+    if (!activeFile) return;
+
+    const handler = setTimeout(async () => {
+      const storagePath = currentRepo 
+        ? `${currentRepo}/${activeFile.path}` 
+        : `local/${activeFile.path}`;
+      
+      await storage.saveDraft(storagePath, content);
+
+      // Check if modified compared to original
+      const original = await storage.getOriginal(storagePath);
+      if (original !== null && original !== content) {
+        setModifiedFiles(prev => {
+          if (prev.has(storagePath)) return prev;
+          const next = new Set(prev);
+          next.add(storagePath);
+          return next;
+        });
+      } else {
+        setModifiedFiles(prev => {
+          if (!prev.has(storagePath)) return prev;
+          const next = new Set(prev);
+          next.delete(storagePath);
+          return next;
+        });
+      }
+    }, 500);
+
+    return () => clearTimeout(handler);
+  }, [content, activeFile, currentRepo]);
 
   const { 
     insertText, insertListItem, insertNumberedList, insertTaskList 
@@ -375,6 +418,7 @@ export default function App() {
         createBranch={createBranch}
         loadTOC={loadTOC}
         jumpTo={jumpTo}
+        modifiedFiles={modifiedFiles}
       />
 
       {isSidebarOpen && (

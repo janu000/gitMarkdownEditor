@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { utf8_to_b64, b64_to_utf8 } from '../utils/encoding';
+import { storage } from '../utils/storage';
 
 export default function useGitHub(showToast, setLoadingState, {
   content, setContent,
@@ -13,18 +14,28 @@ export default function useGitHub(showToast, setLoadingState, {
   const [ghToken, setGhToken] = useState(() => localStorage.getItem('gme_gh_token') || '');
   const [ghUser, setGhUser] = useState(null);
   const [repos, setRepos] = useState([]);
-  const [currentRepo, setCurrentRepo] = useState(null);
+  const [currentRepo, setCurrentRepo] = useState(() => localStorage.getItem('gme_current_repo') || null);
   const currentRepoRef = useRef(null);
   const [repoContents, setRepoContents] = useState([]);
   const [branches, setBranches] = useState([]);
-  const [currentBranch, setCurrentBranch] = useState('');
+  const [currentBranch, setCurrentBranch] = useState(() => localStorage.getItem('gme_current_branch') || '');
   const currentBranchRef = useRef('');
   const [manualRepo, setManualRepo] = useState('');
   const [hiddenRepos, setHiddenRepos] = useState(() => JSON.parse(localStorage.getItem('gme_hidden_repos') || '[]'));
 
   // Sync refs for async callbacks
-  useEffect(() => { currentRepoRef.current = currentRepo; }, [currentRepo]);
-  useEffect(() => { currentBranchRef.current = currentBranch; }, [currentBranch]);
+  useEffect(() => { 
+    currentRepoRef.current = currentRepo;
+    if (currentRepo) localStorage.setItem('gme_current_repo', currentRepo);
+    else localStorage.removeItem('gme_current_repo');
+  }, [currentRepo]);
+
+  useEffect(() => { 
+    currentBranchRef.current = currentBranch;
+    if (currentBranch) localStorage.setItem('gme_current_branch', currentBranch);
+    else localStorage.removeItem('gme_current_branch');
+  }, [currentBranch]);
+
   useEffect(() => { localStorage.setItem('gme_hidden_repos', JSON.stringify(hiddenRepos)); }, [hiddenRepos]);
 
   const apiRequest = useCallback(async (endpoint, method = 'GET', body = null, customToken = null, useCache = false) => {
@@ -158,10 +169,31 @@ export default function useGitHub(showToast, setLoadingState, {
 
     setLoadingState('fetching');
     try {
+      // 1. Check for local draft first (unless forceFresh is true)
+      const fullPath = `${currentRepoRef.current}/${file.path}`;
+      if (!forceFresh) {
+        const localDraft = await storage.getDraft(fullPath);
+        if (localDraft !== null) {
+          setContent(localDraft);
+          setActiveFile({ path: file.path, sha: file.sha, name: file.name, type: 'file' });
+          setLoadingState('');
+          showToast(`Loaded draft for ${file.name}`);
+          return;
+        }
+      }
+
+      // 2. No draft found or force sync requested: Fetch from GitHub
       const data = await apiRequest(`/repos/${currentRepoRef.current}/contents/${file.path}?ref=${currentBranchRef.current}`, 'GET', null, null, !forceFresh);
       const decodedContent = b64_to_utf8(data.content);
+      
+      // 3. Save to IndexedDB (Original & Draft)
+      await Promise.all([
+        storage.saveOriginal(fullPath, decodedContent),
+        storage.saveDraft(fullPath, decodedContent)
+      ]);
+
       setContent(decodedContent);
-      setActiveFile({ path: file.path, sha: data.sha, name: file.name });
+      setActiveFile({ path: file.path, sha: data.sha, name: file.name, type: 'file' });
       showToast(forceFresh ? `Synced with GitHub` : `Loaded ${file.name}`);
     } catch (_error) {
       showToast('Failed to load file', 'error');
@@ -176,6 +208,16 @@ export default function useGitHub(showToast, setLoadingState, {
 
     if (!currentActiveFile || !repoContext) return;
     
+    const performPush = async (sha, isForce = false) => {
+      const body = {
+        message: `${isForce ? 'Force update' : 'Update'} ${currentActiveFile.name} via Git Markdown Editor`,
+        content: utf8_to_b64(content),
+        sha: sha,
+        branch: branchContext
+      };
+      return await apiRequest(`/repos/${repoContext}/contents/${currentActiveFile.path}`, 'PUT', body);
+    };
+
     setLoadingState('saving');
     // Optimistic Update
     setPendingOps(prev => ({ 
@@ -185,25 +227,47 @@ export default function useGitHub(showToast, setLoadingState, {
     showToast(`Committing ${currentActiveFile.name}...`);
 
     try {
-      const body = {
-        message: `Update ${currentActiveFile.name} via Git Markdown Editor`,
-        content: utf8_to_b64(content),
-        sha: currentActiveFile.sha,
-        branch: branchContext
-      };
-      const data = await apiRequest(`/repos/${repoContext}/contents/${currentActiveFile.path}`, 'PUT', body);
-      const updatedFile = { ...currentActiveFile, sha: data.content.sha };
+      let data;
+      try {
+        data = await performPush(currentActiveFile.sha);
+      } catch (err) {
+        if (err.message.includes('409')) {
+          const force = window.confirm("Conflict Detected: The version on GitHub has changed.\n\nWould you like to FORCE PUSH? (This will overwrite remote changes)");
+          if (force) {
+            showToast('Fetching latest SHA for force push...', 'info');
+            const latest = await apiRequest(`/repos/${repoContext}/contents/${currentActiveFile.path}?ref=${branchContext}`, 'GET', null, null, false);
+            data = await performPush(latest.sha, true);
+            showToast('Force push successful!');
+          } else {
+            throw err; // Rethrow to be caught by outer catch
+          }
+        } else {
+          throw err;
+        }
+      }
       
-      setPendingOps(prev => { const newState = { ...prev }; delete newState[currentActiveFile.path]; return newState; });
+      // Update original in storage after successful commit
+      const fullPath = `${repoContext}/${currentActiveFile.path}`;
+      await storage.saveOriginal(fullPath, content);
+
+      // CRITICAL: Update state with the NEW SHA returned by GitHub
+      const newSha = data.content.sha;
+      const updatedFile = { ...currentActiveFile, sha: newSha };
+      
+      // Sync the new SHA back to the master list so switching files doesn't revert to stale metadata
+      setRepoContents(prev => prev.map(f => 
+        f.path === currentActiveFile.path ? { ...f, sha: newSha } : f
+      ));
+
       setActiveFile(updatedFile);
       showToast('Successfully committed to GitHub!');
-      await loadFile(updatedFile, true);
-    } catch (_error) {
+    } catch (err) {
+      showToast(`Failed to save: ${err.message}`, 'error');
+    } finally {
       setPendingOps(prev => { const newState = { ...prev }; delete newState[currentActiveFile.path]; return newState; });
-      showToast('Failed to save to GitHub', 'error');
+      setLoadingState('');
     }
-    setLoadingState('');
-  }, [apiRequest, content, setActiveFile, setPendingOps, setLoadingState, showToast, activeFileRef, loadFile]);
+  }, [apiRequest, content, setActiveFile, setPendingOps, setLoadingState, showToast, activeFileRef]);
 
   const renameFile = useCallback(async (fileToRename) => {
     const newName = prompt(`Rename ${fileToRename.name} to:`, fileToRename.name);
@@ -235,10 +299,15 @@ export default function useGitHub(showToast, setLoadingState, {
 
       const deleteBody = { 
         message: `Rename ${fileToRename.name} to ${newName} (cleanup)`, 
-        sha: sourceData.sha,
+        sha: sourceData.sha, 
         branch: currentBranchRef.current
       };
       await apiRequest(`/repos/${currentRepoRef.current}/contents/${fileToRename.path}`, 'DELETE', deleteBody);
+
+      // Keep cache in sync
+      const oldFullPath = `${currentRepoRef.current}/${fileToRename.path}`;
+      const newFullPath = `${currentRepoRef.current}/${newPath}`;
+      await storage.renameFile(oldFullPath, newFullPath);
 
       setRepoContents(prev => {
         const filtered = prev.filter(f => f.path !== fileToRename.path);
@@ -296,6 +365,10 @@ export default function useGitHub(showToast, setLoadingState, {
       };
       await apiRequest(`/repos/${currentRepoRef.current}/contents/${fileToDelete.path}`, 'DELETE', body);
 
+      // Clean cache
+      const fullPath = `${currentRepoRef.current}/${fileToDelete.path}`;
+      await storage.deleteFile(fullPath);
+
       setRepoContents(prev => prev.filter(f => f.path !== fileToDelete.path));
       setPendingOps(prev => { const newState = { ...prev }; delete newState[fileToDelete.path]; return newState; });
       showToast(`Deleted ${fileToDelete.name}`);
@@ -328,6 +401,13 @@ export default function useGitHub(showToast, setLoadingState, {
       };
       const data = await apiRequest(`/repos/${currentRepoRef.current}/contents/${filePath}`, 'PUT', body);
       
+      // Update cache
+      const fullPath = `${currentRepoRef.current}/${filePath}`;
+      await Promise.all([
+        storage.saveOriginal(fullPath, initialContent),
+        storage.saveDraft(fullPath, initialContent)
+      ]);
+
       const newFileEntry = { name: fileName, path: filePath, type: 'file', sha: data.content.sha };
       setRepoContents(prev => {
         const filtered = prev.filter(f => f.path !== filePath);
@@ -405,6 +485,14 @@ export default function useGitHub(showToast, setLoadingState, {
       verifyGitHubToken(savedToken, true);
     }
   }, [verifyGitHubToken]);
+
+  // Restore repo contents and branches on reload
+  useEffect(() => {
+    if (ghUser && currentRepo && repoContents.length === 0) {
+      const currentPath = pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '';
+      fetchRepoContents(currentRepo, currentPath, currentBranch);
+    }
+  }, [ghUser, currentRepo, repoContents.length, currentBranch, fetchRepoContents, pathStack]);
 
   return {
     ghToken, setGhToken,
