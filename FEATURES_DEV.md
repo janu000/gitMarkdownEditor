@@ -50,7 +50,10 @@ This document provides a detailed breakdown of all implemented features in the G
 ### Preview Features
 - **Sync Scrolling (High Precision):** 
     - **Bi-directional Sync:** Scrolling the editor moves the preview and vice-versa.
-    - **Scroller-Relative Linear Interpolation:** Uses actual scroll positions (viewport top) mapped between the editor and preview. This coordinate system accounts for top paddings and header offsets by normalizing both scrollers to a shared content-locked baseline.
+    - **Focus-Point Alignment (20%):** Maps a focus point 20% down from the top of each viewport to keep the reading/editing area perfectly aligned.
+    - **Smooth Zero-Point Transition:** To ensure a clean start, the focus-point offset dynamically scales. At the absolute top (`scrollTop = 0`), the logic uses a 0% offset (Top-to-Top). As you scroll, this offset smoothly interpolates to the full 20% over the first half-viewport of movement. This eliminates "snapping" and ensures both panes always start exactly at the top together.
+    - **Boundary-Lock:** Reaching the end of one pane forces the other to its absolute bottom to handle virtual padding differences.
+    - **Scroller-Relative Interpolation:** Uses actual scroll positions mapped between the editor and preview scrollers.
     - **Content-End Mapping:** Explicitly maps the "start of text" to "start of text" and "end of text" to "end of text." This ensures that virtual space (like "scroll past end" padding) doesn't interfere with content alignment.
     - **AST-Level Accuracy:** Uses precise character offsets from the Markdown AST to map editor lines to preview elements.
     - **Layout Shift Resilience:** 

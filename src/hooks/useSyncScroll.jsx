@@ -113,67 +113,99 @@ export default function useSyncScroll(editorRef, previewRef, active, parsedHtml)
   const performSync = useCallback((source) => {
     if (!active || !syncCache.current) return;
 
+    const editorScroller = editorRef.current.scrollDOM;
+    const previewScroller = previewRef.current;
+    const TARGET_FOCUS_PCT = 0.2; // 20% from the top
+
     if (source === 'editor') {
       if (isScrollingPreview.current) return;
       isScrollingEditor.current = true;
       
-      const scrollTop = editorRef.current.scrollDOM.scrollTop;
-      const anchors = syncCache.current;
-      
-      let low = 0, high = anchors.length - 2;
-      let idx = 0;
-      while (low <= high) {
-        let mid = Math.floor((low + high) / 2);
-        if (anchors[mid].editorTop <= scrollTop) {
-          idx = mid;
-          low = mid + 1;
-        } else {
-          high = mid - 1;
-        }
-      }
+      const scrollTop = editorScroller.scrollTop;
+      const viewHeight = editorScroller.clientHeight;
+      const targetViewHeight = previewScroller.clientHeight;
+      const maxScroll = editorScroller.scrollHeight - viewHeight;
 
-      const p1 = anchors[idx], p2 = anchors[idx + 1];
-      const span = p2.editorTop - p1.editorTop;
-      const ratio = span > 0 ? Math.max(0, Math.min(1, (scrollTop - p1.editorTop) / span)) : 0;
-      
-      previewRef.current.scrollTo({
-        top: lerp(p1.previewTop, p2.previewTop, ratio),
-        behavior: 'auto'
-      });
+      // Force bottom lock
+      if (scrollTop >= maxScroll - 2) {
+        previewScroller.scrollTo({ top: previewScroller.scrollHeight - targetViewHeight, behavior: 'auto' });
+      } else {
+        // Smoothly transition from 0% focus (at top) to 20% focus (after scrolling half a viewport)
+        const transitionProgress = Math.min(1, scrollTop / (viewHeight * 0.5));
+        const effectiveFocusPct = transitionProgress * TARGET_FOCUS_PCT;
+        
+        const sourceFocus = scrollTop + (viewHeight * effectiveFocusPct);
+        const anchors = syncCache.current;
+        
+        let low = 0, high = anchors.length - 2;
+        let idx = 0;
+        while (low <= high) {
+          let mid = Math.floor((low + high) / 2);
+          if (anchors[mid].editorTop <= sourceFocus) {
+            idx = mid;
+            low = mid + 1;
+          } else {
+            high = mid - 1;
+          }
+        }
+
+        const p1 = anchors[idx], p2 = anchors[idx + 1];
+        const span = p2.editorTop - p1.editorTop;
+        const ratio = span > 0 ? Math.max(0, Math.min(1, (sourceFocus - p1.editorTop) / span)) : 0;
+        
+        const targetFocus = lerp(p1.previewTop, p2.previewTop, ratio);
+        previewScroller.scrollTo({
+          top: targetFocus - (targetViewHeight * effectiveFocusPct),
+          behavior: 'auto'
+        });
+      }
     } else {
       if (isScrollingEditor.current) return;
       isScrollingPreview.current = true;
       
-      const scrollTop = previewRef.current.scrollTop;
-      const anchors = syncCache.current;
-      
-      let low = 0, high = anchors.length - 2;
-      let idx = 0;
-      while (low <= high) {
-        let mid = Math.floor((low + high) / 2);
-        if (anchors[mid].previewTop <= scrollTop) {
-          idx = mid;
-          low = mid + 1;
-        } else {
-          high = mid - 1;
-        }
-      }
+      const scrollTop = previewScroller.scrollTop;
+      const viewHeight = previewScroller.clientHeight;
+      const targetViewHeight = editorScroller.clientHeight;
+      const maxScroll = previewScroller.scrollHeight - viewHeight;
 
-      const p1 = anchors[idx], p2 = anchors[idx + 1];
-      const span = p2.previewTop - p1.previewTop;
-      const ratio = span > 0 ? Math.max(0, Math.min(1, (scrollTop - p1.previewTop) / span)) : 0;
-      
-      editorRef.current.scrollDOM.scrollTo({
-        top: lerp(p1.editorTop, p2.editorTop, ratio),
-        behavior: 'auto'
-      });
+      if (scrollTop >= maxScroll - 2) {
+        editorScroller.scrollTo({ top: editorScroller.scrollHeight - targetViewHeight, behavior: 'auto' });
+      } else {
+        const transitionProgress = Math.min(1, scrollTop / (viewHeight * 0.5));
+        const effectiveFocusPct = transitionProgress * TARGET_FOCUS_PCT;
+
+        const sourceFocus = scrollTop + (viewHeight * effectiveFocusPct);
+        const anchors = syncCache.current;
+        
+        let low = 0, high = anchors.length - 2;
+        let idx = 0;
+        while (low <= high) {
+          let mid = Math.floor((low + high) / 2);
+          if (anchors[mid].previewTop <= sourceFocus) {
+            idx = mid;
+            low = mid + 1;
+          } else {
+            high = mid - 1;
+          }
+        }
+
+        const p1 = anchors[idx], p2 = anchors[idx + 1];
+        const span = p2.previewTop - p1.previewTop;
+        const ratio = span > 0 ? Math.max(0, Math.min(1, (sourceFocus - p1.previewTop) / span)) : 0;
+        
+        const targetFocus = lerp(p1.editorTop, p2.editorTop, ratio);
+        editorScroller.scrollTo({
+          top: targetFocus - (targetViewHeight * effectiveFocusPct),
+          behavior: 'auto'
+        });
+      }
     }
 
     if (scrollTimeout.current) clearTimeout(scrollTimeout.current);
     scrollTimeout.current = setTimeout(() => {
       isScrollingEditor.current = false;
       isScrollingPreview.current = false;
-    }, 50); // Reduced from 100ms for snappier lock release
+    }, 50); 
   }, [active, editorRef, previewRef]);
 
   useEffect(() => {
