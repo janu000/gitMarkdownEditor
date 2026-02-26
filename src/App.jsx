@@ -267,6 +267,84 @@ export default function App() {
     showToast(`Downloaded ${fileName}`);
   };
 
+  const handleRefreshRepo = useCallback(async () => {
+    if (!currentRepo) return;
+
+    // Check if any files in THIS repo are modified
+    const currentRepoPrefix = currentRepo + '/';
+    const repoModified = Array.from(modifiedFiles).some(path => path.startsWith(currentRepoPrefix));
+
+    if (repoModified) {
+      if (!window.confirm('Discard all local changes in this repository and refresh from GitHub?')) {
+        return;
+      }
+      
+      // Clear all drafts/originals for this repo in storage
+      await storage.clearRepo(currentRepo);
+
+      // Remove from modifiedFiles state
+      setModifiedFiles(prev => {
+        const next = new Set(prev);
+        for (const path of next) {
+          if (path.startsWith(currentRepoPrefix)) {
+            next.delete(path);
+          }
+        }
+        return next;
+      });
+
+      // If the active file belongs to this repo, force-re-fetch its content too
+      if (activeFile && activeFileRef.current && `${currentRepo}/${activeFileRef.current.path}`.startsWith(currentRepoPrefix)) {
+        loadFile(activeFileRef.current, true); // true = forceFresh/bypass cache
+      }
+      
+      showToast('Discarded local changes');
+    }
+
+    const currentPath = pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '';
+    // Passing true as the 4th argument (forceRefreshBranches)
+    fetchRepoContents(currentRepo, currentPath, null, true);
+  }, [currentRepo, modifiedFiles, setModifiedFiles, activeFile, loadFile, pathStack, fetchRepoContents, showToast]);
+
+  const handleDiscardChanges = useCallback(async () => {
+    if (!activeFile) {
+      if (window.confirm('Reset scratchpad to default?')) {
+        setContent(defaultContent !== null ? defaultContent : DEFAULT_MARKDOWN);
+        showToast('Scratchpad reset');
+      }
+      return;
+    }
+    if (!window.confirm('Discard all unsaved changes to this file?')) return;
+
+    const storagePath = currentRepo 
+      ? `${currentRepo}/${activeFile.path}` 
+      : `local/${activeFile.path}`;
+    
+    const original = await storage.getOriginal(storagePath);
+    if (original !== null) {
+      setContent(original);
+      await storage.saveDraft(storagePath, original);
+      setModifiedFiles(prev => {
+        const next = new Set(prev);
+        next.delete(storagePath);
+        return next;
+      });
+      showToast('Changes discarded');
+    } else {
+      showToast('No baseline found to revert to', 'error');
+    }
+  }, [activeFile, currentRepo, setContent, setModifiedFiles, showToast]);
+
+  const isModified = useMemo(() => {
+    if (!activeFile) {
+      return content !== (defaultContent !== null ? defaultContent : DEFAULT_MARKDOWN);
+    }
+    const storagePath = currentRepo 
+      ? `${currentRepo}/${activeFile.path}` 
+      : `local/${activeFile.path}`;
+    return modifiedFiles.has(storagePath);
+  }, [activeFile, currentRepo, modifiedFiles, content]);
+
   const jumpTo = useCallback(({ line, offset, endOffset }) => {
     const view = editorRef.current;
     if (!view || !(view instanceof EditorView)) return;
@@ -367,6 +445,7 @@ export default function App() {
         hiddenRepos={hiddenRepos}
         setHiddenRepos={setHiddenRepos}
         fetchRepoContents={fetchRepoContents}
+        handleRefreshRepo={handleRefreshRepo}
         manualRepo={manualRepo}
         setManualRepo={setManualRepo}
         pathStack={pathStack}
@@ -409,6 +488,8 @@ export default function App() {
           handleDownload={handleDownload}
           handleExportPdf={handleExportPdfCallback}
           saveToGitHub={handleSave}
+          handleDiscardChanges={handleDiscardChanges}
+          isModified={isModified}
           loadingState={loadingState}
           shortcuts={shortcuts}
         />

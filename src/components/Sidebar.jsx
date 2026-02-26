@@ -26,6 +26,7 @@ const Sidebar = memo(({
   hiddenRepos,
   setHiddenRepos,
   fetchRepoContents,
+  handleRefreshRepo,
   manualRepo,
   setManualRepo,
   pathStack,
@@ -263,7 +264,7 @@ const Sidebar = memo(({
                       <>
                         <button onClick={importLocalFile} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xs bg-gray-200 dark:bg-gray-800 px-1.5 py-1 rounded"><FileUp className="w-3 h-3" /></button>
                         <button onClick={() => createFile(prompt('Enter new file name:') || 'untitled.md')} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xs bg-gray-200 dark:bg-gray-800 px-1.5 py-1 rounded"><Plus className="w-3 h-3" /></button>
-                        <button onClick={() => fetchRepoContents(currentRepo, pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '', null, true)} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xs bg-gray-200 dark:bg-gray-800 px-1.5 py-1 rounded" title="Refresh file list and branches"><RefreshCcw className="w-3 h-3" /></button>
+                        <button onClick={handleRefreshRepo} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xs bg-gray-200 dark:bg-gray-800 px-1.5 py-1 rounded" title="Refresh file list and branches"><RefreshCcw className="w-3 h-3" /></button>
                       </>
                     )}
                   </div>

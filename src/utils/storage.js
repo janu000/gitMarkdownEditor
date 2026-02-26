@@ -70,6 +70,20 @@ export const storage = {
     await Promise.all(ops);
   },
 
+  // Clear all records for a specific repo
+  async clearRepo(repoPath) {
+    if (!repoPath) return;
+    const keys = await localforage.keys();
+    const prefixOriginal = getOriginalKey(repoPath + '/');
+    const prefixDraft = getDraftKey(repoPath + '/');
+    
+    const toRemove = keys.filter(key => 
+      key.startsWith(prefixOriginal) || key.startsWith(prefixDraft)
+    );
+    
+    await Promise.all(toRemove.map(key => localforage.removeItem(key)));
+  },
+
   // Clear everything (optional helper)
   async clear() {
     return localforage.clear();

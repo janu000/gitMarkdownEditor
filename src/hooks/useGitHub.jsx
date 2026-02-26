@@ -110,7 +110,7 @@ export default function useGitHub(showToast, setLoadingState, {
     try {
       let targetBranch = branch || currentBranch;
       
-      if (repoFullName !== currentRepo || !targetBranch || forceRefreshBranches) {
+      if (repoFullName !== currentRepo || !targetBranch || forceRefreshBranches || branches.length === 0) {
         const [repoInfo, branchesData] = await Promise.all([
           apiRequest(`/repos/${repoFullName}`),
           apiRequest(`/repos/${repoFullName}/branches`)
