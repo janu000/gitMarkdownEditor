@@ -158,6 +158,7 @@ This document provides a detailed breakdown of all implemented features in the G
 
 ## 8. Recent Fixes & Refinements
 
+- **Vite Build Worker Format Fix:** Resolved a build failure caused by Vite 5's default `iife` worker format being incompatible with code-splitting in the PWA build by explicitly setting `worker: { format: 'es' }` in `vite.config.js`.
 - **Inline Image Rendering Fix:** Overrode Tailwind CSS's default `display: block` for `img` elements by setting `.markdown-body img` to `display: inline-block` in `src/index.css`. This ensures consecutive markdown images (such as badges or shields) render side-by-side on the same line rather than breaking onto new lines.
 - **Disabled Preview-driven Bottom-Lock:** Removed the bottom-lock functionality in the scroll synchronization when the preview pane is the master scroll source. This prevents the editor from incorrectly jumping to its padded bottom (needed for "scroll past end") when the preview reaches its actual content end.
 - **State Management Migration:** Introduced Zustand for centralized state management to eliminate the extreme prop-drilling in the `App.jsx` God Component. State variables like `theme`, `viewMode`, `content`, and `activeFile` are now managed in a centralized store (`src/store/useStore.js`). Setters have been custom-implemented to mimic React's `useState` functional updates (e.g. `prev => new`).
