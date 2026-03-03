@@ -82,6 +82,10 @@ This document provides a detailed breakdown of all implemented features in the G
 - **GFM Support:** Support for GitHub Flavored Markdown (Tables, Task lists, Strikethrough, Autolinks).
 - **AST Source Mapping:** Custom `remarkOffsetPlugin` injects `data-offset-start` attributes for exact character-to-DOM mapping.
 - **Interactive Links:** Clicking external links (HTTP/HTTPS) in the preview correctly opens them in a new tab with `noopener noreferrer` security. Internal anchors work as expected, and link clicks no longer trigger the editor "click-to-jump" synchronization.
+- **Nested List Symbols:** Implemented distinct bullet point and numbering symbols for nested lists in the preview:
+    - **Unordered Lists:** Cycles through `disc` (filled circle), `circle` (empty circle), and `square` (filled square).
+    - **Ordered Lists:** Cycles through `decimal` (1, 2, 3), `lower-alpha` (a, b, c), and `lower-roman` (i, ii, iii).
+    - **Spacing:** Added a slight `margin-top: 0.25rem` to nested lists for better visual separation without excessive vertical gaps.
 
 ### Math & Equations
 - **KaTeX Integration:** Full support for LaTeX math.
@@ -135,6 +139,8 @@ This document provides a detailed breakdown of all implemented features in the G
 - **Inline Formatting:** Bold, Italic, Strikethrough, Inline Code.
 - **Block Formatting:** Heading 1, Heading 2, Blockquote, Code Block, Table, Math Block.
 - **List Management:** Bulleted, Numbered (auto-increment), and Task lists.
+- **Exclusive List Formatting:** Implementing "smart swap" logic for list types. When applying a list format (e.g., Numbered) to a line that already has a different list format (e.g., Bulleted), the existing prefix is automatically removed before the new one is applied. Toggling the *same* list type still removes the prefix as expected.
+- **Contextual Numbering:** Ordered lists now intelligently detect the preceding list item's number. If you change a bulleted item in the middle of an ordered list (e.g., between `1.` and `3.`), it will correctly apply the next logical number (`2.`) and preserve the existing indentation. Works for both single-line and multi-line selections.
 - **Emoji Picker:** Categorized popover with hundreds of emojis.
 - **Link Pasting:** Automatically formats pasted URLs as Markdown links (`[selected text](url)`) when text is selected in the editor. It intelligently skips this behavior if the selection is already a URL or a Markdown link to prevent double-wrapping.
 
