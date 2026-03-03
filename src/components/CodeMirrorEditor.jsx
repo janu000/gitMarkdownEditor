@@ -73,6 +73,15 @@ const getBaseTheme = (theme) => EditorView.theme({
   }
 });
 
+const isUrl = (str) => {
+  try {
+    const url = new URL(str.trim());
+    return url.protocol === 'http:' || url.protocol === 'https:';
+  } catch (_) {
+    return false;
+  }
+};
+
 const CodeMirrorEditor = memo(({ 
   editorRef, 
   content, 
@@ -105,6 +114,34 @@ const CodeMirrorEditor = memo(({
         baseThemeConfig.of(getBaseTheme(theme)),
         EditorView.lineWrapping,
         scrollPastEnd(),
+        EditorView.domEventHandlers({
+          paste(event, view) {
+            const { from, to } = view.state.selection.main;
+            const text = event.clipboardData.getData('text/plain');
+            if (!text) return false;
+
+            if (isUrl(text)) {
+              const selectedText = view.state.doc.sliceString(from, to);
+              
+              // If the selection is already a URL or looks like a link, paste normally
+              if (isUrl(selectedText) || (selectedText.startsWith('[') && selectedText.endsWith(')'))) {
+                return false;
+              }
+
+              const url = text.trim();
+              const label = from === to ? url.replace(/^https?:\/\//, '') : selectedText;
+              const insert = `[${label}](${url})`;
+
+              view.dispatch({
+                changes: { from, to, insert },
+                selection: { anchor: from + 1, head: from + 1 + label.length },
+                scrollIntoView: true
+              });
+              return true;
+            }
+            return false;
+          }
+        }),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
             clearTimeout(debounceTimer);

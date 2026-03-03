@@ -13,6 +13,18 @@ const inlineParse = (text) => {
   return html;
 };
 
+const slugify = (text) => {
+  return text
+    .toString()
+    .toLowerCase()
+    .trim()
+    .replace(/\s+/g, '-')     // Replace spaces with -
+    .replace(/[^\w-]+/g, '')  // Remove all non-word chars
+    .replace(/--+/g, '-')     // Replace multiple - with single -
+    .replace(/^-+/, '')       // Trim - from start of text
+    .replace(/-+$/, '');      // Trim - from end of text
+};
+
 async function initDOM() {
   if (self.document) return;
   try {
@@ -94,6 +106,15 @@ async function initProcessor() {
           if (syncableTypes.includes(node.type)) {
             if (node.type === 'code' && node.lang) {
               node.data.hProperties.className = [...(node.data.hProperties.className || []), 'language-' + node.lang];
+            }
+            if (node.type === 'heading') {
+              const textContent = (node.children || [])
+                .filter(c => c.type === 'text')
+                .map(c => c.value)
+                .join('');
+              if (textContent) {
+                node.data.hProperties.id = slugify(textContent);
+              }
             }
             node.data.hProperties.className = [...(node.data.hProperties.className || []), 'cursor-sync-target'];
           }

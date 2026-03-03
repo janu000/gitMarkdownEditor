@@ -81,6 +81,7 @@ This document provides a detailed breakdown of all implemented features in the G
 - **Click-to-Jump (Sync):** Clicking any element in the preview scrolls the editor to the exact character offset of that element.
 - **GFM Support:** Support for GitHub Flavored Markdown (Tables, Task lists, Strikethrough, Autolinks).
 - **AST Source Mapping:** Custom `remarkOffsetPlugin` injects `data-offset-start` attributes for exact character-to-DOM mapping.
+- **Interactive Links:** Clicking external links (HTTP/HTTPS) in the preview correctly opens them in a new tab with `noopener noreferrer` security. Internal anchors work as expected, and link clicks no longer trigger the editor "click-to-jump" synchronization.
 
 ### Math & Equations
 - **KaTeX Integration:** Full support for LaTeX math.
@@ -126,7 +127,7 @@ This document provides a detailed breakdown of all implemented features in the G
 
 ---
 
-## 5. Editing & Formatting Features
+### Editing & Formatting Features
 
 ### Formatting Toolbar
 - **Toggleable Formatting:** All formatting actions (Bold, Italic, Strikethrough, Lists, etc.) now support toggling. If the selected text or current line already has the formatting applied, the action will remove it.
@@ -135,6 +136,7 @@ This document provides a detailed breakdown of all implemented features in the G
 - **Block Formatting:** Heading 1, Heading 2, Blockquote, Code Block, Table, Math Block.
 - **List Management:** Bulleted, Numbered (auto-increment), and Task lists.
 - **Emoji Picker:** Categorized popover with hundreds of emojis.
+- **Link Pasting:** Automatically formats pasted URLs as Markdown links (`[selected text](url)`) when text is selected in the editor. It intelligently skips this behavior if the selection is already a URL or a Markdown link to prevent double-wrapping.
 
 ### Keyboard Shortcuts
 - **Global Listener:** `useShortcuts.jsx` maps keys to editor actions.

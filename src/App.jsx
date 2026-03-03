@@ -368,6 +368,38 @@ export default function App() {
 
   const handlePreviewClick = useCallback((e) => {
     let target = e.target;
+    let isLink = false;
+    let linkElement = null;
+
+    // Check if we clicked a link or inside a link
+    let temp = target;
+    while (temp && temp !== e.currentTarget) {
+      if (temp.tagName === 'A') {
+        isLink = true;
+        linkElement = temp;
+        break;
+      }
+      temp = temp.parentElement;
+    }
+
+    if (isLink && linkElement) {
+      const href = linkElement.getAttribute('href');
+      if (href) {
+        if (href.startsWith('http://') || href.startsWith('https://')) {
+          e.preventDefault();
+          window.open(href, '_blank', 'noopener,noreferrer');
+        } else if (href.startsWith('#')) {
+          e.preventDefault();
+          const targetId = href.substring(1);
+          const targetElement = previewRef.current?.querySelector(`[id="${targetId}"]`);
+          if (targetElement) {
+            targetElement.scrollIntoView({ behavior: 'smooth' });
+          }
+        }
+      }
+      return;
+    }
+
     while (target && target !== e.currentTarget) {
       const start = target.getAttribute('data-offset-start');
       const end = target.getAttribute('data-offset-end');
