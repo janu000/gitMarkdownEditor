@@ -138,9 +138,13 @@ export default function useGitHub(showToast, setLoadingState, {
   }, [apiRequest, currentBranch, currentRepo, setLoadingState, showToast, setPathStack]);
 
   const loadFile = useCallback(async (file, forceFresh = false) => {
+    const targetRepo = file.repo || currentRepoRef.current;
+    console.log('[loadFile] Called with file:', file, 'forceFresh:', forceFresh);
+    console.log('[loadFile] targetRepo is:', targetRepo);
+    
     if (file.type === 'dir') {
       setPathStack(prev => [...prev, file]);
-      if (currentRepoRef.current) fetchRepoContents(currentRepoRef.current, file.path);
+      if (targetRepo) fetchRepoContents(targetRepo, file.path);
       return;
     }
     
@@ -149,9 +153,22 @@ export default function useGitHub(showToast, setLoadingState, {
       return;
     }
 
-    if (!currentRepoRef.current) {
-      setContent(file.content || '');
-      setActiveFile(file);
+    if (!targetRepo) {
+      console.log('[loadFile] No target repo, setting content from IndexedDB for local file');
+      setLoadingState('fetching');
+      try {
+        const fullPath = `local/${file.path}`;
+        const localDraft = await storage.getDraft(fullPath);
+        const contentToLoad = localDraft !== null ? localDraft : (file.content || '');
+        setContent(contentToLoad);
+        setActiveFile(file);
+        showToast(`Loaded ${file.name}`);
+      } catch (err) {
+        console.error('[loadFile] Error loading local file:', err);
+        showToast('Failed to load local file', 'error');
+      } finally {
+        setLoadingState('');
+      }
       return;
     }
 
@@ -170,20 +187,24 @@ export default function useGitHub(showToast, setLoadingState, {
     setLoadingState('fetching');
     try {
       // 1. Check for local draft first (unless forceFresh is true)
-      const fullPath = `${currentRepoRef.current}/${file.path}`;
+      const fullPath = `${targetRepo}/${file.path}`;
+      console.log('[loadFile] Evaluating fullPath:', fullPath);
+      
       if (!forceFresh) {
         const localDraft = await storage.getDraft(fullPath);
         if (localDraft !== null) {
+          console.log('[loadFile] Found local draft for:', fullPath);
           setContent(localDraft);
-          setActiveFile({ path: file.path, sha: file.sha, name: file.name, type: 'file' });
+          setActiveFile({ path: file.path, sha: file.sha, name: file.name, type: 'file', repo: targetRepo });
           setLoadingState('');
           showToast(`Loaded draft for ${file.name}`);
           return;
         }
       }
 
+      console.log('[loadFile] Fetching from GitHub API for:', fullPath);
       // 2. No draft found or force sync requested: Fetch from GitHub
-      const data = await apiRequest(`/repos/${currentRepoRef.current}/contents/${file.path}?ref=${currentBranchRef.current}`, 'GET', null, null, !forceFresh);
+      const data = await apiRequest(`/repos/${targetRepo}/contents/${file.path}?ref=${currentBranchRef.current}`, 'GET', null, null, !forceFresh);
       const decodedContent = b64_to_utf8(data.content);
       
       // 3. Save to IndexedDB (Original & Draft)
@@ -193,9 +214,10 @@ export default function useGitHub(showToast, setLoadingState, {
       ]);
 
       setContent(decodedContent);
-      setActiveFile({ path: file.path, sha: data.sha, name: file.name, type: 'file' });
+      setActiveFile({ path: file.path, sha: data.sha, name: file.name, type: 'file', repo: targetRepo });
       showToast(forceFresh ? `Synced with GitHub` : `Loaded ${file.name}`);
     } catch (_error) {
+      console.error('[loadFile] Error loading file:', _error);
       showToast('Failed to load file', 'error');
     }
     setLoadingState('');
@@ -387,7 +409,7 @@ export default function useGitHub(showToast, setLoadingState, {
 
     if (!currentRepoRef.current) return;
 
-    const tempFile = { name: fileName, path: filePath, type: 'file', sha: null, content: initialContent };
+    const tempFile = { name: fileName, path: filePath, type: 'file', sha: null, content: initialContent, repo: currentRepoRef.current };
     setPendingOps(prev => ({ ...prev, [filePath]: { action: 'add', file: tempFile, content: initialContent } }));
     setActiveFile(tempFile);
     setContent(initialContent);

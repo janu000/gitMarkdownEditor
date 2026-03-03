@@ -8,7 +8,9 @@ const AuthModal = ({ showAuthModal, setShowAuthModal, verifyGitHubToken, loading
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
       <div className="bg-[#161b22] border border-gray-700 rounded-xl p-6 w-full max-w-md shadow-2xl">
         <h2 className="text-xl font-bold mb-2 flex items-center"><Github className="w-6 h-6 mr-2" /> Connect GitHub</h2>
-        <p className="text-sm text-gray-400 mb-6">Enter a Personal Access Token (classic) with <code className="bg-gray-800 px-1 rounded">repo</code> scope to sync files.</p>
+        <p className="text-sm text-gray-400 mb-6">
+          Enter a <a href="https://github.com/settings/tokens" target="_blank" rel="noopener noreferrer" className="text-indigo-400 hover:text-indigo-300 underline underline-offset-4 decoration-indigo-400/30">Personal Access Token (classic)</a> with <code className="bg-gray-800 px-1 rounded text-gray-300">repo</code> scope to sync files.
+        </p>
         <input 
           type="password" 
           placeholder="ghp_xxxxxxxxxxxx" 

@@ -42,7 +42,8 @@ async function initProcessor() {
       { default: remarkRehype },
       { default: rehypeKatex },
       { default: rehypeStringify },
-      { default: remarkEmoji }
+      { default: remarkEmoji },
+      { default: rehypeHighlight }
     ] = await Promise.all([
       import('unified'),
       import('remark-parse'),
@@ -51,7 +52,8 @@ async function initProcessor() {
       import('remark-rehype'),
       import('rehype-katex'),
       import('rehype-stringify'),
-      import('remark-emoji')
+      import('remark-emoji'),
+      import('rehype-highlight')
     ]);
 
     const remarkOffsetPlugin = () => (tree, file) => {
@@ -90,6 +92,9 @@ async function initProcessor() {
 
           const syncableTypes = ['text', 'strong', 'emphasis', 'inlineCode', 'link', 'image', 'heading', 'paragraph', 'listItem', 'blockquote', 'code', 'tableCell', 'math', 'inlineMath'];
           if (syncableTypes.includes(node.type)) {
+            if (node.type === 'code' && node.lang) {
+              node.data.hProperties.className = [...(node.data.hProperties.className || []), 'language-' + node.lang];
+            }
             node.data.hProperties.className = [...(node.data.hProperties.className || []), 'cursor-sync-target'];
           }
         }
@@ -156,7 +161,7 @@ async function initProcessor() {
 
     processor = unified()
       .use(remarkParse).use(remarkGfm).use(remarkMath).use(remarkEmoji).use(remarkOffsetPlugin)
-      .use(remarkRehype, { allowDangerousHtml: true }).use(rehypeSyncPlugin).use(rehypeKatex).use(rehypeStringify, { allowDangerousHtml: true });
+      .use(remarkRehype, { allowDangerousHtml: true }).use(rehypeSyncPlugin).use(rehypeKatex).use(rehypeHighlight, { ignoreMissing: true }).use(rehypeStringify, { allowDangerousHtml: true });
   } catch (err) {
     console.error("Worker Unified init failed", err);
     throw err;

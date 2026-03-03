@@ -21,11 +21,11 @@ const Toolbar = memo(({
   handleDownload,
   handleExportPdf,
   saveToGitHub,
+  handleDiscardChanges,
+  isModified,
   loadingState,
   shortcuts
 }) => {
-  const isModified = content !== localStorage.getItem('gme_draft');
-
   return (
     <div id="top-toolbar" className="h-14 bg-gray-50 dark:bg-[#161b22] border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-4 shrink-0">
       <div className="flex items-center space-x-2">
@@ -48,10 +48,10 @@ const Toolbar = memo(({
             <span className="text-gray-500 italic">Local Draft (Unsynced)</span>
           )}
 
-          {loadingState && (
+          {loadingState === 'fetching' && (
             <span className="ml-3 flex items-center gap-1 text-[11px] text-gray-500 animate-pulse">
               <Loader2 className="w-3 h-3 animate-spin" />
-              {loadingState === 'fetching' ? 'Syncing...' : 'Saving...'}
+              Syncing...
             </span>
           )}
         </div>

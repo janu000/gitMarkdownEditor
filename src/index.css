@@ -63,7 +63,20 @@ html, body, #root {
 .markdown-body blockquote { border-left: 4px solid #4f46e5; padding: 0.25rem 0 0.25rem 1rem; margin: 1.5rem 0; color: #6b7280; background: #f9fafb; border-radius: 0 0.25rem 0.25rem 0; font-style: italic; }
 .markdown-body img { display: inline-block; max-width: 100%; box-sizing: content-box; background-color: transparent; }
 .markdown-body pre { background-color: #f3f4f6; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; margin: 1.5rem 0; border: 1px solid #e5e7eb; }
-.markdown-body pre code { font-size: 0.875rem; font-family: monospace; color: #1f2937; background: transparent; padding: 0; }
+.markdown-body pre code,
+.dark .markdown-body pre code,
+.markdown-body pre code .hljs { 
+  font-size: 0.875rem; 
+  font-family: monospace; 
+  background: transparent !important; 
+  padding: 0; 
+}
+
+.dark .markdown-body pre code,
+.dark .markdown-body pre code .hljs {
+  color: #e5e7eb;
+}
+
 .markdown-body code { background-color: #f3f4f6; padding: 0.125rem 0.375rem; border-radius: 0.25rem; font-size: 0.875rem; color: #db2777; font-family: monospace; }
 .markdown-body table { width: 100%; text-align: left; border-collapse: collapse; margin: 1.5rem 0; }
 .markdown-body thead { background-color: #f9fafb; }
@@ -122,3 +135,54 @@ html, body, #root {
   .dark .markdown-body del { color: #9ca3af !important; }
   .dark .markdown-body input[type="checkbox"] { accent-color: #4f46e5 !important; }
 }
+
+/* highlight.js Modern Themes (GitHub Light/Dark) with CSS Variables */
+:root {
+  --hljs-color: #24292e;
+  --hljs-keyword: #d73a49;
+  --hljs-title: #6f42c1;
+  --hljs-attr: #005cc5;
+  --hljs-string: #032f62;
+  --hljs-built_in: #e36209;
+  --hljs-comment: #6a737d;
+  --hljs-name: #22863a;
+  --hljs-section: #005cc5;
+  --hljs-bullet: #735c0f;
+  --hljs-add-color: #22863a;
+  --hljs-add-bg: #f0fff4;
+  --hljs-del-color: #b31d28;
+  --hljs-del-bg: #ffeef0;
+}
+
+.dark {
+  --hljs-color: #c9d1d9;
+  --hljs-keyword: #ff7b72;
+  --hljs-title: #d2a8ff;
+  --hljs-attr: #79c0ff;
+  --hljs-string: #a5d6ff;
+  --hljs-built_in: #ffa657;
+  --hljs-comment: #8b949e;
+  --hljs-name: #7ee787;
+  --hljs-section: #1f6feb;
+  --hljs-bullet: #f2cc60;
+  --hljs-add-color: #aff5b4;
+  --hljs-add-bg: #033a16;
+  --hljs-del-color: #ffdcd7;
+  --hljs-del-bg: #67060c;
+}
+
+.hljs { color: var(--hljs-color); background: transparent; }
+.hljs-doctag, .hljs-keyword, .hljs-meta .hljs-keyword, .hljs-template-tag, .hljs-template-variable, .hljs-type, .hljs-variable.language_ { color: var(--hljs-keyword); }
+.hljs-title, .hljs-title.class_, .hljs-title.class_.inherited__, .hljs-title.function_ { color: var(--hljs-title); }
+.hljs-attr, .hljs-attribute, .hljs-literal, .hljs-meta, .hljs-number, .hljs-operator, .hljs-variable, .hljs-selector-attr, .hljs-selector-class, .hljs-selector-id { color: var(--hljs-attr); }
+.hljs-regexp, .hljs-string, .hljs-meta .hljs-string { color: var(--hljs-string); }
+.hljs-built_in, .hljs-symbol { color: var(--hljs-built_in); }
+.hljs-comment, .hljs-code, .hljs-formula { color: var(--hljs-comment); }
+.hljs-name, .hljs-quote, .hljs-selector-tag, .hljs-selector-pseudo { color: var(--hljs-name); }
+.hljs-subst { color: var(--hljs-color); }
+.hljs-section { color: var(--hljs-section); font-weight: bold; }
+.hljs-bullet { color: var(--hljs-bullet); }
+.hljs-emphasis { color: var(--hljs-color); font-style: italic; }
+.hljs-strong { color: var(--hljs-color); font-weight: bold; }
+.hljs-addition { color: var(--hljs-add-color); background-color: var(--hljs-add-bg); }
+.hljs-deletion { color: var(--hljs-del-color); background-color: var(--hljs-del-bg); }

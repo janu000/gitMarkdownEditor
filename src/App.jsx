@@ -103,8 +103,8 @@ export default function App() {
     if (!activeFile) return;
 
     const handler = setTimeout(async () => {
-      const storagePath = currentRepo 
-        ? `${currentRepo}/${activeFile.path}` 
+      const storagePath = activeFile.repo 
+        ? `${activeFile.repo}/${activeFile.path}` 
         : `local/${activeFile.path}`;
       
       await storage.saveDraft(storagePath, content);
@@ -188,7 +188,7 @@ export default function App() {
     if (currentRepo) {
       await saveToGitHub();
     } else if (activeFile) {
-      updateLocalFileContent(activeFile.path, content);
+      await updateLocalFileContent(activeFile.path, content);
       showToast('Saved locally');
     }
   }, [currentRepo, activeFile, content, saveToGitHub, updateLocalFileContent, showToast]);
@@ -197,7 +197,7 @@ export default function App() {
     if (currentRepo) {
       await createGHFile(name, initialContent);
     } else {
-      const newFile = createLocalFile(name, initialContent);
+      const newFile = await createLocalFile(name, initialContent);
       if (newFile) {
         setActiveFile(newFile);
         setContent(initialContent);
@@ -210,7 +210,7 @@ export default function App() {
       await renameGHFile(file);
     } else {
       const newName = prompt(`Rename ${file.name} to:`, file.name);
-      if (newName && renameLocalFile(file, newName)) {
+      if (newName && (await renameLocalFile(file, newName))) {
         if (activeFile?.path === file.path) {
           setActiveFile(prev => ({ ...prev, name: newName, path: newName }));
         }
@@ -223,7 +223,7 @@ export default function App() {
       await deleteGHFile(file);
     } else {
       if (window.confirm(`Delete ${file.name}?`)) {
-        deleteLocalFile(file);
+        await deleteLocalFile(file);
         if (activeFile?.path === file.path) {
           setActiveFile(null);
           setContent(defaultContent !== null ? defaultContent : DEFAULT_MARKDOWN);
@@ -318,10 +318,9 @@ export default function App() {
     }
     if (!window.confirm('Discard all unsaved changes to this file?')) return;
 
-    const storagePath = currentRepo 
-      ? `${currentRepo}/${activeFile.path}` 
-      : `local/${activeFile.path}`;
-    
+    const storagePath = activeFile.repo
+      ? `${activeFile.repo}/${activeFile.path}`
+      : `local/${activeFile.path}`;    
     const original = await storage.getOriginal(storagePath);
     if (original !== null) {
       setContent(original);
@@ -341,10 +340,9 @@ export default function App() {
     if (!activeFile) {
       return content !== (defaultContent !== null ? defaultContent : DEFAULT_MARKDOWN);
     }
-    const storagePath = currentRepo 
-      ? `${currentRepo}/${activeFile.path}` 
-      : `local/${activeFile.path}`;
-    return modifiedFiles.has(storagePath);
+    const storagePath = activeFile.repo
+      ? `${activeFile.repo}/${activeFile.path}`
+      : `local/${activeFile.path}`;    return modifiedFiles.has(storagePath);
   }, [activeFile, currentRepo, modifiedFiles, content]);
 
   const jumpTo = useCallback(({ line, offset, endOffset }) => {
