@@ -105,6 +105,11 @@ export default function useGitHub(showToast, setLoadingState, {
     }
   }, [fetchRepos, showToast, setLoadingState]);
 
+  const getStoragePath = useCallback((path, repo = currentRepoRef.current, branch = currentBranchRef.current) => {
+    if (!repo) return `local/${path}`;
+    return `${repo}/${branch}/${path}`;
+  }, []);
+
   const fetchRepoContents = useCallback(async (repoFullName, path = '', branch = null, forceRefreshBranches = false) => {
     setLoadingState('fetching');
     try {
@@ -139,12 +144,13 @@ export default function useGitHub(showToast, setLoadingState, {
 
   const loadFile = useCallback(async (file, forceFresh = false) => {
     const targetRepo = file.repo || currentRepoRef.current;
+    const targetBranch = file.branch || currentBranchRef.current;
     console.log('[loadFile] Called with file:', file, 'forceFresh:', forceFresh);
-    console.log('[loadFile] targetRepo is:', targetRepo);
+    console.log('[loadFile] targetRepo:', targetRepo, 'targetBranch:', targetBranch);
     
     if (file.type === 'dir') {
       setPathStack(prev => [...prev, file]);
-      if (targetRepo) fetchRepoContents(targetRepo, file.path);
+      if (targetRepo) fetchRepoContents(targetRepo, file.path, targetBranch);
       return;
     }
     
@@ -176,7 +182,7 @@ export default function useGitHub(showToast, setLoadingState, {
     if (pendingOp && pendingOp.action === 'add') {
       if (pendingOp.content !== undefined) {
         setContent(pendingOp.content);
-        setActiveFile(file);
+        setActiveFile({ ...file, branch: targetBranch });
         return;
       } else {
         showToast('File is syncing, please wait...', 'info');
@@ -187,7 +193,7 @@ export default function useGitHub(showToast, setLoadingState, {
     setLoadingState('fetching');
     try {
       // 1. Check for local draft first (unless forceFresh is true)
-      const fullPath = `${targetRepo}/${file.path}`;
+      const fullPath = getStoragePath(file.path, targetRepo, targetBranch);
       console.log('[loadFile] Evaluating fullPath:', fullPath);
       
       if (!forceFresh) {
@@ -195,7 +201,7 @@ export default function useGitHub(showToast, setLoadingState, {
         if (localDraft !== null) {
           console.log('[loadFile] Found local draft for:', fullPath);
           setContent(localDraft);
-          setActiveFile({ path: file.path, sha: file.sha, name: file.name, type: 'file', repo: targetRepo });
+          setActiveFile({ path: file.path, sha: file.sha, name: file.name, type: 'file', repo: targetRepo, branch: targetBranch });
           setLoadingState('');
           showToast(`Loaded draft for ${file.name}`);
           return;
@@ -204,7 +210,7 @@ export default function useGitHub(showToast, setLoadingState, {
 
       console.log('[loadFile] Fetching from GitHub API for:', fullPath);
       // 2. No draft found or force sync requested: Fetch from GitHub
-      const data = await apiRequest(`/repos/${targetRepo}/contents/${file.path}?ref=${currentBranchRef.current}`, 'GET', null, null, !forceFresh);
+      const data = await apiRequest(`/repos/${targetRepo}/contents/${file.path}?ref=${targetBranch}`, 'GET', null, null, !forceFresh);
       const decodedContent = b64_to_utf8(data.content);
       
       // 3. Save to IndexedDB (Original & Draft)
@@ -214,19 +220,19 @@ export default function useGitHub(showToast, setLoadingState, {
       ]);
 
       setContent(decodedContent);
-      setActiveFile({ path: file.path, sha: data.sha, name: file.name, type: 'file', repo: targetRepo });
+      setActiveFile({ path: file.path, sha: data.sha, name: file.name, type: 'file', repo: targetRepo, branch: targetBranch });
       showToast(forceFresh ? `Synced with GitHub` : `Loaded ${file.name}`);
     } catch (_error) {
       console.error('[loadFile] Error loading file:', _error);
       showToast('Failed to load file', 'error');
     }
     setLoadingState('');
-  }, [apiRequest, fetchRepoContents, pendingOps, setActiveFile, setContent, setLoadingState, setPathStack, showToast]);
+  }, [apiRequest, fetchRepoContents, pendingOps, setActiveFile, setContent, setLoadingState, setPathStack, showToast, getStoragePath]);
 
   const saveToGitHub = useCallback(async () => {
     const currentActiveFile = activeFileRef.current;
     const repoContext = currentRepoRef.current; 
-    const branchContext = currentBranchRef.current;
+    const branchContext = currentActiveFile?.branch || currentBranchRef.current;
 
     if (!currentActiveFile || !repoContext) return;
     
@@ -269,12 +275,12 @@ export default function useGitHub(showToast, setLoadingState, {
       }
       
       // Update original in storage after successful commit
-      const fullPath = `${repoContext}/${currentActiveFile.path}`;
+      const fullPath = getStoragePath(currentActiveFile.path, repoContext, branchContext);
       await storage.saveOriginal(fullPath, content);
 
       // CRITICAL: Update state with the NEW SHA returned by GitHub
       const newSha = data.content.sha;
-      const updatedFile = { ...currentActiveFile, sha: newSha };
+      const updatedFile = { ...currentActiveFile, sha: newSha, branch: branchContext };
       
       // Sync the new SHA back to the master list so switching files doesn't revert to stale metadata
       setRepoContents(prev => prev.map(f => 
@@ -289,7 +295,7 @@ export default function useGitHub(showToast, setLoadingState, {
       setPendingOps(prev => { const newState = { ...prev }; delete newState[currentActiveFile.path]; return newState; });
       setLoadingState('');
     }
-  }, [apiRequest, content, setActiveFile, setPendingOps, setLoadingState, showToast, activeFileRef]);
+  }, [apiRequest, content, setActiveFile, setPendingOps, setLoadingState, showToast, activeFileRef, getStoragePath]);
 
   const renameFile = useCallback(async (fileToRename) => {
     const newName = prompt(`Rename ${fileToRename.name} to:`, fileToRename.name);
@@ -297,11 +303,12 @@ export default function useGitHub(showToast, setLoadingState, {
 
     const currentPath = pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '';
     const newPath = currentPath ? `${currentPath}/${newName}` : newName;
+    const branchContext = fileToRename.branch || currentBranchRef.current;
 
     if (!currentRepoRef.current) return;
 
     // Git Mode Rename Optimistic
-    const newFile = { ...fileToRename, name: newName, path: newPath };
+    const newFile = { ...fileToRename, name: newName, path: newPath, branch: branchContext };
     setPendingOps(prev => ({
       ...prev,
       [fileToRename.path]: { action: 'delete' },
@@ -311,24 +318,24 @@ export default function useGitHub(showToast, setLoadingState, {
     showToast(`Renaming to ${newName}...`);
 
     try {
-      const sourceData = await apiRequest(`/repos/${currentRepoRef.current}/contents/${fileToRename.path}?ref=${currentBranchRef.current}`);
+      const sourceData = await apiRequest(`/repos/${currentRepoRef.current}/contents/${fileToRename.path}?ref=${branchContext}`);
       const createBody = {
         message: `Rename ${fileToRename.name} to ${newName} via Git Markdown Editor`,
         content: sourceData.content.replace(/\n/g, ''),
-        branch: currentBranchRef.current
+        branch: branchContext
       };
       const createRes = await apiRequest(`/repos/${currentRepoRef.current}/contents/${newPath}`, 'PUT', createBody);
 
       const deleteBody = { 
         message: `Rename ${fileToRename.name} to ${newName} (cleanup)`, 
         sha: sourceData.sha, 
-        branch: currentBranchRef.current
+        branch: branchContext
       };
       await apiRequest(`/repos/${currentRepoRef.current}/contents/${fileToRename.path}`, 'DELETE', deleteBody);
 
       // Keep cache in sync
-      const oldFullPath = `${currentRepoRef.current}/${fileToRename.path}`;
-      const newFullPath = `${currentRepoRef.current}/${newPath}`;
+      const oldFullPath = getStoragePath(fileToRename.path, currentRepoRef.current, branchContext);
+      const newFullPath = getStoragePath(newPath, currentRepoRef.current, branchContext);
       await storage.renameFile(oldFullPath, newFullPath);
 
       setRepoContents(prev => {
@@ -348,7 +355,7 @@ export default function useGitHub(showToast, setLoadingState, {
       showToast(`Renamed ${newName}`);
       
       const currentDirPath = pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '';
-      fetchRepoContents(currentRepoRef.current, currentDirPath);
+      fetchRepoContents(currentRepoRef.current, currentDirPath, branchContext);
       if (activeFileRef.current && activeFileRef.current.path === newPath) setActiveFile(prev => ({ ...prev, sha: createRes.content.sha }));
     } catch (_error) {
       showToast(`Failed to rename: ${_error.message || 'Unknown error'}`, 'error');
@@ -360,12 +367,13 @@ export default function useGitHub(showToast, setLoadingState, {
       });
       if (activeFileRef.current?.path === newPath) setActiveFile(fileToRename);
     }
-  }, [apiRequest, fetchRepoContents, pathStack, setActiveFile, setPendingOps, showToast, activeFileRef]);
+  }, [apiRequest, fetchRepoContents, pathStack, setActiveFile, setPendingOps, showToast, activeFileRef, getStoragePath]);
 
   const deleteFile = useCallback(async (fileToDelete) => {
     if (!window.confirm(`Delete ${fileToDelete.name}?`)) return;
 
     if (!currentRepoRef.current) return;
+    const branchContext = fileToDelete.branch || currentBranchRef.current;
 
     setPendingOps(prev => ({ ...prev, [fileToDelete.path]: { action: 'delete' } }));
     if (activeFileRef.current?.path === fileToDelete.path) {
@@ -383,12 +391,12 @@ export default function useGitHub(showToast, setLoadingState, {
       const body = { 
         message: `Delete ${fileToDelete.name} via Git Markdown Editor`, 
         sha: fileToDelete.sha,
-        branch: currentBranchRef.current
+        branch: branchContext
       };
       await apiRequest(`/repos/${currentRepoRef.current}/contents/${fileToDelete.path}`, 'DELETE', body);
 
       // Clean cache
-      const fullPath = `${currentRepoRef.current}/${fileToDelete.path}`;
+      const fullPath = getStoragePath(fileToDelete.path, currentRepoRef.current, branchContext);
       await storage.deleteFile(fullPath);
 
       setRepoContents(prev => prev.filter(f => f.path !== fileToDelete.path));
@@ -396,20 +404,21 @@ export default function useGitHub(showToast, setLoadingState, {
       showToast(`Deleted ${fileToDelete.name}`);
       
       const currentDirPath = pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '';
-      fetchRepoContents(currentRepoRef.current, currentDirPath);
+      fetchRepoContents(currentRepoRef.current, currentDirPath, branchContext);
     } catch (_error) {
       showToast(`Failed to delete ${fileToDelete.name}`, 'error');
       setPendingOps(prev => { const newState = { ...prev }; delete newState[fileToDelete.path]; return newState; });
     }
-  }, [apiRequest, fetchRepoContents, pendingOps, setActiveFile, setContent, setPendingOps, showToast, activeFileRef, pathStack]);
+  }, [apiRequest, fetchRepoContents, pendingOps, setActiveFile, setContent, setPendingOps, showToast, activeFileRef, pathStack, getStoragePath]);
 
   const createFile = useCallback(async (fileName, initialContent = '') => {
     const currentPath = pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '';
     const filePath = currentPath ? `${currentPath}/${fileName}` : fileName;
+    const branchContext = currentBranchRef.current;
 
     if (!currentRepoRef.current) return;
 
-    const tempFile = { name: fileName, path: filePath, type: 'file', sha: null, content: initialContent, repo: currentRepoRef.current };
+    const tempFile = { name: fileName, path: filePath, type: 'file', sha: null, content: initialContent, repo: currentRepoRef.current, branch: branchContext };
     setPendingOps(prev => ({ ...prev, [filePath]: { action: 'add', file: tempFile, content: initialContent } }));
     setActiveFile(tempFile);
     setContent(initialContent);
@@ -419,12 +428,12 @@ export default function useGitHub(showToast, setLoadingState, {
       const body = { 
         message: `Create ${fileName} via Git Markdown Editor`, 
         content: utf8_to_b64(initialContent),
-        branch: currentBranchRef.current
+        branch: branchContext
       };
       const data = await apiRequest(`/repos/${currentRepoRef.current}/contents/${filePath}`, 'PUT', body);
       
       // Update cache
-      const fullPath = `${currentRepoRef.current}/${filePath}`;
+      const fullPath = getStoragePath(filePath, currentRepoRef.current, branchContext);
       await Promise.all([
         storage.saveOriginal(fullPath, initialContent),
         storage.saveDraft(fullPath, initialContent)
@@ -441,14 +450,14 @@ export default function useGitHub(showToast, setLoadingState, {
 
       setPendingOps(prev => { const newState = { ...prev }; delete newState[filePath]; return newState; });
       setActiveFile(prev => prev && prev.path === filePath ? { ...prev, sha: data.content.sha } : prev);
-      fetchRepoContents(currentRepoRef.current, currentPath);
+      fetchRepoContents(currentRepoRef.current, currentPath, branchContext);
       showToast(`Synced ${fileName}`);
     } catch (_error) {
       showToast(`Failed to create file: ${fileName}`, 'error');
       setPendingOps(prev => { const newState = { ...prev }; delete newState[filePath]; return newState; });
       setActiveFile(prev => prev && prev.path === filePath ? null : prev);
     }
-  }, [apiRequest, fetchRepoContents, pathStack, setActiveFile, setContent, setPendingOps, showToast]);
+  }, [apiRequest, fetchRepoContents, pathStack, setActiveFile, setContent, setPendingOps, showToast, getStoragePath]);
 
   const loadTOC = useCallback(async (file) => {
     if (file.type === 'dir') return;
@@ -463,7 +472,8 @@ export default function useGitHub(showToast, setLoadingState, {
     } else {
       setLoadingState('fetching');
       try {
-        const data = await apiRequest(`/repos/${currentRepoRef.current}/contents/${file.path}?ref=${currentBranchRef.current}`, 'GET', null, null, true);
+        const branchContext = file.branch || currentBranchRef.current;
+        const data = await apiRequest(`/repos/${currentRepoRef.current}/contents/${file.path}?ref=${branchContext}`, 'GET', null, null, true);
         fileContent = b64_to_utf8(data.content);
       } catch (_error) {
         showToast('Failed to load file for TOC', 'error');

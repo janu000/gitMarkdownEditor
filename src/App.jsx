@@ -104,7 +104,7 @@ export default function App() {
 
     const handler = setTimeout(async () => {
       const storagePath = activeFile.repo 
-        ? `${activeFile.repo}/${activeFile.path}` 
+        ? `${activeFile.repo}/${activeFile.branch || currentBranch}/${activeFile.path}` 
         : `local/${activeFile.path}`;
       
       await storage.saveDraft(storagePath, content);
@@ -129,7 +129,7 @@ export default function App() {
     }, 500);
 
     return () => clearTimeout(handler);
-  }, [content, activeFile, currentRepo]);
+  }, [content, activeFile, currentRepo, currentBranch]);
 
   const { 
     insertText, insertListItem, insertNumberedList, insertTaskList,
@@ -272,31 +272,31 @@ export default function App() {
   const handleRefreshRepo = useCallback(async () => {
     if (!currentRepo) return;
 
-    // Check if any files in THIS repo are modified
-    const currentRepoPrefix = currentRepo + '/';
-    const repoModified = Array.from(modifiedFiles).some(path => path.startsWith(currentRepoPrefix));
+    // Check if any files in THIS repo AND current branch are modified
+    const currentRepoBranchPrefix = `${currentRepo}/${currentBranch}/`;
+    const repoModified = Array.from(modifiedFiles).some(path => path.startsWith(currentRepoBranchPrefix));
 
     if (repoModified) {
-      if (!window.confirm('Discard all local changes in this repository and refresh from GitHub?')) {
+      if (!window.confirm(`Discard all local changes in ${currentRepo} on branch ${currentBranch} and refresh from GitHub?`)) {
         return;
       }
       
-      // Clear all drafts/originals for this repo in storage
-      await storage.clearRepo(currentRepo);
+      // Clear all drafts/originals for this repo/branch in storage
+      await storage.clearRepo(`${currentRepo}/${currentBranch}`);
 
       // Remove from modifiedFiles state
       setModifiedFiles(prev => {
         const next = new Set(prev);
         for (const path of next) {
-          if (path.startsWith(currentRepoPrefix)) {
+          if (path.startsWith(currentRepoBranchPrefix)) {
             next.delete(path);
           }
         }
         return next;
       });
 
-      // If the active file belongs to this repo, force-re-fetch its content too
-      if (activeFile && activeFileRef.current && `${currentRepo}/${activeFileRef.current.path}`.startsWith(currentRepoPrefix)) {
+      // If the active file belongs to this repo/branch, force-re-fetch its content too
+      if (activeFile && activeFileRef.current && activeFileRef.current.repo === currentRepo && (activeFileRef.current.branch || currentBranch) === currentBranch) {
         loadFile(activeFileRef.current, true); // true = forceFresh/bypass cache
       }
       
@@ -306,7 +306,7 @@ export default function App() {
     const currentPath = pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '';
     // Passing true as the 4th argument (forceRefreshBranches)
     fetchRepoContents(currentRepo, currentPath, null, true);
-  }, [currentRepo, modifiedFiles, setModifiedFiles, activeFile, loadFile, pathStack, fetchRepoContents, showToast]);
+  }, [currentRepo, currentBranch, modifiedFiles, setModifiedFiles, activeFile, loadFile, pathStack, fetchRepoContents, showToast]);
 
   const handleDiscardChanges = useCallback(async () => {
     if (!activeFile) {
@@ -319,7 +319,7 @@ export default function App() {
     if (!window.confirm('Discard all unsaved changes to this file?')) return;
 
     const storagePath = activeFile.repo
-      ? `${activeFile.repo}/${activeFile.path}`
+      ? `${activeFile.repo}/${activeFile.branch || currentBranch}/${activeFile.path}`
       : `local/${activeFile.path}`;    
     const original = await storage.getOriginal(storagePath);
     if (original !== null) {
@@ -334,16 +334,16 @@ export default function App() {
     } else {
       showToast('No baseline found to revert to', 'error');
     }
-  }, [activeFile, currentRepo, setContent, setModifiedFiles, showToast]);
+  }, [activeFile, currentRepo, currentBranch, setContent, setModifiedFiles, showToast]);
 
   const isModified = useMemo(() => {
     if (!activeFile) {
       return content !== (defaultContent !== null ? defaultContent : DEFAULT_MARKDOWN);
     }
     const storagePath = activeFile.repo
-      ? `${activeFile.repo}/${activeFile.path}`
+      ? `${activeFile.repo}/${activeFile.branch || currentBranch}/${activeFile.path}`
       : `local/${activeFile.path}`;    return modifiedFiles.has(storagePath);
-  }, [activeFile, currentRepo, modifiedFiles, content]);
+  }, [activeFile, currentRepo, currentBranch, modifiedFiles, content]);
 
   const jumpTo = useCallback(({ line, offset, endOffset }) => {
     const view = editorRef.current;

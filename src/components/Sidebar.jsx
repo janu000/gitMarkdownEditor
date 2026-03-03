@@ -324,14 +324,14 @@ const Sidebar = memo(({
                             )}
                             <button 
                               onClick={() => handleFileClick(file)} 
-                              className={`flex-1 flex items-center px-2 rounded transition-colors text-left group min-w-0 ${file.type === 'heading' ? `${getHeaderStyle(file.level)} py-0.5` : `text-sm py-1.5 ${activeFile?.path === file.path && ((!activeFile.repo && file.isLocal) || activeFile.repo === currentRepo) && !isAtTOC ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300' : 'hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}`}`}
+                              className={`flex-1 flex items-center px-2 rounded transition-colors text-left group min-w-0 ${file.type === 'heading' ? `${getHeaderStyle(file.level)} py-0.5` : `text-sm py-1.5 ${activeFile?.path === file.path && ((!activeFile.repo && file.isLocal) || (activeFile.repo === currentRepo && (activeFile.branch || currentBranch) === currentBranch)) && !isAtTOC ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300' : 'hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}`}`}
                               style={file.type === 'heading' ? { paddingLeft: `${(file.level - 1) * 0.75 + 1}rem` } : {}}
                             >
                               {file.type !== 'heading' && (
                                   file.type === 'dir' ? (
                                       <Folder className="w-4 h-4 mr-2 text-blue-500 dark:text-blue-400 shrink-0" />
                                   ) : (
-                                      <FileText className={`w-4 h-4 mr-2 shrink-0 ${modifiedFiles.has(`${currentRepo}/${file.path}`) ? 'text-amber-500' : 'text-gray-500'}`} />
+                                      <FileText className={`w-4 h-4 mr-2 shrink-0 ${modifiedFiles.has(`${currentRepo}/${currentBranch}/${file.path}`) ? 'text-amber-500' : 'text-gray-500'}`} />
                                   )
                               )}
                               <span 
@@ -346,7 +346,7 @@ const Sidebar = memo(({
                                       {file.status === 'pending' ? (
                                         <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-500" />
                                       ) : (
-                                        modifiedFiles.has(`${currentRepo}/${file.path}`) && (
+                                        modifiedFiles.has(`${currentRepo}/${currentBranch}/${file.path}`) && (
                                           <span className="w-1.5 h-1.5 rounded-full bg-amber-500" title="Unsaved changes" />
                                         )
                                       )}
