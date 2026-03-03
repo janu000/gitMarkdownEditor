@@ -58,7 +58,7 @@ html, body, #root {
 
 @layer components {
   .search-panel {
-    @apply absolute top-2 right-4 z-50 w-[380px] bg-white dark:bg-[#161b22] border border-gray-200 dark:border-gray-800 shadow-2xl rounded-lg overflow-hidden text-[13px] select-none;
+    @apply absolute top-2 right-4 z-50 w-[380px] bg-white dark:bg-[#2b2b2b] border border-gray-200 dark:border-gray-800 shadow-2xl rounded-lg overflow-hidden text-[13px] select-none;
     animation: search-slide-in 0.2s ease-out;
   }
 
@@ -83,7 +83,7 @@ html, body, #root {
   }
 
   .search-input {
-    @apply w-full bg-gray-50 dark:bg-[#0d1117] text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-800 focus:border-indigo-500 dark:focus:border-indigo-500 rounded-md outline-none px-2 py-1.5 transition-all;
+    @apply w-full bg-gray-50 dark:bg-[#1b1b1b] text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-800 focus:border-indigo-500 dark:focus:border-indigo-500 rounded-md outline-none px-2 py-1.5 transition-all;
   }
 
   .search-input-find {
