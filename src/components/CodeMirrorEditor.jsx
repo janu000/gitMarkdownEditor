@@ -1,11 +1,25 @@
 import React, { memo, useEffect, useRef } from 'react';
-import { basicSetup } from 'codemirror';
-import { EditorView, scrollPastEnd } from '@codemirror/view';
+import { 
+  lineNumbers, highlightActiveLineGutter, highlightSpecialChars,
+  drawSelection, dropCursor, rectangularSelection, crosshairCursor,
+  highlightActiveLine, keymap, EditorView, scrollPastEnd
+} from '@codemirror/view';
 import { EditorState, Compartment, Transaction } from '@codemirror/state';
+import { 
+  foldGutter, indentOnInput, syntaxHighlighting as cmSyntaxHighlighting, 
+  bracketMatching, foldKeymap, HighlightStyle 
+} from '@codemirror/language';
+import { history, historyKeymap, defaultKeymap } from '@codemirror/commands';
+import { 
+  setSearchQuery, SearchQuery, search,
+  openSearchPanel
+} from '@codemirror/search';
+import { autocompletion, completionKeymap, closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
+import { lintKeymap } from '@codemirror/lint';
 import { markdown } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
-import { syntaxHighlighting as cmSyntaxHighlighting, HighlightStyle } from '@codemirror/language';
 import { tags as t } from '@lezer/highlight';
+import useStore from '../store/useStore';
 
 const themeConfig = new Compartment();
 const languageConfig = new Compartment();
@@ -48,6 +62,39 @@ const darkHighlightStyle = HighlightStyle.define([
   { tag: t.strikethrough, textDecoration: "line-through" },
 ]);
 
+// custom basicSetup without searchKeymap
+const customBasicSetup = [
+  lineNumbers(),
+  highlightActiveLineGutter(),
+  highlightSpecialChars(),
+  history(),
+  foldGutter(),
+  drawSelection(),
+  dropCursor(),
+  EditorState.allowMultipleSelections.of(true),
+  indentOnInput(),
+  cmSyntaxHighlighting(lightHighlightStyle), // Default highlight style
+  bracketMatching(),
+  closeBrackets(),
+  autocompletion(),
+  rectangularSelection(),
+  crosshairCursor(),
+  highlightActiveLine(),
+  search({
+    top: true,
+    createPanel: () => ({ dom: document.createElement("div") }) // Dummy panel to prevent default UI from showing
+  }),
+  keymap.of([
+    ...closeBracketsKeymap,
+    ...defaultKeymap,
+    // ...searchKeymap, // Removed to disable default search UI
+    ...historyKeymap,
+    ...foldKeymap,
+    ...completionKeymap,
+    ...lintKeymap
+  ])
+];
+
 const getBaseTheme = (theme) => EditorView.theme({
   "&": { height: "100%", fontSize: "14px", backgroundColor: "transparent !important" },
   "&.cm-focused": { outline: "none" },
@@ -70,6 +117,14 @@ const getBaseTheme = (theme) => EditorView.theme({
   },
   ".cm-selectionBackground": {
      backgroundColor: theme === 'dark' ? "rgba(79, 70, 229, 0.3) !important" : "rgba(79, 70, 229, 0.1) !important"
+  },
+  ".cm-searchMatch": {
+    backgroundColor: theme === 'dark' ? "rgba(255, 255, 0, 0.25)" : "rgba(255, 255, 0, 0.4)",
+    outline: theme === 'dark' ? "1px solid rgba(255, 255, 0, 0.5)" : "1px solid rgba(255, 255, 0, 0.8)"
+  },
+  ".cm-searchMatch-selected": {
+    backgroundColor: "rgba(255, 150, 50, 0.6) !important",
+    outline: "1px solid rgba(255, 150, 50, 1) !important"
   }
 });
 
@@ -99,6 +154,17 @@ const CodeMirrorEditor = memo(({
     onUpdateRef.current = onUpdate;
   }, [onUpdate]);
 
+  const searchQuery = useStore(state => state.searchQuery);
+  const searchOptions = useStore(state => state.searchOptions);
+  const isSearchVisible = useStore(state => state.isSearchVisible);
+  const setSearchResults = useStore(state => state.setSearchResults);
+
+  // Use refs for search state to avoid stale closures in updateListener
+  const searchStateRef = useRef({ searchQuery, searchOptions, isSearchVisible });
+  useEffect(() => {
+    searchStateRef.current = { searchQuery, searchOptions, isSearchVisible };
+  }, [searchQuery, searchOptions, isSearchVisible]);
+
   // Initialize Editor
   useEffect(() => {
     if (!containerRef.current) return;
@@ -108,7 +174,7 @@ const CodeMirrorEditor = memo(({
     const startState = EditorState.create({
       doc: content || '',
       extensions: [
-        basicSetup,
+        customBasicSetup,
         languageConfig.of(syntaxHighlighting ? markdown({ codeLanguages: languages }) : []),
         highlightConfig.of(syntaxHighlighting ? cmSyntaxHighlighting(theme === 'dark' ? darkHighlightStyle : lightHighlightStyle) : []),
         baseThemeConfig.of(getBaseTheme(theme)),
@@ -157,6 +223,37 @@ const CodeMirrorEditor = memo(({
           if (onUpdateRef.current && (update.docChanged || update.geometryChanged || update.viewportChanged)) {
             onUpdateRef.current(update);
           }
+
+          // Update search results
+          const { isSearchVisible: freshIsVisible, searchQuery: freshQuery, searchOptions: freshOptions } = searchStateRef.current;
+          
+          if (freshIsVisible && freshQuery) {
+            const doc = update.state.doc;
+            const query = new SearchQuery({
+              search: freshQuery,
+              caseSensitive: freshOptions.matchCase,
+              wholeWord: freshOptions.wholeWord,
+              regexp: freshOptions.regex
+            });
+            
+            const cursor = query.getCursor(doc);
+            let total = 0;
+            let current = 0;
+            const selection = update.state.selection.main;
+
+            let result = cursor.next();
+            while (!result.done) {
+              total++;
+              if (result.value.from === selection.from && result.value.to === selection.to) {
+                current = total;
+              }
+              result = cursor.next();
+            }
+            
+            setSearchResults({ current, total });
+          } else {
+            setSearchResults({ current: 0, total: 0 });
+          }
         })
       ]
     });
@@ -174,6 +271,25 @@ const CodeMirrorEditor = memo(({
       view.destroy();
     };
   }, []);
+
+  // Sync search state
+  useEffect(() => {
+    if (!viewRef.current) return;
+    const { matchCase, wholeWord, regex } = searchOptions;
+    
+    viewRef.current.dispatch({
+      effects: setSearchQuery.of(new SearchQuery({
+        search: isSearchVisible ? searchQuery : '',
+        caseSensitive: matchCase,
+        wholeWord: wholeWord,
+        regexp: regex
+      }))
+    });
+
+    if (isSearchVisible) {
+      openSearchPanel(viewRef.current);
+    }
+  }, [searchQuery, searchOptions, isSearchVisible]);
 
   // Sync theme and highlighting
   useEffect(() => {

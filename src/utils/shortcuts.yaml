@@ -17,3 +17,5 @@ code_block: mod+alt+c
 inline_code: mod+alt+`
 table: mod+alt+t
 math_block: mod+alt+x
+search: mod+f
+replace: mod+h

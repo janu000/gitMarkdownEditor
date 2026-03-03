@@ -10,6 +10,7 @@ import { EditorView } from 'codemirror';
 import CodeMirrorEditor from './components/CodeMirrorEditor';
 import Preview from './components/Preview';
 import ShortcutModal from './components/ShortcutModal';
+import SearchPanel from './components/SearchPanel';
 
 // Hooks
 import useStore, { defaultContent, DEFAULT_MARKDOWN } from './store/useStore';
@@ -46,7 +47,8 @@ export default function App() {
     activeFile, setActiveFile,
     pendingOps, setPendingOps,
     pathStack, setPathStack,
-    modifiedFiles, setModifiedFiles
+    modifiedFiles, setModifiedFiles,
+    setSearchVisible, setReplaceVisible
   } = useStore();
 
   // Use deferred value for expensive operations like parsing
@@ -141,8 +143,9 @@ export default function App() {
   const actions = useMemo(() => ({
     saveToGitHub, handleExportPdf, 
     insertText, insertListItem, insertNumberedList, insertTaskList,
-    toggleCode, toggleMath
-  }), [saveToGitHub, handleExportPdf, insertText, insertListItem, insertNumberedList, insertTaskList, toggleCode, toggleMath]);
+    toggleCode, toggleMath,
+    setSearchVisible, setReplaceVisible
+  }), [saveToGitHub, handleExportPdf, insertText, insertListItem, insertNumberedList, insertTaskList, toggleCode, toggleMath, setSearchVisible, setReplaceVisible]);
 
   const handleExportPdfCallback = useCallback(() => handleExportPdf(), [handleExportPdf]);
 
@@ -530,7 +533,7 @@ export default function App() {
           {/* Editor Column */}
           {(viewMode === 'edit' || viewMode === 'split') && (
             <div 
-              className="flex flex-col h-full bg-white dark:bg-[#0d1117]"
+              className="flex flex-col h-full bg-white dark:bg-[#0d1117] relative"
               style={viewMode === 'split' ? { width: `${tempSplitRatio * 100}%` } : { flex: 1 }}
             >
               <FormattingToolbar 
@@ -546,15 +549,18 @@ export default function App() {
                 emojiPickerRef={emojiPickerRef}
                 shortcuts={shortcuts}
               />
-              <div className="flex-1 overflow-hidden">
-                <CodeMirrorEditor 
-                  editorRef={editorRef}
-                  content={content}
-                  setContent={setContent}
-                  theme={theme}
-                  syntaxHighlighting={syntaxHighlighting}
-                  onUpdate={() => triggerSyncUpdate(true)}
-                />
+              <div className="flex-1 relative overflow-hidden">
+                <SearchPanel editorRef={editorRef} />
+                <div className="h-full overflow-hidden">
+                  <CodeMirrorEditor 
+                    editorRef={editorRef}
+                    content={content}
+                    setContent={setContent}
+                    theme={theme}
+                    syntaxHighlighting={syntaxHighlighting}
+                    onUpdate={() => triggerSyncUpdate(true)}
+                  />
+                </div>
               </div>
             </div>
           )}

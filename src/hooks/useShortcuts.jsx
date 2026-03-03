@@ -5,7 +5,8 @@ export default function useShortcuts(shortcuts, actions) {
   const { 
     saveToGitHub, handleExportPdf, 
     insertText, insertListItem, insertNumberedList, insertTaskList,
-    toggleCode, toggleMath
+    toggleCode, toggleMath,
+    setSearchVisible, setReplaceVisible
   } = actions;
 
   useEffect(() => {
@@ -25,6 +26,8 @@ export default function useShortcuts(shortcuts, actions) {
       if (matchesShortcut(e, shortcuts.inline_code)) { e.preventDefault(); toggleCode(); }
       if (matchesShortcut(e, shortcuts.table)) { e.preventDefault(); insertText('\n| Header 1 | Header 2 |\n| -------- | -------- |\n| Cell 1   | Cell 2   |\n', '', ''); }
       if (matchesShortcut(e, shortcuts.math_block)) { e.preventDefault(); toggleMath(); }
+      if (matchesShortcut(e, shortcuts.search)) { e.preventDefault(); setSearchVisible(true); setReplaceVisible(false); }
+      if (matchesShortcut(e, shortcuts.replace)) { e.preventDefault(); setSearchVisible(true); setReplaceVisible(true); }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);

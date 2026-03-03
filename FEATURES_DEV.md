@@ -6,6 +6,18 @@ This document provides a detailed breakdown of all implemented features in the G
 
 ### CodeMirror 6 Implementation (Primary)
 - **Engine:** Migrated from a basic `textarea` to a professional **CodeMirror 6** editor.
+- **Custom Search Tool:** Implemented a modern, clean search and replace interface that mimics the VS Code experience.
+    - **UI:** Custom React component (`SearchPanel.jsx`) with Tailwind CSS styling.
+    - **Functionality:** 
+        - Integrated with `@codemirror/search` logic but with a completely custom UI.
+        - Supports Find and Replace (collapsible).
+        - Search options: Match Case, Match Whole Word, and Regular Expression.
+        - Navigation: Find Next (Enter/F3) and Find Previous (Shift+Enter/Shift+F3).
+        - Actions: Replace (Enter in replace field) and Replace All (Ctrl+Alt+Enter).
+    - **Shortcuts:**
+        - `mod+f`: Open/Focus search.
+        - `mod+h`: Open/Focus replace.
+        - `Esc`: Close search panel.
 - **Syntax Highlighting:** Real-time highlighting for Markdown, GFM, and nested code blocks.
 - **Custom Modern Theme:** Bespoke `HighlightStyle` with a pleasant, modern color palette (Indigo, Emerald, Amber, Violet, Pink) unified across light and dark modes.
 - **Highlighting Toggle:** Ability to dynamically enable/disable syntax highlighting via the toolbar.

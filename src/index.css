@@ -50,6 +50,75 @@ html, body, #root {
   background-color: #484f58; 
 }
 
+/* Search Panel Styles */
+@keyframes search-slide-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@layer components {
+  .search-panel {
+    @apply absolute top-2 right-4 z-50 w-[380px] bg-white dark:bg-[#161b22] border border-gray-200 dark:border-gray-800 shadow-2xl rounded-lg overflow-hidden text-[13px] select-none;
+    animation: search-slide-in 0.2s ease-out;
+  }
+
+  .search-panel-container {
+    @apply flex flex-col p-1 gap-1.5;
+  }
+
+  .search-row {
+    @apply flex items-center gap-1;
+  }
+
+  .search-row-animate {
+    animation: search-slide-in 0.15s ease-out;
+  }
+
+  .search-expand-btn {
+    @apply p-0.5 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors text-gray-500 dark:text-gray-400;
+  }
+
+  .search-input-container {
+    @apply flex-1 relative;
+  }
+
+  .search-input {
+    @apply w-full bg-gray-50 dark:bg-[#0d1117] text-gray-900 dark:text-gray-100 border border-gray-200 dark:border-gray-800 focus:border-indigo-500 dark:focus:border-indigo-500 rounded-md outline-none px-2 py-1.5 transition-all;
+  }
+
+  .search-input-find {
+    @apply pr-[105px];
+  }
+
+  .search-options-container {
+    @apply absolute right-1 top-1/2 -translate-y-1/2 flex items-center gap-0.5;
+  }
+
+  .search-counter {
+    @apply text-[10px] text-gray-500 dark:text-gray-400 font-medium mr-1 whitespace-nowrap;
+  }
+
+  .search-actions {
+    @apply flex items-center gap-0.5;
+  }
+
+  .search-option-btn {
+    @apply p-1 rounded transition-all;
+  }
+
+  .search-option-btn-active {
+    @apply bg-indigo-500 text-white shadow-sm;
+  }
+
+  .search-option-btn-inactive {
+    @apply hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400;
+  }
+
+  .search-icon-btn {
+    @apply p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md text-gray-500 dark:text-gray-400 transition-colors flex items-center justify-center;
+  }
+}
+
 /* Markdown Global Styles - Light Mode Defaults */
 .markdown-body { color: #1f2937; }
 .markdown-body h1 { font-size: 2.25rem; font-weight: 800; margin: 2rem 0 1.5rem; color: #111827; letter-spacing: -0.025em; }

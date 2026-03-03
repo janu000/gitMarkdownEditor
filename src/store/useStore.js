@@ -99,6 +99,26 @@ const useStore = create((set, get) => ({
   
   modifiedFiles: new Set(),
   setModifiedFiles: (modifiedFiles) => set((state) => ({ modifiedFiles: typeof modifiedFiles === 'function' ? modifiedFiles(state.modifiedFiles) : modifiedFiles })),
+
+  // --- Search State ---
+  searchQuery: '',
+  setSearchQuery: (searchQuery) => set({ searchQuery }),
+  replaceQuery: '',
+  setReplaceQuery: (replaceQuery) => set({ replaceQuery }),
+  isSearchVisible: false,
+  setSearchVisible: (isVisible) => set({ isSearchVisible: isVisible }),
+  isReplaceVisible: false,
+  setReplaceVisible: (isVisible) => set({ isReplaceVisible: isVisible }),
+  searchOptions: {
+    matchCase: false,
+    wholeWord: false,
+    regex: false,
+  },
+  setSearchOptions: (options) => set((state) => ({ 
+    searchOptions: typeof options === 'function' ? options(state.searchOptions) : { ...state.searchOptions, ...options } 
+  })),
+  searchResults: { current: 0, total: 0 },
+  setSearchResults: (results) => set({ searchResults: results }),
 }));
 
 export default useStore;
