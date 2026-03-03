@@ -84,12 +84,6 @@ async function initProcessor() {
               start = node.position.start.offset + leadingLength;
               end = start + trimmedMatch[2].length;
             }
-          } else if (node.type === 'listItem') {
-            const rawContent = file.value.slice(node.position.start.offset, node.position.end.offset);
-            const trimmedMatch = rawContent.match(/^([\s\-*+]*|[\s\d.]*)(.*)$/s);
-            if (trimmedMatch) {
-              start = node.position.start.offset + trimmedMatch[1].length;
-            }
           }
           node.data.hProperties['data-offset-start'] = String(start);
           node.data.hProperties['data-offset-end'] = String(end);

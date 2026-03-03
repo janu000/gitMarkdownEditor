@@ -80,7 +80,7 @@ This document provides a detailed breakdown of all implemented features in the G
 - **Independent Scrolling:** Panes scroll independently when not in split view mode.
 - **Click-to-Jump (Sync):** Clicking any element in the preview scrolls the editor to the exact character offset of that element.
 - **GFM Support:** Support for GitHub Flavored Markdown (Tables, Task lists, Strikethrough, Autolinks).
-- **AST Source Mapping:** Custom `remarkOffsetPlugin` injects `data-offset-start` attributes for exact character-to-DOM mapping.
+- **AST Source Mapping:** Custom `remarkOffsetPlugin` injects `data-offset-start` attributes for exact character-to-DOM mapping. List item offsets are now mapped to the very beginning of the line (including bullets and indentation) to ensure a complete selection during click-to-jump.
 - **Interactive Links:** Clicking external links (HTTP/HTTPS) in the preview correctly opens them in a new tab with `noopener noreferrer` security. Internal anchors work as expected, and link clicks no longer trigger the editor "click-to-jump" synchronization.
 - **Nested List Symbols:** Implemented distinct bullet point and numbering symbols for nested lists in the preview:
     - **Unordered Lists:** Cycles through `disc` (filled circle), `circle` (empty circle), and `square` (filled square).
