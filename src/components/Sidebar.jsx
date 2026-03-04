@@ -4,10 +4,13 @@ import {
   EyeOff, Trash2, FileEdit, FileUp, LogOut, Loader2, GitBranch,
   Keyboard, Hash, ChevronRight, ChevronDown
 } from 'lucide-react';
+import darkLogo from '../assets/dark-wide-logo.png';
+import lightLogo from '../assets/light-wide-logo.png';
 
 const Sidebar = memo(({
   isSidebarOpen,
   sidebarWidth,
+  theme,
   ghUser,
   setShowAuthModal,
   setShowShortcutModal,
@@ -112,12 +115,14 @@ const Sidebar = memo(({
 
   return (
     <div id="main-sidebar" className="flex-shrink-0 bg-gray-50 dark:bg-[#161b22] border-r border-gray-200 dark:border-gray-800 flex flex-col transition-none overflow-hidden relative" style={{ width: sidebarWidth }}>
-      <div className="h-14 flex items-center justify-between px-4 border-b border-gray-200 dark:border-gray-800 shrink-0">
-        <span className="font-bold flex items-center text-gray-900 dark:text-gray-100 truncate">
-          <span className="text-indigo-600 dark:text-indigo-400 font-mono font-bold text-xl mr-2 flex items-center">
-            <Github className="w-[1rem] h-[1rem] mr-0.2 -mt-[2px]" strokeWidth={2.8}/>M&gt;_
-          </span> 
-          Explorer
+      <div className="h-14 flex items-center px-4 border-b border-gray-200 dark:border-gray-800 shrink-0">
+        <img 
+          src={theme === 'dark' ? darkLogo : lightLogo} 
+          alt="Logo" 
+          className="h-6 w-auto mr-1" 
+        />
+        <span className="font-bold text-indigo-600 dark:text-gray-100 truncate">
+          Git Markdown
         </span>
       </div>
       <div className="flex-1 overflow-y-auto p-3 space-y-4 custom-scrollbar">

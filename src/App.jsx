@@ -462,6 +462,7 @@ export default function App() {
       <Sidebar 
         isSidebarOpen={isSidebarOpen}
         sidebarWidth={sidebarWidth}
+        theme={theme}
         ghUser={ghUser}
         setShowAuthModal={setShowAuthModal}
         setShowShortcutModal={setShowShortcutModal}
