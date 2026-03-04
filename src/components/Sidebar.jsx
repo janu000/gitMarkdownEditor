@@ -1,14 +1,14 @@
-import React, { memo, useMemo, useRef } from 'react';
+import React, { memo, useMemo, useRef, useEffect } from 'react';
 import { 
   Github, FileText, Folder, Plus, ArrowLeft, ArrowDown, RefreshCcw, 
   EyeOff, Trash2, FileEdit, FileUp, LogOut, Loader2, GitBranch,
   Keyboard, Hash, ChevronRight, ChevronDown
-} from 'lucide-react';
-import darkLogo from '../assets/dark-wide-logo.png';
-import lightLogo from '../assets/light-wide-logo.png';
+  } from 'lucide-react';
+  import logo from '../../public/logo.svg';
+  import gradientLabel from '../assets/gradient-label.svg';
 
-const Sidebar = memo(({
-  isSidebarOpen,
+  const Sidebar = memo(({ 
+  isSidebarOpen, 
   sidebarWidth,
   theme,
   ghUser,
@@ -16,8 +16,7 @@ const Sidebar = memo(({
   setShowShortcutModal,
   importLocalFile,
   createFile,
-  getWorkspaceFiles,
-  loadFile,
+  getWorkspaceFiles,  loadFile,
   activeFile,
   renameFile,
   deleteFile,
@@ -49,6 +48,26 @@ const Sidebar = memo(({
 
   const isAtTOC = useMemo(() => pathStack.length > 0 && pathStack[pathStack.length - 1].isTOC, [pathStack]);
 
+  // Collapse all headings with children when entering TOC
+  useEffect(() => {
+    if (isAtTOC) {
+      const initialCollapsed = new Set();
+      for (let i = 0; i < workspaceFiles.length; i++) {
+        const item = workspaceFiles[i];
+        if (item.type === 'heading') {
+          const nextItem = workspaceFiles[i + 1];
+          const hasChildren = nextItem && nextItem.type === 'heading' && nextItem.level > item.level;
+          if (hasChildren) {
+            initialCollapsed.add(item.path);
+          }
+        }
+      }
+      setCollapsedPaths(initialCollapsed);
+    } else {
+      setCollapsedPaths(new Set());
+    }
+  }, [isAtTOC, workspaceFiles]);
+
   const toggleCollapse = (e, path) => {
     e.stopPropagation();
     setCollapsedPaths(prev => {
@@ -61,12 +80,14 @@ const Sidebar = memo(({
 
   // Filter visible items based on collapse state
   const visibleItems = useMemo(() => {
-    if (!isAtTOC) return workspaceFiles;
+    const filteredWorkspaceFiles = workspaceFiles.filter(item => item.name !== '.gitkeep');
+
+    if (!isAtTOC) return filteredWorkspaceFiles;
     
     const visible = [];
     let hiddenLevel = Infinity;
 
-    for (const item of workspaceFiles) {
+    for (const item of filteredWorkspaceFiles) {
       if (item.type !== 'heading') {
         visible.push(item);
         continue;
@@ -86,10 +107,10 @@ const Sidebar = memo(({
 
   const getHeaderStyle = (level) => {
     switch (level) {
-      case 1: return "text-sm mt-1 mb-0 text-gray-900 dark:text-white leading-tight";
-      case 2: return "text-[13px] mt-0.5 mb-0 text-gray-800 dark:text-gray-100 leading-tight";
-      case 3: return "text-[12px] mt-0.5 mb-0 text-gray-700 dark:text-gray-200 leading-tight";
-      default: return "text-[11px] mt-0 mb-0 text-gray-600 dark:text-gray-400 leading-tight";
+      case 1: return "text-sm text-gray-900 dark:text-white leading-tight";
+      case 2: return "text-[13px] text-gray-800 dark:text-gray-100 leading-tight";
+      case 3: return "text-[12px] text-gray-700 dark:text-gray-200 leading-tight";
+      default: return "text-[11px] text-gray-600 dark:text-gray-400 leading-tight";
     }
   };
 
@@ -116,12 +137,8 @@ const Sidebar = memo(({
   return (
     <div id="main-sidebar" className="flex-shrink-0 bg-gray-50 dark:bg-[#161b22] border-r border-gray-200 dark:border-gray-800 flex flex-col transition-none overflow-hidden relative" style={{ width: sidebarWidth }}>
       <div className="h-14 flex items-center px-4 border-b border-gray-200 dark:border-gray-800 shrink-0">
-        <img 
-          src={theme === 'dark' ? darkLogo : lightLogo} 
-          alt="Logo" 
-          className="h-6 w-auto mr-1" 
-        />
-        <span className="font-bold text-indigo-600 dark:text-gray-100 truncate">
+        <img src={logo} alt="Logo" className="h-5 w-auto mr-2" />
+        <span className="font-bold text-gray-900 dark:text-gray-100 truncate">
           Git Markdown
         </span>
       </div>
@@ -137,12 +154,30 @@ const Sidebar = memo(({
             </div>
             <div>
               <div className="flex items-center justify-between mb-2 px-1">
-                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider truncate">Local Workspace</h3>
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider truncate">
+                  {isAtTOC ? pathStack[pathStack.length-1].name : (pathStack.length > 0 ? pathStack[pathStack.length-1].name : 'Local Workspace')}
+                </h3>
                 <div className="flex space-x-1">
-                  <button onClick={importLocalFile} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xs bg-gray-200 dark:bg-gray-800 px-1.5 py-1 rounded" title="Import File"><FileUp className="w-3 h-3" /></button>
-                  <button onClick={() => createFile(prompt('Enter new file name:') || 'untitled.md')} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xs bg-gray-200 dark:bg-gray-800 px-1.5 py-1 rounded" title="New file"><Plus className="w-3 h-3" /></button>
+                  {pathStack.length > 0 && (
+                    <button onClick={() => { 
+                      const ns = [...pathStack];
+                      ns.pop();
+                      setPathStack(ns);
+                    }} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xs bg-gray-200 dark:bg-gray-800 px-1.5 py-1 rounded"><ArrowLeft className="w-3 h-3" /></button>
+                  )}
+                  {!isAtTOC && (
+                    <>
+                      <button onClick={importLocalFile} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xs bg-gray-200 dark:bg-gray-800 px-1.5 py-1 rounded" title="Import File"><FileUp className="w-3 h-3" /></button>
+                      <button onClick={() => createFile(prompt('Enter new file or folder name (no extension for folders):') || 'untitled.md')} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xs bg-gray-200 dark:bg-gray-800 px-1.5 py-1 rounded" title="New file or folder"><Plus className="w-3 h-3" /></button>
+                    </>
+                  )}
                 </div>
               </div>
+              {pathStack.length > 0 && !isAtTOC && (
+                <button onClick={() => { const ns = [...pathStack]; ns.pop(); setPathStack(ns); }} className="w-full flex items-center px-2 py-1.5 hover:bg-gray-200 dark:hover:bg-gray-800 rounded text-sm text-gray-600 dark:text-gray-400 mb-1">
+                  <ArrowLeft className="w-4 h-4 mr-2 shrink-0" /><span className="truncate">.. / {pathStack[pathStack.length-1].name}</span>
+                </button>
+              )}
               <ul className="space-y-1">
                 {visibleItems.map((file, idx) => {
                   const hasChildren = isAtTOC && file.type === 'heading' && workspaceFiles[workspaceFiles.indexOf(file) + 1]?.level > file.level;
@@ -154,7 +189,7 @@ const Sidebar = memo(({
                         {isAtTOC && file.type === 'heading' && hasChildren && (
                           <button 
                             onClick={(e) => toggleCollapse(e, file.path)}
-                            className="p-0.5 hover:bg-gray-200 dark:hover:bg-gray-800 rounded absolute z-10 transition-colors"
+                            className="p-0.5 hover:bg-gray-200 dark:hover:bg-gray-800 rounded absolute z-10 transition-colors flex items-center justify-center top-1/2 -translate-y-1/2"
                             style={{ left: `${(file.level - 1) * 0.75 + 0.125}rem` }}
                           >
                             {isCollapsed ? <ChevronRight className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />}
@@ -165,7 +200,13 @@ const Sidebar = memo(({
                           className={`flex-1 flex items-center px-2 rounded transition-colors text-left group min-w-0 ${file.type === 'heading' ? `${getHeaderStyle(file.level)} py-0.5` : `text-sm py-1.5 ${activeFile?.path === file.path && ((!activeFile.repo && file.isLocal) || activeFile.repo === currentRepo) && !isAtTOC ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300' : 'hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}`}`}
                           style={file.type === 'heading' ? { paddingLeft: `${(file.level - 1) * 0.75 + 1}rem` } : {}}
                         >
-                          {file.type !== 'heading' && <FileText className={`w-4 h-4 mr-2 shrink-0 ${modifiedFiles.has(`local/${file.path}`) ? 'text-amber-500' : 'text-gray-500'}`} />}
+                          {file.type !== 'heading' && (
+                              file.type === 'dir' ? (
+                                  <Folder className="w-4 h-4 mr-2 text-blue-500 dark:text-blue-400 shrink-0" />
+                              ) : (
+                                  <FileText className={`w-4 h-4 mr-2 shrink-0 ${!file.isLocal && modifiedFiles.has(`${currentRepo}/${currentBranch}/${file.path}`) ? 'text-amber-500' : 'text-gray-500'}`} />
+                              )
+                          )}
                           <span 
                             className="flex-1 truncate min-w-0" 
                             title={file.rawName || file.name}
@@ -175,7 +216,7 @@ const Sidebar = memo(({
                               <div className="flex items-center justify-between">
                                 <span className="truncate">{file.name}</span>
                                 <div className="w-4 h-4 flex items-center justify-center ml-2 shrink-0">
-                                  {modifiedFiles.has(`local/${file.path}`) && (
+                                  {!file.isLocal && modifiedFiles.has(`${currentRepo}/${currentBranch}/${file.path}`) && (
                                     <span className="w-1.5 h-1.5 rounded-full bg-amber-500" title="Unsaved changes" />
                                   )}
                                 </div>
@@ -336,7 +377,7 @@ const Sidebar = memo(({
                                   file.type === 'dir' ? (
                                       <Folder className="w-4 h-4 mr-2 text-blue-500 dark:text-blue-400 shrink-0" />
                                   ) : (
-                                      <FileText className={`w-4 h-4 mr-2 shrink-0 ${modifiedFiles.has(`${currentRepo}/${currentBranch}/${file.path}`) ? 'text-amber-500' : 'text-gray-500'}`} />
+                                      <FileText className={`w-4 h-4 mr-2 shrink-0 ${!file.isLocal && modifiedFiles.has(`${currentRepo}/${currentBranch}/${file.path}`) ? 'text-amber-500' : 'text-gray-500'}`} />
                                   )
                               )}
                               <span 
@@ -351,7 +392,7 @@ const Sidebar = memo(({
                                       {file.status === 'pending' ? (
                                         <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-500" />
                                       ) : (
-                                        modifiedFiles.has(`${currentRepo}/${currentBranch}/${file.path}`) && (
+                                        !file.isLocal && modifiedFiles.has(`${currentRepo}/${currentBranch}/${file.path}`) && (
                                           <span className="w-1.5 h-1.5 rounded-full bg-amber-500" title="Unsaved changes" />
                                         )
                                       )}
@@ -360,7 +401,7 @@ const Sidebar = memo(({
                                 ) : null}
                               </span>
                             </button>
-                            {file.type === 'file' && !isAtTOC && (
+                            {file.type !== 'heading' && !isAtTOC && (
                               <div className={`flex items-center transition-opacity opacity-0 ${file.status === 'pending' ? 'pointer-events-none' : 'group-hover:opacity-100'}`}>
                                 <button onClick={(e) => { e.stopPropagation(); renameFile(file); }} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded mr-1"><FileEdit className="w-4 h-4" /></button>
                                 <button onClick={(e) => { e.stopPropagation(); deleteFile(file); }} className="p-1 hover:bg-red-100 dark:hover:bg-red-900/50 text-gray-400 hover:text-red-500 dark:hover:text-red-400 rounded"><Trash2 className="w-4 h-4" /></button>

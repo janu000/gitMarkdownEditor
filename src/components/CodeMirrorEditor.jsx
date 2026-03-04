@@ -317,7 +317,7 @@ const CodeMirrorEditor = memo(({
     const view = viewRef.current;
     const currentText = view.state.doc.toString();
     
-    if (content !== currentText && content !== contentRef.current) {
+    if (content !== undefined && content !== currentText) {
       view.dispatch({
         changes: { from: 0, to: currentText.length, insert: content || '' },
         selection: { anchor: 0 },

@@ -55,7 +55,7 @@ export default function App() {
   const deferredContent = useDeferredValue(content);
 
   const {
-    localWorkspaceFiles, createLocalFile, renameLocalFile, deleteLocalFile, updateLocalFileContent
+    localWorkspaceFiles, createLocalFile, createLocalFolder, renameLocalFile, deleteLocalFile, updateLocalFileContent
   } = useWorkspace(showToast);
 
   // Sync refs (debounced for performance)
@@ -82,7 +82,7 @@ export default function App() {
     branches, setBranches, currentBranch, setCurrentBranch, currentBranchRef,
     manualRepo, setManualRepo, hiddenRepos, setHiddenRepos,
     apiRequest, fetchRepos, verifyGitHubToken, fetchRepoContents,
-    saveToGitHub, loadFile, renameFile: renameGHFile, deleteFile: deleteGHFile, createFile: createGHFile, loadTOC, createBranch
+    saveToGitHub, loadFile, renameFile: renameGHFile, deleteFile: deleteGHFile, createFile: createGHFile, createFolder: createGHFolder, loadTOC, createBranch
   } = useGitHub(showToast, setLoadingState, {
     content, setContent, defaultContent: defaultContent !== null ? defaultContent : DEFAULT_MARKDOWN,
     activeFile, setActiveFile, activeFileRef,
@@ -197,16 +197,40 @@ export default function App() {
   }, [currentRepo, activeFile, content, saveToGitHub, updateLocalFileContent, showToast]);
 
   const handleCreateFile = useCallback(async (name, initialContent = '') => {
+    if (!name) return;
+
+    const isFolder = !name.includes('.');
+
+    if (isFolder) {
+      if (currentRepo) {
+        await createGHFolder(name);
+      } else {
+        const currentPath = pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '';
+        await createLocalFolder(name, currentPath);
+      }
+      return;
+    }
+
     if (currentRepo) {
       await createGHFile(name, initialContent);
     } else {
-      const newFile = await createLocalFile(name, initialContent);
+      const currentPath = pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '';
+      const newFile = await createLocalFile(name, currentPath, initialContent);
       if (newFile) {
         setActiveFile(newFile);
         setContent(initialContent);
       }
     }
-  }, [currentRepo, createGHFile, createLocalFile, setContent]);
+  }, [currentRepo, createGHFile, createLocalFile, createGHFolder, createLocalFolder, setContent, pathStack]);
+
+  const handleCreateFolder = useCallback(async (name) => {
+    if (currentRepo) {
+      await createGHFolder(name);
+    } else {
+      const currentPath = pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '';
+      await createLocalFolder(name, currentPath);
+    }
+  }, [currentRepo, createGHFolder, createLocalFolder, pathStack]);
 
   const handleRenameFile = useCallback(async (file) => {
     if (currentRepo) {
@@ -214,7 +238,14 @@ export default function App() {
     } else {
       const newName = prompt(`Rename ${file.name} to:`, file.name);
       if (newName && (await renameLocalFile(file, newName))) {
-        if (activeFile?.path === file.path) {
+        if (file.type === 'dir' && activeFile?.path.startsWith(`${file.path}/`)) {
+          const pathParts = file.path.split('/');
+          pathParts.pop();
+          const basePath = pathParts.join('/');
+          const newDirPath = basePath ? `${basePath}/${newName}` : newName;
+          const newActivePath = activeFile.path.replace(`${file.path}/`, `${newDirPath}/`);
+          setActiveFile(prev => ({ ...prev, path: newActivePath }));
+        } else if (activeFile?.path === file.path) {
           setActiveFile(prev => ({ ...prev, name: newName, path: newName }));
         }
       }
@@ -227,7 +258,10 @@ export default function App() {
     } else {
       if (window.confirm(`Delete ${file.name}?`)) {
         await deleteLocalFile(file);
-        if (activeFile?.path === file.path) {
+        if (file.type === 'dir' && activeFile?.path.startsWith(`${file.path}/`)) {
+          setActiveFile(null);
+          setContent(defaultContent !== null ? defaultContent : DEFAULT_MARKDOWN);
+        } else if (activeFile?.path === file.path) {
           setActiveFile(null);
           setContent(defaultContent !== null ? defaultContent : DEFAULT_MARKDOWN);
         }
@@ -251,7 +285,15 @@ export default function App() {
         return a.type === 'dir' ? -1 : 1;
       });
     } else {
-      return localWorkspaceFiles.sort((a, b) => {
+      const currentPath = pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '';
+      const filesInCurrentDir = localWorkspaceFiles.filter(f => {
+        if (currentPath === '') {
+          return !f.path.includes('/');
+        } else {
+          return f.path.startsWith(currentPath + '/') && f.path.lastIndexOf('/') === currentPath.length;
+        }
+      });
+      return filesInCurrentDir.sort((a, b) => {
         if (a.type === b.type) return a.name.localeCompare(b.name);
         return a.type === 'dir' ? -1 : 1;
       });
@@ -341,11 +383,15 @@ export default function App() {
 
   const isModified = useMemo(() => {
     if (!activeFile) {
+      // For the scratchpad, we check if content differs from default
       return content !== (defaultContent !== null ? defaultContent : DEFAULT_MARKDOWN);
     }
-    const storagePath = activeFile.repo
-      ? `${activeFile.repo}/${activeFile.branch || currentBranch}/${activeFile.path}`
-      : `local/${activeFile.path}`;    return modifiedFiles.has(storagePath);
+    
+    // Local files are always "up to date" in the context of this app's UI
+    if (!activeFile.repo) return false;
+
+    const storagePath = `${activeFile.repo}/${activeFile.branch || currentBranch}/${activeFile.path}`;
+    return modifiedFiles.has(storagePath);
   }, [activeFile, currentRepo, currentBranch, modifiedFiles, content]);
 
   const jumpTo = useCallback(({ line, offset, endOffset }) => {
@@ -537,19 +583,6 @@ export default function App() {
               className="flex flex-col h-full bg-white dark:bg-[#0d1117] relative"
               style={viewMode === 'split' ? { width: `${tempSplitRatio * 100}%` } : { flex: 1 }}
             >
-              <FormattingToolbar 
-                viewMode={viewMode}
-                insertText={insertText}
-                insertListItem={insertListItem}
-                insertNumberedList={insertNumberedList}
-                insertTaskList={insertTaskList}
-                toggleCode={toggleCode}
-                toggleMath={toggleMath}
-                showEmojiPicker={showEmojiPicker}
-                setShowEmojiPicker={setShowEmojiPicker}
-                emojiPickerRef={emojiPickerRef}
-                shortcuts={shortcuts}
-              />
               <div className="flex-1 relative overflow-hidden">
                 <SearchPanel editorRef={editorRef} />
                 <div className="h-full overflow-hidden">
@@ -563,6 +596,19 @@ export default function App() {
                   />
                 </div>
               </div>
+              <FormattingToolbar 
+                viewMode={viewMode}
+                insertText={insertText}
+                insertListItem={insertListItem}
+                insertNumberedList={insertNumberedList}
+                insertTaskList={insertTaskList}
+                toggleCode={toggleCode}
+                toggleMath={toggleMath}
+                showEmojiPicker={showEmojiPicker}
+                setShowEmojiPicker={setShowEmojiPicker}
+                emojiPickerRef={emojiPickerRef}
+                shortcuts={shortcuts}
+              />
             </div>
           )}
 
@@ -582,9 +628,6 @@ export default function App() {
               className={`flex flex-col h-full bg-white dark:bg-[#0d1117] ${viewMode === 'split' ? 'border-l border-gray-200 dark:border-gray-800' : ''}`}
               style={viewMode === 'split' ? { width: `${(1 - tempSplitRatio) * 100}%` } : { flex: 1 }}
             >
-              <div className="h-10 bg-gray-50 dark:bg-[#0d1117] border-b border-gray-200 dark:border-gray-800 flex items-center px-4 shrink-0">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500 dark:text-gray-400">Preview</span>
-              </div>
               <div className="flex-1 overflow-hidden">
                 <Preview 
                   previewRef={previewRef}

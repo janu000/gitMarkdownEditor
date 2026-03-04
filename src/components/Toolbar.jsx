@@ -74,10 +74,12 @@ const Toolbar = memo(({
         </div>
         <button onClick={handleDownload} className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-200 dark:hover:text-white dark:hover:bg-gray-800 rounded mr-2" title="Download File"><Download className="w-5 h-5" /></button>
         <button onClick={handleExportPdf} className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-200 dark:hover:text-white dark:hover:bg-gray-800 rounded mr-2" title={`Export to PDF (${formatShortcut(shortcuts.print)})`}><Printer className="w-5 h-5" /></button>
-        <button onClick={saveToGitHub} disabled={!activeFile || loadingState === 'saving'} title={activeFile ? `${currentRepo ? 'Commit' : 'Save'} (${formatShortcut(shortcuts.save)})` : 'No file to save'} className={`flex items-center px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${activeFile ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : 'bg-gray-200 dark:bg-gray-800 text-gray-500 cursor-not-allowed'}`}>
-          {loadingState === 'saving' ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-          {currentRepo ? 'Commit' : 'Save'}
-        </button>
+        {currentRepo && (
+          <button onClick={saveToGitHub} disabled={!activeFile || loadingState === 'saving'} title={activeFile ? `Commit (${formatShortcut(shortcuts.save)})` : 'No file to commit'} className={`flex items-center px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${activeFile ? 'bg-gradient-to-br from-[#6158ff] to-[#b772fe] hover:opacity-90 text-white shadow-sm' : 'bg-gray-200 dark:bg-gray-800 text-gray-500 cursor-not-allowed'}`}>
+            {loadingState === 'saving' ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+            Commit
+          </button>
+        )}
       </div>
     </div>
   );

@@ -298,14 +298,73 @@ export default function useGitHub(showToast, setLoadingState, {
   }, [apiRequest, content, setActiveFile, setPendingOps, setLoadingState, showToast, activeFileRef, getStoragePath]);
 
   const renameFile = useCallback(async (fileToRename) => {
+    const branchContext = fileToRename.branch || currentBranchRef.current;
+    if (!currentRepoRef.current) return;
+
+    if (fileToRename.type === 'dir') {
+      try {
+        setLoadingState('fetching');
+        const contents = await apiRequest(`/repos/${currentRepoRef.current}/contents/${fileToRename.path}?ref=${branchContext}`);
+        
+        const isBasicallyEmpty = Array.isArray(contents) && (contents.length === 0 || (contents.length === 1 && contents[0].name === '.gitkeep'));
+        
+        if (!isBasicallyEmpty) {
+          setLoadingState('');
+          showToast('Folder is not empty. Cannot rename via UI.', 'error');
+          return;
+        }
+
+        const newName = prompt(`Rename folder ${fileToRename.name} to:`, fileToRename.name);
+        if (!newName || newName === fileToRename.name) {
+          setLoadingState('');
+          return;
+        }
+
+        setLoadingState('saving');
+        const currentPath = pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '';
+        const newPath = currentPath ? `${currentPath}/${newName}` : newName;
+
+        // Create new .gitkeep
+        await apiRequest(`/repos/${currentRepoRef.current}/contents/${newPath}/.gitkeep`, 'PUT', {
+          message: `Rename folder ${fileToRename.name} to ${newName} via Git Markdown Editor`,
+          content: utf8_to_b64(''),
+          branch: branchContext
+        });
+
+        // Delete old .gitkeep if it exists
+        const gitkeepFile = Array.isArray(contents) ? contents.find(f => f.name === '.gitkeep') : null;
+        if (gitkeepFile) {
+          await apiRequest(`/repos/${currentRepoRef.current}/contents/${fileToRename.path}/.gitkeep`, 'DELETE', {
+            message: `Cleanup old .gitkeep for ${fileToRename.name}`,
+            sha: gitkeepFile.sha,
+            branch: branchContext
+          });
+        }
+
+        const newDirEntry = { name: newName, path: newPath, type: 'dir' };
+        setRepoContents(prev => {
+          const filtered = prev.filter(f => f.path !== fileToRename.path);
+          return [...filtered, newDirEntry].sort((a, b) => {
+             if (a.type === b.type) return a.name.localeCompare(b.name);
+             return a.type === 'dir' ? -1 : 1;
+          });
+        });
+        showToast(`Renamed to ${newName}`);
+        fetchRepoContents(currentRepoRef.current, currentPath, branchContext);
+
+      } catch (error) {
+        showToast('Failed to check or rename folder', 'error');
+      } finally {
+        setLoadingState('');
+      }
+      return;
+    }
+
     const newName = prompt(`Rename ${fileToRename.name} to:`, fileToRename.name);
     if (!newName || newName === fileToRename.name) return;
 
     const currentPath = pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '';
     const newPath = currentPath ? `${currentPath}/${newName}` : newName;
-    const branchContext = fileToRename.branch || currentBranchRef.current;
-
-    if (!currentRepoRef.current) return;
 
     // Git Mode Rename Optimistic
     const newFile = { ...fileToRename, name: newName, path: newPath, branch: branchContext };
@@ -370,10 +429,50 @@ export default function useGitHub(showToast, setLoadingState, {
   }, [apiRequest, fetchRepoContents, pathStack, setActiveFile, setPendingOps, showToast, activeFileRef, getStoragePath]);
 
   const deleteFile = useCallback(async (fileToDelete) => {
-    if (!window.confirm(`Delete ${fileToDelete.name}?`)) return;
-
     if (!currentRepoRef.current) return;
     const branchContext = fileToDelete.branch || currentBranchRef.current;
+
+    if (fileToDelete.type === 'dir') {
+      try {
+        setLoadingState('fetching');
+        const contents = await apiRequest(`/repos/${currentRepoRef.current}/contents/${fileToDelete.path}?ref=${branchContext}`);
+        
+        const isBasicallyEmpty = Array.isArray(contents) && (contents.length === 0 || (contents.length === 1 && contents[0].name === '.gitkeep'));
+        
+        if (!isBasicallyEmpty) {
+          setLoadingState('');
+          showToast('Folder is not empty. Cannot delete via UI.', 'error');
+          return;
+        }
+
+        if (!window.confirm(`Delete folder ${fileToDelete.name}?`)) {
+          setLoadingState('');
+          return;
+        }
+
+        setLoadingState('saving');
+        showToast(`Deleting folder ${fileToDelete.name}...`);
+
+        const gitkeepFile = Array.isArray(contents) ? contents.find(f => f.name === '.gitkeep') : null;
+        if (gitkeepFile) {
+          await apiRequest(`/repos/${currentRepoRef.current}/contents/${fileToDelete.path}/.gitkeep`, 'DELETE', {
+            message: `Delete folder ${fileToDelete.name} via Git Markdown Editor`,
+            sha: gitkeepFile.sha,
+            branch: branchContext
+          });
+        }
+
+        setRepoContents(prev => prev.filter(f => f.path !== fileToDelete.path));
+        showToast(`Deleted folder ${fileToDelete.name}`);
+      } catch (error) {
+        showToast(`Failed to delete folder ${fileToDelete.name}`, 'error');
+      } finally {
+        setLoadingState('');
+      }
+      return;
+    }
+
+    if (!window.confirm(`Delete ${fileToDelete.name}?`)) return;
 
     setPendingOps(prev => ({ ...prev, [fileToDelete.path]: { action: 'delete' } }));
     if (activeFileRef.current?.path === fileToDelete.path) {
@@ -459,6 +558,37 @@ export default function useGitHub(showToast, setLoadingState, {
     }
   }, [apiRequest, fetchRepoContents, pathStack, setActiveFile, setContent, setPendingOps, showToast, getStoragePath]);
 
+  const createFolder = useCallback(async (folderName) => {
+    const currentPath = pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '';
+    const folderPath = currentPath ? `${currentPath}/${folderName}` : folderName;
+    const branchContext = currentBranchRef.current;
+
+    if (!currentRepoRef.current) return;
+
+    showToast(`Creating folder ${folderName}...`); 
+
+    try {
+      const body = { 
+        message: `Create folder ${folderName} via Git Markdown Editor`, 
+        content: utf8_to_b64(''), // Empty content for .gitkeep
+        branch: branchContext
+      };
+      await apiRequest(`/repos/${currentRepoRef.current}/contents/${folderPath}/.gitkeep`, 'PUT', body);
+      
+      const newDirEntry = { name: folderName, path: folderPath, type: 'dir' };
+      setRepoContents(prev => {
+        const filtered = prev.filter(f => f.path !== folderPath);
+        return [...filtered, newDirEntry].sort((a, b) => {
+           if (a.type === b.type) return a.name.localeCompare(b.name);
+           return a.type === 'dir' ? -1 : 1;
+        });
+      });
+      showToast(`Created folder ${folderName}`);
+    } catch (_error) {
+      showToast(`Failed to create folder: ${folderName}`, 'error');
+    }
+  }, [apiRequest, fetchRepoContents, pathStack, showToast]);
+
   const loadTOC = useCallback(async (file) => {
     if (file.type === 'dir') return;
     if (!file.name.match(/\.(md|txt|mdx)$/i)) {
@@ -466,26 +596,12 @@ export default function useGitHub(showToast, setLoadingState, {
       return;
     }
 
-    let fileContent = '';
-    if (!currentRepoRef.current) {
-      fileContent = file.content || '';
-    } else {
-      setLoadingState('fetching');
-      try {
-        const branchContext = file.branch || currentBranchRef.current;
-        const data = await apiRequest(`/repos/${currentRepoRef.current}/contents/${file.path}?ref=${branchContext}`, 'GET', null, null, true);
-        fileContent = b64_to_utf8(data.content);
-      } catch (_error) {
-        showToast('Failed to load file for TOC', 'error');
-        setLoadingState('');
-        return;
-      }
-      setLoadingState('');
-    }
-
-    updateTOC(fileContent, file.path);
+    // Load the file into the editor, which will automatically trigger the preview and TOC generation
+    loadFile(file);
+    
+    // Push the file onto the pathStack to switch the sidebar into TOC view
     setPathStack(prev => [...prev, { ...file, isTOC: true }]);
-  }, [apiRequest, setLoadingState, showToast, updateTOC, setPathStack]);
+  }, [loadFile, showToast, setPathStack]);
 
   const createBranch = useCallback(async (branchName) => {
     if (!currentRepoRef.current || !currentBranchRef.current) return;
@@ -515,6 +631,13 @@ export default function useGitHub(showToast, setLoadingState, {
     const savedToken = localStorage.getItem('gme_gh_token');
     if (savedToken) {
       verifyGitHubToken(savedToken, true);
+    } else {
+      // Clear GitHub-related state if no token is found
+      setGhUser(null);
+      setCurrentRepo(null);
+      setRepoContents([]);
+      setBranches([]);
+      setCurrentBranch('');
     }
   }, [verifyGitHubToken]);
 
@@ -547,6 +670,7 @@ export default function useGitHub(showToast, setLoadingState, {
     renameFile,
     deleteFile,
     createFile,
+    createFolder,
     loadTOC,
     createBranch
   };

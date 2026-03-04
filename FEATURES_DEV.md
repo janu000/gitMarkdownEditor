@@ -125,7 +125,7 @@ This document provides a detailed breakdown of all implemented features in the G
 ### File Operations (Remote)
 - **File Loading:** Fetches content and decodes Base64 (UTF-8 safe).
 - **Commit/Save:** Pushes content to GitHub with Base64 encoding.
-- **File CRUD:** Create, Rename, and Delete files directly on the remote repository.
+- **File & Folder CRUD:** Create (Files and Folders via `.gitkeep`), Rename, and Delete directly on the remote repository.
 - **Optimistic Updates:** Immediate UI feedback for file operations using `pendingOps`.
 
 ---
@@ -133,7 +133,7 @@ This document provides a detailed breakdown of all implemented features in the G
 ## 4. Local Workspace & File System
 
 ### Virtual File System
-- **Browser-based Storage:** Full CRUD support for files stored in `localStorage`.
+- **Browser-based Storage:** Full CRUD support for files and folders stored in `localStorage` metadata and IndexedDB.
 - **Local Draft:** Default scratchpad area that persists across refreshes.
 - **Empty State Fallback:** Displays a dedicated `welcome.md` guide instead of a blank editor when the user first loads the application or deletes their currently active file.
 

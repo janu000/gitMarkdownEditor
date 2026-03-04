@@ -16,22 +16,23 @@ export default function useWorkspace(showToast) {
     localStorage.setItem('gme_local_workspace', JSON.stringify(metadataOnly));
   }, [localWorkspaceFiles]);
 
-  const createLocalFile = useCallback(async (fileName, initialContent = '') => {
-    const existingFile = localWorkspaceFiles.find(f => f.name === fileName);
+  const createLocalFile = useCallback(async (fileName, currentPath = '', initialContent = '') => {
+    const fullPath = currentPath ? `${currentPath}/${fileName}` : fileName;
+    const existingFile = localWorkspaceFiles.find(f => f.path === fullPath);
     if (existingFile) {
-      showToast(`File '${fileName}' already exists.`, 'error');
+      showToast(`File '${fileName}' already exists in this folder.`, 'error');
       return null;
     }
     const newFile = { 
       name: fileName, 
-      path: fileName, 
+      path: fullPath, 
       type: 'file', 
       isLocal: true,
       content: initialContent 
     };
     
     // Save content to IndexedDB
-    const storagePath = `local/${fileName}`;
+    const storagePath = `local/${fullPath}`;
     await Promise.all([
       storage.saveOriginal(storagePath, initialContent),
       storage.saveDraft(storagePath, initialContent)
@@ -42,33 +43,99 @@ export default function useWorkspace(showToast) {
     return newFile;
   }, [localWorkspaceFiles, showToast]);
 
+  const createLocalFolder = useCallback((folderName, currentPath = '') => {
+    if (!folderName) return null;
+    const fullPath = currentPath ? `${currentPath}/${folderName}` : folderName;
+    const existingFolder = localWorkspaceFiles.find(f => f.path === fullPath);
+    if (existingFolder) {
+      showToast(`Folder '${folderName}' already exists.`, 'error');
+      return null;
+    }
+    const newFolder = { 
+      name: folderName, 
+      path: fullPath, 
+      type: 'dir', 
+      isLocal: true,
+      content: '' 
+    };
+    
+    setLocalWorkspaceFiles(prev => [...prev, newFolder]);
+    showToast(`Created folder ${folderName}`);
+    return newFolder;
+  }, [localWorkspaceFiles, showToast]);
+
   const renameLocalFile = useCallback(async (fileToRename, newName) => {
-    const existingFile = localWorkspaceFiles.find(f => f.path !== fileToRename.path && f.name === newName);
+    const pathParts = fileToRename.path.split('/');
+    pathParts.pop();
+    const basePath = pathParts.join('/');
+    const newPath = basePath ? `${basePath}/${newName}` : newName;
+
+    const existingFile = localWorkspaceFiles.find(f => f.path !== fileToRename.path && f.path === newPath);
     if (existingFile) {
-      showToast(`File with name '${newName}' already exists.`, 'error');
+      showToast(`A file or folder with name '${newName}' already exists.`, 'error');
       return false;
     }
     
-    // Rename in IndexedDB
-    const oldStoragePath = `local/${fileToRename.path}`;
-    const newStoragePath = `local/${newName}`;
-    await storage.renameFile(oldStoragePath, newStoragePath);
+    if (fileToRename.type === 'dir') {
+      const oldPrefix = `${fileToRename.path}/`;
+      const newPrefix = `${newPath}/`;
+      
+      const filesToUpdate = localWorkspaceFiles.filter(f => f.path.startsWith(oldPrefix) || f.path === fileToRename.path);
+      
+      for (const f of filesToUpdate) {
+        if (f.type !== 'dir') {
+          const oldStoragePath = `local/${f.path}`;
+          const updatedPath = f.path === fileToRename.path ? newPath : f.path.replace(oldPrefix, newPrefix);
+          const newStoragePath = `local/${updatedPath}`;
+          await storage.renameFile(oldStoragePath, newStoragePath);
+        }
+      }
 
-    setLocalWorkspaceFiles(prev => prev.map(f => 
-      f.path === fileToRename.path ? { ...f, name: newName, path: newName } : f
-    ));
+      setLocalWorkspaceFiles(prev => prev.map(f => {
+        if (f.path === fileToRename.path) {
+          return { ...f, name: newName, path: newPath };
+        }
+        if (f.path.startsWith(oldPrefix)) {
+          const updatedPath = f.path.replace(oldPrefix, newPrefix);
+          return { ...f, path: updatedPath };
+        }
+        return f;
+      }));
+    } else {
+      const oldStoragePath = `local/${fileToRename.path}`;
+      const newStoragePath = `local/${newPath}`;
+      await storage.renameFile(oldStoragePath, newStoragePath);
+
+      setLocalWorkspaceFiles(prev => prev.map(f => 
+        f.path === fileToRename.path ? { ...f, name: newName, path: newPath } : f
+      ));
+    }
+
     showToast(`Renamed to ${newName}`);
     return true;
   }, [localWorkspaceFiles, showToast]);
 
   const deleteLocalFile = useCallback(async (fileToDelete) => {
-    // Delete from IndexedDB
-    const storagePath = `local/${fileToDelete.path}`;
-    await storage.deleteFile(storagePath);
+    if (fileToDelete.type === 'dir') {
+      const prefix = `${fileToDelete.path}/`;
+      const filesToDelete = localWorkspaceFiles.filter(f => f.path.startsWith(prefix) || f.path === fileToDelete.path);
+      
+      for (const f of filesToDelete) {
+        if (f.type !== 'dir') {
+          const storagePath = `local/${f.path}`;
+          await storage.deleteFile(storagePath);
+        }
+      }
 
-    setLocalWorkspaceFiles(prev => prev.filter(f => f.path !== fileToDelete.path));
+      setLocalWorkspaceFiles(prev => prev.filter(f => !f.path.startsWith(prefix) && f.path !== fileToDelete.path));
+    } else {
+      const storagePath = `local/${fileToDelete.path}`;
+      await storage.deleteFile(storagePath);
+
+      setLocalWorkspaceFiles(prev => prev.filter(f => f.path !== fileToDelete.path));
+    }
     showToast(`Deleted ${fileToDelete.name}`);
-  }, [showToast]);
+  }, [localWorkspaceFiles, showToast]);
 
   const updateLocalFileContent = useCallback(async (path, content) => {
     // Save to IndexedDB (as original to clear modified state, draft is saved via auto-save)
@@ -84,6 +151,7 @@ export default function useWorkspace(showToast) {
     localWorkspaceFiles,
     setLocalWorkspaceFiles,
     createLocalFile,
+    createLocalFolder,
     renameLocalFile,
     deleteLocalFile,
     updateLocalFileContent
