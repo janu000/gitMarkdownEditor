@@ -48,6 +48,7 @@ export default function App() {
     activeFile, setActiveFile,
     pendingOps, setPendingOps,
     pathStack, setPathStack,
+    expandedPaths, setExpandedPaths,
     modifiedFiles, setModifiedFiles,
     setSearchVisible, setReplaceVisible
   } = useStore();
@@ -197,25 +198,25 @@ export default function App() {
     }
   }, [currentRepo, activeFile, content, saveToGitHub, updateLocalFileContent, showToast]);
 
-  const handleCreateFile = useCallback(async (name, initialContent = '') => {
+  const handleCreateFile = useCallback(async (name, initialContent = '', parentPath = null) => {
     if (!name) return;
 
     const isFolder = !name.includes('.');
 
     if (isFolder) {
       if (currentRepo) {
-        await createGHFolder(name);
+        await createGHFolder(name, parentPath);
       } else {
-        const currentPath = pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '';
+        const currentPath = parentPath !== null ? parentPath : (pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '');
         await createLocalFolder(name, currentPath);
       }
       return;
     }
 
     if (currentRepo) {
-      await createGHFile(name, initialContent);
+      await createGHFile(name, initialContent, parentPath);
     } else {
-      const currentPath = pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '';
+      const currentPath = parentPath !== null ? parentPath : (pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '');
       const newFile = await createLocalFile(name, currentPath, initialContent);
       if (newFile) {
         setActiveFile(newFile);
@@ -224,11 +225,11 @@ export default function App() {
     }
   }, [currentRepo, createGHFile, createLocalFile, createGHFolder, createLocalFolder, setContent, pathStack]);
 
-  const handleCreateFolder = useCallback(async (name) => {
+  const handleCreateFolder = useCallback(async (name, parentPath = null) => {
     if (currentRepo) {
-      await createGHFolder(name);
+      await createGHFolder(name, parentPath);
     } else {
-      const currentPath = pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '';
+      const currentPath = parentPath !== null ? parentPath : (pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '');
       await createLocalFolder(name, currentPath);
     }
   }, [currentRepo, createGHFolder, createLocalFolder, pathStack]);
@@ -270,36 +271,76 @@ export default function App() {
     }
   }, [currentRepo, deleteGHFile, deleteLocalFile, activeFile, setContent]);
 
+  // Helper to get depth of a path
+  const getDepth = (path) => path === '' ? 0 : path.split('/').length;
+
   // --- Helper Functions ---
   const getWorkspaceFiles = useCallback(() => {
     if (pathStack.length > 0 && pathStack[pathStack.length - 1].isTOC) return tocHeadings;
+    
+    const isExpanded = (path) => expandedPaths.has(path);
+    
     if (currentRepo) {
-      let files = repoContents.filter(f => {
+      let allFiles = repoContents.filter(f => {
         const op = pendingOps[f.path];
         if (!op) return true;
         return op.action !== 'delete' && op.action !== 'add';
       });
       const pendingAdds = Object.values(pendingOps).filter(op => op.action === 'add' && op.file).map(op => ({ ...op.file, status: 'pending' }));
-      files = [...files, ...pendingAdds];
-      return files.sort((a, b) => {
-        if (a.type === b.type) return a.name.localeCompare(b.name);
-        return a.type === 'dir' ? -1 : 1;
-      });
-    } else {
-      const currentPath = pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '';
-      const filesInCurrentDir = localWorkspaceFiles.filter(f => {
-        if (currentPath === '') {
-          return !f.path.includes('/');
-        } else {
-          return f.path.startsWith(currentPath + '/') && f.path.lastIndexOf('/') === currentPath.length;
+      allFiles = [...allFiles, ...pendingAdds];
+
+      // Sort all files by path to make it easier to build the tree
+      allFiles.sort((a, b) => a.path.localeCompare(b.path));
+
+      const visibleFiles = [];
+      const processLevel = (parentPath = '') => {
+        const children = allFiles.filter(f => {
+          if (parentPath === '') return !f.path.includes('/');
+          const parts = f.path.split('/');
+          const parentParts = parentPath.split('/');
+          return f.path.startsWith(parentPath + '/') && parts.length === parentParts.length + 1;
+        }).sort((a, b) => {
+          if (a.type === b.type) return a.name.localeCompare(b.name);
+          return a.type === 'dir' ? -1 : 1;
+        });
+
+        for (const child of children) {
+          visibleFiles.push({ ...child, depth: getDepth(child.path) - 1 });
+          if (child.type === 'dir' && isExpanded(child.path)) {
+            processLevel(child.path);
+          }
         }
-      });
-      return filesInCurrentDir.sort((a, b) => {
-        if (a.type === b.type) return a.name.localeCompare(b.name);
-        return a.type === 'dir' ? -1 : 1;
-      });
+      };
+
+      processLevel('');
+      return visibleFiles;
+    } else {
+      const allFiles = localWorkspaceFiles;
+      const visibleFiles = [];
+      
+      const processLevel = (parentPath = '') => {
+        const children = allFiles.filter(f => {
+          if (parentPath === '') return !f.path.includes('/');
+          const parts = f.path.split('/');
+          const parentParts = parentPath.split('/');
+          return f.path.startsWith(parentPath + '/') && parts.length === parentParts.length + 1;
+        }).sort((a, b) => {
+          if (a.type === b.type) return a.name.localeCompare(b.name);
+          return a.type === 'dir' ? -1 : 1;
+        });
+
+        for (const child of children) {
+          visibleFiles.push({ ...child, depth: getDepth(child.path) - 1 });
+          if (child.type === 'dir' && isExpanded(child.path)) {
+            processLevel(child.path);
+          }
+        }
+      };
+
+      processLevel('');
+      return visibleFiles;
     }
-  }, [pathStack, tocHeadings, currentRepo, repoContents, pendingOps, localWorkspaceFiles]);
+  }, [currentRepo, repoContents, localWorkspaceFiles, pendingOps, pathStack, tocHeadings, expandedPaths]);
 
   const handleDownload = () => {
     const fileName = activeFile?.name || localFileName || 'untitled.md';
@@ -535,6 +576,8 @@ export default function App() {
         setManualRepo={setManualRepo}
         pathStack={pathStack}
         setPathStack={setPathStack}
+        expandedPaths={expandedPaths}
+        setExpandedPaths={setExpandedPaths}
         setCurrentRepo={setCurrentRepo}
         branches={branches}
         currentBranch={currentBranch}

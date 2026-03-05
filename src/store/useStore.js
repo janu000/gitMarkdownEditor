@@ -100,6 +100,9 @@ const useStore = create((set, get) => ({
   pathStack: [],
   setPathStack: (pathStack) => set((state) => ({ pathStack: typeof pathStack === 'function' ? pathStack(state.pathStack) : pathStack })),
   
+  expandedPaths: new Set(),
+  setExpandedPaths: (expandedPaths) => set((state) => ({ expandedPaths: typeof expandedPaths === 'function' ? expandedPaths(state.expandedPaths) : expandedPaths })),
+  
   modifiedFiles: new Set(),
   setModifiedFiles: (modifiedFiles) => set((state) => ({ modifiedFiles: typeof modifiedFiles === 'function' ? modifiedFiles(state.modifiedFiles) : modifiedFiles })),
 

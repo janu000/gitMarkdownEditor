@@ -2,7 +2,8 @@ import React, { memo, useMemo, useRef, useEffect } from 'react';
 import { 
   Github, FileText, Folder, Plus, ArrowLeft, ArrowDown, RefreshCcw, 
   EyeOff, Trash2, FileEdit, FileUp, LogOut, Loader2, GitBranch,
-  Keyboard, Hash, ChevronRight, ChevronDown, ChevronUp
+  Keyboard, Hash, ChevronRight, ChevronDown, ChevronUp,
+  FilePlus, FolderPlus
   } from 'lucide-react';
   import logo from '../assets/logo.svg';
 
@@ -34,6 +35,8 @@ import {
   setManualRepo,
   pathStack,
   setPathStack,
+  expandedPaths,
+  setExpandedPaths,
   setCurrentRepo,
   branches,
   currentBranch,
@@ -66,6 +69,23 @@ import {
 
   const isAtTOC = useMemo(() => pathStack.length > 0 && pathStack[pathStack.length - 1].isTOC, [pathStack]);
 
+  const toggleFolder = (e, path, file) => {
+    if (e) e.stopPropagation();
+    setExpandedPaths(prev => {
+      const next = new Set(prev);
+      if (next.has(path)) {
+        next.delete(path);
+      } else {
+        next.add(path);
+        // Silent fetch when expanding
+        if (file && (file.repo || currentRepo)) {
+          loadFile(file, false, true);
+        }
+      }
+      return next;
+    });
+  };
+
   // Collapse all headings with children when entering TOC
   useEffect(() => {
     if (isAtTOC) {
@@ -87,7 +107,7 @@ import {
   }, [isAtTOC, workspaceFiles]);
 
   const toggleCollapse = (e, path) => {
-    e.stopPropagation();
+    if (e) e.stopPropagation();
     setCollapsedPaths(prev => {
       const next = new Set(prev);
       if (next.has(path)) next.delete(path);
@@ -134,7 +154,17 @@ import {
 
   const handleFileClick = (file) => {
     if (file.type === 'heading') {
+      const idx = workspaceFiles.findIndex(f => f.path === file.path);
+      const hasChildren = workspaceFiles[idx + 1]?.level > file.level;
+      if (hasChildren) {
+        toggleCollapse(null, file.path);
+      }
       jumpTo({ line: file.line });
+      return;
+    }
+
+    if (file.type === 'dir') {
+      toggleFolder(null, file.path, file);
       return;
     }
 
@@ -173,10 +203,10 @@ import {
             <div>
               <div className="flex items-center justify-between mb-2 px-1 h-7">
                 <h3 className="flex-1 min-w-0 text-xs font-semibold text-gray-500 uppercase tracking-wider truncate">
-                  {isAtTOC ? pathStack[pathStack.length-1].name : (pathStack.length > 0 ? pathStack[pathStack.length-1].name : 'Local Workspace')}
+                  {isAtTOC ? pathStack[pathStack.length-1].name : 'Local Workspace'}
                 </h3>
                 <div className="hidden group-hover/sidebar:flex space-x-1 opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-200 ml-2">
-                  {pathStack.length > 0 && (
+                  {isAtTOC && pathStack.length > 0 && (
                     <button onClick={() => { 
                       const ns = [...pathStack];
                       ns.pop();
@@ -191,39 +221,30 @@ import {
                   )}
                 </div>
               </div>
-              {pathStack.length > 0 && !isAtTOC && (
-                <button onClick={() => { const ns = [...pathStack]; ns.pop(); setPathStack(ns); }} className="w-full flex items-center px-2 py-1.5 hover:bg-gray-200 dark:hover:bg-gray-800 rounded text-sm text-gray-600 dark:text-gray-400 mb-1">
-                  <ArrowLeft className="w-4 h-4 mr-2 shrink-0" /><span className="truncate">.. / {pathStack[pathStack.length-1].name}</span>
-                </button>
-              )}
-              <ul className="space-y-1">
+              <ul className="space-y-0.5">
                 {visibleItems.map((file, idx) => {
-                  const hasChildren = isAtTOC && file.type === 'heading' && workspaceFiles[workspaceFiles.indexOf(file) + 1]?.level > file.level;
-                  const isCollapsed = collapsedPaths.has(file.path);
+                  const isTOCHeading = isAtTOC && file.type === 'heading';
+                  const hasChildren = isTOCHeading ? (workspaceFiles[workspaceFiles.indexOf(file) + 1]?.level > file.level) : (file.type === 'dir');
+                  const isCollapsed = isTOCHeading ? collapsedPaths.has(file.path) : (file.type === 'dir' && !expandedPaths.has(file.path));
 
                   return (
                     <li key={file.path} className="relative">
                       <div className="flex items-center group">
-                        {isAtTOC && file.type === 'heading' && hasChildren && (
-                          <button 
-                            onClick={(e) => toggleCollapse(e, file.path)}
-                            className="p-0.5 hover:bg-gray-200 dark:hover:bg-gray-800 rounded absolute z-10 transition-colors flex items-center justify-center top-1/2 -translate-y-1/2"
-                            style={{ left: `${(file.level - 1) * 0.75 + 0.125}rem` }}
-                          >
-                            {isCollapsed ? <ChevronRight className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />}
-                          </button>
-                        )}
                         <button 
                           onClick={() => handleFileClick(file)} 
-                          className={`flex-1 flex items-center px-2 rounded transition-colors text-left group min-w-0 ${file.type === 'heading' ? `${getHeaderStyle(file.level)} py-0.5` : `text-sm py-1.5 ${activeFile?.path === file.path && ((!activeFile.repo && file.isLocal) || activeFile.repo === currentRepo) && !isAtTOC ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300' : 'hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}`}`}
-                          style={file.type === 'heading' ? { paddingLeft: `${(file.level - 1) * 0.75 + 1}rem` } : {}}
+                          className={`flex-1 flex items-center px-2 rounded transition-colors text-left group min-w-0 relative ${file.type === 'heading' ? `${getHeaderStyle(file.level)} py-0.5` : `text-sm py-1 ${activeFile?.path === file.path && ((!activeFile.repo && file.isLocal) || (activeFile.repo === currentRepo && (activeFile.branch || currentBranch) === currentBranch)) && !isAtTOC ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300' : 'hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}`}`}
+                          style={{ paddingLeft: isTOCHeading ? `${(file.level - 1) * 0.75 + 1}rem` : `${(file.depth || 0) * 0.75 + 1}rem` }}
                         >
-                          {file.type !== 'heading' && (
-                              file.type === 'dir' ? (
-                                  <Folder className="w-4 h-4 mr-2 text-blue-500 dark:text-blue-400 shrink-0" />
-                              ) : (
-                                  <FileText className={`w-4 h-4 mr-2 shrink-0 ${!file.isLocal && modifiedFiles.has(`${currentRepo}/${currentBranch}/${file.path}`) ? 'text-amber-500' : 'text-gray-500'}`} />
-                              )
+                          {hasChildren && (
+                            <span 
+                              className="absolute flex items-center justify-center pointer-events-none"
+                              style={{ left: isTOCHeading ? `${(file.level - 1) * 0.75 + 0.125}rem` : `${(file.depth || 0) * 0.75 + 0.125}rem`, width: '1rem', height: '100%' }}
+                            >
+                              {isCollapsed ? <ChevronRight className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />}
+                            </span>
+                          )}
+                          {file.type !== 'heading' && file.type !== 'dir' && (
+                              <FileText className={`w-4 h-4 mr-2 shrink-0 ${!file.isLocal && modifiedFiles.has(`${currentRepo}/${currentBranch}/${file.path}`) ? 'text-amber-500' : 'text-gray-500'}`} />
                           )}
                           <span 
                             className="flex-1 truncate min-w-0" 
@@ -234,18 +255,52 @@ import {
                               <div className="flex items-center justify-between">
                                 <span className="truncate">{file.name}</span>
                                 <div className="w-4 h-4 flex items-center justify-center ml-2 shrink-0">
-                                  {!file.isLocal && modifiedFiles.has(`${currentRepo}/${currentBranch}/${file.path}`) && (
-                                    <span className="w-1.5 h-1.5 rounded-full bg-amber-500" title="Unsaved changes" />
+                                  {file.status === 'pending' ? (
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-500" />
+                                  ) : (
+                                    !file.isLocal && modifiedFiles.has(`${currentRepo}/${currentBranch}/${file.path}`) && (
+                                      <span className="w-1.5 h-1.5 rounded-full bg-amber-500" title="Unsaved changes" />
+                                    )
                                   )}
                                 </div>
                               </div>
                             ) : null}
                           </span>
                         </button>
-                        {file.type !== 'heading' && (
-                          <div className="flex items-center opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button onClick={(e) => { e.stopPropagation(); renameFile(file); }} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 transition-all rounded mr-1"><FileEdit className="w-4 h-4" /></button>
-                            <button onClick={(e) => { e.stopPropagation(); deleteFile(file); }} className="p-1 hover:bg-red-100 dark:hover:bg-red-900/50 text-gray-400 hover:text-red-500 dark:hover:text-red-400 transition-all rounded"><Trash2 className="w-4 h-4" /></button>
+                        {file.type !== 'heading' && !isAtTOC && (
+                          <div className={`flex items-center transition-opacity opacity-0 ${file.status === 'pending' ? 'pointer-events-none' : 'group-hover:opacity-100'}`}>
+                            {file.type === 'dir' && (
+                              <>
+                                <button 
+                                  onClick={(e) => { 
+                                    e.stopPropagation(); 
+                                    const name = prompt('New file name:');
+                                    if (name) {
+                                      createFile(name, '', file.path);
+                                    }
+                                  }} 
+                                  className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded"
+                                  title="New File in this folder"
+                                >
+                                  <FilePlus className="w-3.5 h-3.5" />
+                                </button>
+                                <button 
+                                  onClick={(e) => { 
+                                    e.stopPropagation(); 
+                                    const name = prompt('New folder name:');
+                                    if (name) {
+                                      createFile(name, '', file.path);
+                                    }
+                                  }} 
+                                  className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded"
+                                  title="New Folder in this folder"
+                                >
+                                  <FolderPlus className="w-3.5 h-3.5" />
+                                </button>
+                              </>
+                            )}
+                            <button onClick={(e) => { e.stopPropagation(); renameFile(file); }} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded mr-1"><FileEdit className="w-4 h-4" /></button>
+                            <button onClick={(e) => { e.stopPropagation(); deleteFile(file); }} className="p-1 hover:bg-red-100 dark:hover:bg-red-900/50 text-gray-400 hover:text-red-500 dark:hover:text-red-400 rounded"><Trash2 className="w-4 h-4" /></button>
                           </div>
                         )}
                       </div>
@@ -311,18 +366,11 @@ import {
                         return;
                       }
 
-                      if (pathStack.length > 0) {
-                        const ns = [...pathStack];
-                        ns.pop();
-                        setPathStack(ns);
-                        fetchRepoContents(currentRepo, ns.length > 0 ? ns[ns.length - 1].path : '');
-                      } else {
-                        setCurrentRepo(null);
-                        setPathStack([]);
-                        // Clear branch state when going back to repo list
-                        setCurrentBranch('');
-                        setBranches([]);
-                      }
+                      setCurrentRepo(null);
+                      setPathStack([]);
+                      // Clear branch state when going back to repo list
+                      setCurrentBranch('');
+                      setBranches([]);
                     }} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xs bg-gray-200 dark:bg-gray-800 px-1.5 py-1 rounded"><ArrowLeft className="w-3 h-3" /></button>
                     {!isAtTOC && (
                       <>
@@ -399,40 +447,31 @@ import {
                   </div>
                 )}
 
-                {pathStack.length > 0 && !isAtTOC && (
-                  <button onClick={() => { const ns = [...pathStack]; ns.pop(); setPathStack(ns); fetchRepoContents(currentRepo, ns.length > 0 ? ns[ns.length - 1].path : ''); }} className="w-full flex items-center px-2 py-1.5 hover:bg-gray-200 dark:hover:bg-gray-800 rounded text-sm text-gray-600 dark:text-gray-400 mb-1">
-                    <ArrowLeft className="w-4 h-4 mr-2 shrink-0" /><span className="truncate">.. / {pathStack[pathStack.length-1].name}</span>
-                  </button>
-                )}
                 {loadingState === 'fetching' ? <div className="flex justify-center p-4"><Loader2 className="w-5 h-5 animate-spin text-gray-500" /></div> : (
-                  <ul className="space-y-1">
+                  <ul className="space-y-0.5">
                     {visibleItems.map((file, idx) => {
-                      const hasChildren = isAtTOC && file.type === 'heading' && workspaceFiles[workspaceFiles.indexOf(file) + 1]?.level > file.level;
-                      const isCollapsed = collapsedPaths.has(file.path);
+                      const isTOCHeading = isAtTOC && file.type === 'heading';
+                      const hasChildren = isTOCHeading ? (workspaceFiles[workspaceFiles.indexOf(file) + 1]?.level > file.level) : (file.type === 'dir');
+                      const isCollapsed = isTOCHeading ? collapsedPaths.has(file.path) : (file.type === 'dir' && !expandedPaths.has(file.path));
 
                       return (
                         <li key={file.path} className="relative">
                           <div className={`flex items-center group ${file.status === 'pending' ? 'opacity-70' : ''}`}>
-                            {isAtTOC && file.type === 'heading' && hasChildren && (
-                              <button 
-                                onClick={(e) => toggleCollapse(e, file.path)}
-                                className="p-0.5 hover:bg-gray-200 dark:hover:bg-gray-800 rounded absolute z-10 transition-colors"
-                                style={{ left: `${(file.level - 1) * 0.75 + 0.125}rem` }}
-                              >
-                                {isCollapsed ? <ChevronRight className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />}
-                              </button>
-                            )}
                             <button 
                               onClick={() => handleFileClick(file)} 
-                              className={`flex-1 flex items-center px-2 rounded transition-colors text-left group min-w-0 ${file.type === 'heading' ? `${getHeaderStyle(file.level)} py-0.5` : `text-sm py-1.5 ${activeFile?.path === file.path && ((!activeFile.repo && file.isLocal) || (activeFile.repo === currentRepo && (activeFile.branch || currentBranch) === currentBranch)) && !isAtTOC ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300' : 'hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}`}`}
-                              style={file.type === 'heading' ? { paddingLeft: `${(file.level - 1) * 0.75 + 1}rem` } : {}}
+                              className={`flex-1 flex items-center px-2 rounded transition-colors text-left group min-w-0 relative ${file.type === 'heading' ? `${getHeaderStyle(file.level)} py-0.5` : `text-sm py-1 ${activeFile?.path === file.path && ((!activeFile.repo && file.isLocal) || (activeFile.repo === currentRepo && (activeFile.branch || currentBranch) === currentBranch)) && !isAtTOC ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300' : 'hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}`}`}
+                              style={{ paddingLeft: isTOCHeading ? `${(file.level - 1) * 0.75 + 1}rem` : `${(file.depth || 0) * 0.75 + 1}rem` }}
                             >
-                              {file.type !== 'heading' && (
-                                  file.type === 'dir' ? (
-                                      <Folder className="w-4 h-4 mr-2 text-blue-500 dark:text-blue-400 shrink-0" />
-                                  ) : (
-                                      <FileText className={`w-4 h-4 mr-2 shrink-0 ${!file.isLocal && modifiedFiles.has(`${currentRepo}/${currentBranch}/${file.path}`) ? 'text-amber-500' : 'text-gray-500'}`} />
-                                  )
+                              {hasChildren && (
+                                <span 
+                                  className="absolute flex items-center justify-center pointer-events-none"
+                                  style={{ left: isTOCHeading ? `${(file.level - 1) * 0.75 + 0.125}rem` : `${(file.depth || 0) * 0.75 + 0.125}rem`, width: '1rem', height: '100%' }}
+                                >
+                                  {isCollapsed ? <ChevronRight className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />}
+                                </span>
+                              )}
+                              {file.type !== 'heading' && file.type !== 'dir' && (
+                                  <FileText className={`w-4 h-4 mr-2 shrink-0 ${!file.isLocal && modifiedFiles.has(`${currentRepo}/${currentBranch}/${file.path}`) ? 'text-amber-500' : 'text-gray-500'}`} />
                               )}
                               <span 
                                 className="flex-1 truncate min-w-0" 
@@ -457,6 +496,36 @@ import {
                             </button>
                             {file.type !== 'heading' && !isAtTOC && (
                               <div className={`flex items-center transition-opacity opacity-0 ${file.status === 'pending' ? 'pointer-events-none' : 'group-hover:opacity-100'}`}>
+                                {file.type === 'dir' && (
+                                  <>
+                                    <button 
+                                      onClick={(e) => { 
+                                        e.stopPropagation(); 
+                                        const name = prompt('New file name:');
+                                        if (name) {
+                                          createFile(name, '', file.path);
+                                        }
+                                      }} 
+                                      className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded"
+                                      title="New File in this folder"
+                                    >
+                                      <FilePlus className="w-3.5 h-3.5" />
+                                    </button>
+                                    <button 
+                                      onClick={(e) => { 
+                                        e.stopPropagation(); 
+                                        const name = prompt('New folder name:');
+                                        if (name) {
+                                          createFile(name, '', file.path);
+                                        }
+                                      }} 
+                                      className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded"
+                                      title="New Folder in this folder"
+                                    >
+                                      <FolderPlus className="w-3.5 h-3.5" />
+                                    </button>
+                                  </>
+                                )}
                                 <button onClick={(e) => { e.stopPropagation(); renameFile(file); }} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded mr-1"><FileEdit className="w-4 h-4" /></button>
                                 <button onClick={(e) => { e.stopPropagation(); deleteFile(file); }} className="p-1 hover:bg-red-100 dark:hover:bg-red-900/50 text-gray-400 hover:text-red-500 dark:hover:text-red-400 rounded"><Trash2 className="w-4 h-4" /></button>
                               </div>
@@ -505,4 +574,3 @@ import {
 });
 
 export default Sidebar;
-

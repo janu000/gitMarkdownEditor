@@ -110,8 +110,8 @@ export default function useGitHub(showToast, setLoadingState, {
     return `${repo}/${branch}/${path}`;
   }, []);
 
-  const fetchRepoContents = useCallback(async (repoFullName, path = '', branch = null, forceRefreshBranches = false) => {
-    setLoadingState('fetching');
+  const fetchRepoContents = useCallback(async (repoFullName, path = '', branch = null, forceRefreshBranches = false, silent = false) => {
+    if (!silent) setLoadingState('fetching');
     try {
       let targetBranch = branch || currentBranch;
       
@@ -129,28 +129,45 @@ export default function useGitHub(showToast, setLoadingState, {
       }
 
       const data = await apiRequest(`/repos/${repoFullName}/contents/${path}?ref=${targetBranch}`);
-      setRepoContents(Array.isArray(data) ? data.sort((a, b) => {
-        if (a.type === b.type) return a.name.localeCompare(b.name);
-        return a.type === 'dir' ? -1 : 1;
-      }) : [data]);
+      const newItems = Array.isArray(data) ? data : [data];
+      
+      setRepoContents(prev => {
+        if (path === '' && !branch && repoFullName !== currentRepo) {
+           return newItems.sort((a, b) => {
+            if (a.type === b.type) return a.name.localeCompare(b.name);
+            return a.type === 'dir' ? -1 : 1;
+          });
+        }
+        
+        // Merge: remove old items for this path's immediate children and add new ones
+        const otherItems = prev.filter(f => {
+          if (path === '') return f.path.includes('/'); // Keep subfolder items, remove root items
+          const isChild = f.path.startsWith(path + '/') && f.path.slice(path.length + 1).indexOf('/') === -1;
+          return !isChild;
+        });
+        
+        return [...otherItems, ...newItems].sort((a, b) => {
+          if (a.type === b.type) return a.path.localeCompare(b.path);
+          return a.type === 'dir' ? -1 : 1;
+        });
+      });
       
       setCurrentRepo(repoFullName);
-      if (path === '') setPathStack([]);
     } catch (_error) {
-      showToast('Failed to fetch folder contents', 'error');
+      if (!silent) showToast('Failed to fetch folder contents', 'error');
     }
-    setLoadingState('');
-  }, [apiRequest, currentBranch, currentRepo, setLoadingState, showToast, setPathStack]);
+    if (!silent) setLoadingState('');
+  }, [apiRequest, currentBranch, currentRepo, setLoadingState, showToast, branches.length]);
 
-  const loadFile = useCallback(async (file, forceFresh = false) => {
+  const loadFile = useCallback(async (file, forceFresh = false, silent = false) => {
     const targetRepo = file.repo || currentRepoRef.current;
     const targetBranch = file.branch || currentBranchRef.current;
-    console.log('[loadFile] Called with file:', file, 'forceFresh:', forceFresh);
-    console.log('[loadFile] targetRepo:', targetRepo, 'targetBranch:', targetBranch);
     
     if (file.type === 'dir') {
-      setPathStack(prev => [...prev, file]);
-      if (targetRepo) fetchRepoContents(targetRepo, file.path, targetBranch);
+      // In VS Code style, clicking a folder toggles it. 
+      // This will be handled in Sidebar/App via expandedPaths.
+      // We just need to ensure contents are fetched.
+      if (targetRepo) fetchRepoContents(targetRepo, file.path, targetBranch, false, silent);
       return;
     }
     
@@ -510,8 +527,8 @@ export default function useGitHub(showToast, setLoadingState, {
     }
   }, [apiRequest, fetchRepoContents, pendingOps, setActiveFile, setContent, setPendingOps, showToast, activeFileRef, pathStack, getStoragePath]);
 
-  const createFile = useCallback(async (fileName, initialContent = '') => {
-    const currentPath = pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '';
+  const createFile = useCallback(async (fileName, initialContent = '', parentPath = null) => {
+    const currentPath = parentPath !== null ? parentPath : (pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '');
     const filePath = currentPath ? `${currentPath}/${fileName}` : fileName;
     const branchContext = currentBranchRef.current;
 
@@ -558,8 +575,8 @@ export default function useGitHub(showToast, setLoadingState, {
     }
   }, [apiRequest, fetchRepoContents, pathStack, setActiveFile, setContent, setPendingOps, showToast, getStoragePath]);
 
-  const createFolder = useCallback(async (folderName) => {
-    const currentPath = pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '';
+  const createFolder = useCallback(async (folderName, parentPath = null) => {
+    const currentPath = parentPath !== null ? parentPath : (pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '');
     const folderPath = currentPath ? `${currentPath}/${folderName}` : folderName;
     const branchContext = currentBranchRef.current;
 
