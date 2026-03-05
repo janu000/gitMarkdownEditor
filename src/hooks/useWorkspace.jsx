@@ -147,6 +147,33 @@ export default function useWorkspace(showToast) {
     ));
   }, []);
 
+  const moveLocalFile = useCallback(async (fileToMove, targetDirPath) => {
+    if (fileToMove.type === 'dir') {
+      showToast('Moving folders is not supported yet.', 'error');
+      return false;
+    }
+
+    const newPath = targetDirPath ? `${targetDirPath}/${fileToMove.name}` : fileToMove.name;
+    if (fileToMove.path === newPath) return false;
+
+    const existingFile = localWorkspaceFiles.find(f => f.path === newPath);
+    if (existingFile) {
+      showToast(`A file named '${fileToMove.name}' already exists in the target folder.`, 'error');
+      return false;
+    }
+
+    const oldStoragePath = `local/${fileToMove.path}`;
+    const newStoragePath = `local/${newPath}`;
+    await storage.renameFile(oldStoragePath, newStoragePath);
+
+    setLocalWorkspaceFiles(prev => prev.map(f => 
+      f.path === fileToMove.path ? { ...f, path: newPath } : f
+    ));
+
+    showToast(`Moved to ${targetDirPath || 'root'}`);
+    return true;
+  }, [localWorkspaceFiles, showToast]);
+
   return {
     localWorkspaceFiles,
     setLocalWorkspaceFiles,
@@ -154,6 +181,7 @@ export default function useWorkspace(showToast) {
     createLocalFolder,
     renameLocalFile,
     deleteLocalFile,
+    moveLocalFile,
     updateLocalFileContent
   };
 }

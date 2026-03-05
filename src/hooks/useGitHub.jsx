@@ -436,7 +436,6 @@ export default function useGitHub(showToast, setLoadingState, {
           });
         });
         showToast(`Renamed to ${newName}`);
-        fetchRepoContents(currentRepoRef.current, currentPath, branchContext);
 
       } catch (error) {
         showToast('Failed to check or rename folder', 'error');
@@ -499,8 +498,6 @@ export default function useGitHub(showToast, setLoadingState, {
       });
       showToast(`Renamed ${newName}`);
       
-      const currentDirPath = pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '';
-      fetchRepoContents(currentRepoRef.current, currentDirPath, branchContext);
       if (activeFileRef.current && activeFileRef.current.path === newPath) setActiveFile(prev => ({ ...prev, sha: createRes.content.sha }));
     } catch (_error) {
       showToast(`Failed to rename: ${_error.message || 'Unknown error'}`, 'error');
@@ -511,6 +508,78 @@ export default function useGitHub(showToast, setLoadingState, {
         return newState;
       });
       if (activeFileRef.current?.path === newPath) setActiveFile(fileToRename);
+    }
+  }, [apiRequest, fetchRepoContents, pathStack, setActiveFile, setPendingOps, showToast, activeFileRef, getStoragePath]);
+
+  const moveFile = useCallback(async (fileToMove, targetDirPath) => {
+    const branchContext = fileToMove.branch || currentBranchRef.current;
+    if (!currentRepoRef.current) return;
+
+    if (fileToMove.type === 'dir') {
+      showToast('Moving folders is not supported via UI yet.', 'error');
+      return;
+    }
+
+    const newPath = targetDirPath ? `${targetDirPath}/${fileToMove.name}` : fileToMove.name;
+    if (fileToMove.path === newPath) return;
+
+    // Git Mode Move Optimistic
+    const newFile = { ...fileToMove, path: newPath, branch: branchContext };
+    setPendingOps(prev => ({
+      ...prev,
+      [fileToMove.path]: { action: 'delete' },
+      [newPath]: { action: 'add', file: newFile }
+    }));
+    if (activeFileRef.current?.path === fileToMove.path) setActiveFile(newFile);
+    showToast(`Moving to ${newPath}...`);
+
+    try {
+      const sourceData = await apiRequest(`/repos/${currentRepoRef.current}/contents/${fileToMove.path}?ref=${branchContext}`);
+      const createBody = {
+        message: `Move ${fileToMove.name} to ${newPath} via Git Markdown Editor`,
+        content: sourceData.content.replace(/\n/g, ''),
+        branch: branchContext
+      };
+      const createRes = await apiRequest(`/repos/${currentRepoRef.current}/contents/${newPath}`, 'PUT', createBody);
+
+      const deleteBody = { 
+        message: `Move ${fileToMove.name} to ${newPath} (cleanup)`, 
+        sha: sourceData.sha, 
+        branch: branchContext
+      };
+      await apiRequest(`/repos/${currentRepoRef.current}/contents/${fileToMove.path}`, 'DELETE', deleteBody);
+
+      // Keep cache in sync
+      const oldFullPath = getStoragePath(fileToMove.path, currentRepoRef.current, branchContext);
+      const newFullPath = getStoragePath(newPath, currentRepoRef.current, branchContext);
+      await storage.renameFile(oldFullPath, newFullPath);
+
+      setRepoContents(prev => {
+        const filtered = prev.filter(f => f.path !== fileToMove.path);
+        return [...filtered, { name: fileToMove.name, path: newPath, type: 'file', sha: createRes.content.sha }].sort((a, b) => {
+           if (a.type === b.type) return a.name.localeCompare(b.name);
+           return a.type === 'dir' ? -1 : 1;
+        });
+      });
+      
+      setPendingOps(prev => {
+        const newState = { ...prev };
+        delete newState[fileToMove.path];
+        delete newState[newPath];
+        return newState;
+      });
+      showToast(`Moved ${fileToMove.name}`);
+      
+      if (activeFileRef.current && activeFileRef.current.path === newPath) setActiveFile(prev => ({ ...prev, sha: createRes.content.sha }));
+    } catch (_error) {
+      showToast(`Failed to move: ${_error.message || 'Unknown error'}`, 'error');
+      setPendingOps(prev => {
+        const newState = { ...prev };
+        delete newState[fileToMove.path];
+        delete newState[newPath];
+        return newState;
+      });
+      if (activeFileRef.current?.path === newPath) setActiveFile(fileToMove);
     }
   }, [apiRequest, fetchRepoContents, pathStack, setActiveFile, setPendingOps, showToast, activeFileRef, getStoragePath]);
 
@@ -588,8 +657,6 @@ export default function useGitHub(showToast, setLoadingState, {
       setPendingOps(prev => { const newState = { ...prev }; delete newState[fileToDelete.path]; return newState; });
       showToast(`Deleted ${fileToDelete.name}`);
       
-      const currentDirPath = pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '';
-      fetchRepoContents(currentRepoRef.current, currentDirPath, branchContext);
     } catch (_error) {
       showToast(`Failed to delete ${fileToDelete.name}`, 'error');
       setPendingOps(prev => { const newState = { ...prev }; delete newState[fileToDelete.path]; return newState; });
@@ -636,7 +703,6 @@ export default function useGitHub(showToast, setLoadingState, {
 
       setPendingOps(prev => { const newState = { ...prev }; delete newState[filePath]; return newState; });
       setActiveFile(prev => prev && prev.path === filePath ? { ...prev, sha: data.content.sha } : prev);
-      fetchRepoContents(currentRepoRef.current, currentPath, branchContext);
       showToast(`Synced ${fileName}`);
     } catch (_error) {
       showToast(`Failed to create file: ${fileName}`, 'error');
@@ -755,6 +821,7 @@ export default function useGitHub(showToast, setLoadingState, {
     saveToGitHub,
     loadFile,
     renameFile,
+    moveFile,
     deleteFile,
     createFile,
     createFolder,

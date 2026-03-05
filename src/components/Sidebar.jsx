@@ -45,6 +45,7 @@ import {
   createBranch,
   loadTOC,
   jumpTo,
+  moveFile,
   modifiedFiles = new Set()
 }) => {
   const workspaceFiles = useMemo(() => getWorkspaceFiles(), [getWorkspaceFiles]);
@@ -53,6 +54,80 @@ import {
   const [isBranchDropdownOpen, setIsBranchDropdownOpen] = React.useState(false);
   const [branchSearch, setBranchSearch] = React.useState('');
   const branchDropdownRef = useRef(null);
+
+  const [draggedFile, setDraggedFile] = React.useState(null);
+  const [dragOverPath, setDragOverPath] = React.useState(null);
+
+  const handleDragStart = (e, file) => {
+    if (isAtTOC) return;
+    setDraggedFile(file);
+    e.dataTransfer.effectAllowed = 'move';
+    setTimeout(() => e.target.classList.add('opacity-50'), 0);
+  };
+
+  const handleDragEnd = (e) => {
+    e.target.classList.remove('opacity-50');
+    setDraggedFile(null);
+    setDragOverPath(null);
+  };
+
+  const handleDragOver = (e, targetFolderOrFile) => {
+    e.preventDefault();
+    if (!draggedFile || isAtTOC) return;
+    
+    // Determine the actual drop target folder path
+    // If dropping on a folder, it's that folder's path
+    // If dropping on a file, it's the parent folder of that file
+    let targetPath = '';
+    if (targetFolderOrFile) {
+      if (targetFolderOrFile.type === 'dir') {
+        targetPath = targetFolderOrFile.path;
+      } else {
+        const parts = targetFolderOrFile.path.split('/');
+        parts.pop();
+        targetPath = parts.join('/');
+      }
+    }
+
+    // Can't drop on itself or inside itself
+    if (targetPath === draggedFile.path || targetPath.startsWith(draggedFile.path + '/')) return;
+
+    e.dataTransfer.dropEffect = 'move';
+    if (dragOverPath !== targetPath) {
+      setDragOverPath(targetPath);
+    }
+  };
+
+  const handleDrop = (e, targetFolderOrFile) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const currentDragOverPath = dragOverPath;
+    setDragOverPath(null);
+    
+    if (!draggedFile || isAtTOC) return;
+
+    let targetPath = '';
+    if (targetFolderOrFile) {
+      if (targetFolderOrFile.type === 'dir') {
+        targetPath = targetFolderOrFile.path;
+      } else {
+        const parts = targetFolderOrFile.path.split('/');
+        parts.pop();
+        targetPath = parts.join('/');
+      }
+    }
+
+    if (targetPath === draggedFile.path || targetPath.startsWith(draggedFile.path + '/')) return;
+
+    // Check if the file is already in this folder
+    const draggedParentPath = draggedFile.path.includes('/') ? draggedFile.path.split('/').slice(0, -1).join('/') : '';
+    if (draggedParentPath === targetPath) return; // Already there
+
+    if (window.confirm(`Move '${draggedFile.name}' to ${targetPath ? `'${targetPath}'` : 'root'}?`)) {
+      moveFile(draggedFile, targetPath);
+    }
+    setDraggedFile(null);
+  };
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -222,15 +297,43 @@ import {
                   )}
                 </div>
               </div>
-              <ul className="space-y-0.5">
+              <ul 
+                className={`space-y-0.5 min-h-[50px] ${dragOverPath === '' ? 'bg-indigo-50/50 dark:bg-indigo-500/10 ring-1 ring-indigo-500/50 rounded' : ''}`}
+                onDragOver={(e) => {
+                  e.preventDefault();
+                  if (!draggedFile || isAtTOC) return;
+                  if (draggedFile.path.indexOf('/') === -1) return; // Already at root
+                  e.dataTransfer.dropEffect = 'move';
+                  if (dragOverPath !== '') setDragOverPath('');
+                }}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  if (!draggedFile || isAtTOC || dragOverPath !== '') return;
+                  setDragOverPath(null);
+                  if (draggedFile.path.indexOf('/') === -1) return;
+                  
+                  if (window.confirm(`Move '${draggedFile.name}' to root?`)) {
+                    moveFile(draggedFile, '');
+                  }
+                  setDraggedFile(null);
+                }}
+              >
                 {visibleItems.map((file, idx) => {
                   const isTOCHeading = isAtTOC && file.type === 'heading';
                   const hasChildren = isTOCHeading ? (workspaceFiles[workspaceFiles.indexOf(file) + 1]?.level > file.level) : (file.type === 'dir');
                   const isCollapsed = isTOCHeading ? collapsedPaths.has(file.path) : (file.type === 'dir' && !expandedPaths.has(file.path));
 
                   return (
-                    <li key={file.path} className="relative">
-                      <div className="flex items-center group">
+                    <li 
+                      key={file.path} 
+                      className="relative"
+                      draggable={!isAtTOC && file.type !== 'dir'}
+                      onDragStart={(e) => handleDragStart(e, file)}
+                      onDragEnd={handleDragEnd}
+                      onDragOver={(e) => handleDragOver(e, file)}
+                      onDrop={(e) => handleDrop(e, file)}
+                    >
+                      <div className={`flex items-center group ${dragOverPath === file.path ? 'bg-indigo-100 dark:bg-indigo-500/30 ring-1 ring-indigo-500 rounded' : ''} ${file.status === 'pending' ? 'opacity-70' : ''}`}>
                         <button 
                           onClick={() => handleFileClick(file)} 
                           className={`flex-1 flex items-center px-2 rounded transition-colors text-left group min-w-0 relative ${file.type === 'heading' ? `${getHeaderStyle(file.level)} py-0.5` : `text-sm py-1 ${activeFile?.path === file.path && ((!activeFile.repo && file.isLocal) || (activeFile.repo === currentRepo && (activeFile.branch || currentBranch) === currentBranch)) && !isAtTOC ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300' : 'hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}`}`}
@@ -245,13 +348,13 @@ import {
                               )
                             )}
                           </div>
-                          <span 
-                            className="flex-1 truncate min-w-0" 
+                          <div 
+                            className="flex-1 flex items-center justify-between min-w-0" 
                             title={file.rawName || file.name}
                             dangerouslySetInnerHTML={file.type === 'heading' ? { __html: file.name } : undefined}
                           >
                             {file.type !== 'heading' ? (
-                              <div className="flex items-center justify-between">
+                              <>
                                 <span className="truncate">{file.name}</span>
                                 {(file.status === 'pending' || (!file.isLocal && modifiedFiles.has(`${currentRepo}/${currentBranch}/${file.path}`))) && (
                                   <div className="w-4 h-4 flex items-center justify-center ml-2 shrink-0">
@@ -262,9 +365,9 @@ import {
                                     )}
                                   </div>
                                 )}
-                              </div>
+                              </>
                             ) : null}
-                          </span>
+                          </div>
                         </button>
                         {file.type !== 'heading' && !isAtTOC && (
                           <div className={`hidden group-hover:flex items-center ${file.status === 'pending' ? 'pointer-events-none' : ''}`}>
@@ -281,7 +384,7 @@ import {
                                   className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded"
                                   title="New File in this folder"
                                 >
-                                  <FilePlus className="w-3.5 h-3.5" />
+                                  <FilePlus className="w-4 h-4" />
                                 </button>
                                 <button 
                                   onClick={(e) => { 
@@ -294,7 +397,7 @@ import {
                                   className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded"
                                   title="New Folder in this folder"
                                 >
-                                  <FolderPlus className="w-3.5 h-3.5" />
+                                  <FolderPlus className="w-4 h-4" />
                                 </button>
                               </>
                             )}
@@ -389,7 +492,7 @@ import {
                       </div>
                       <button 
                         onClick={() => createBranch(prompt('New branch name:'))} 
-                        className="text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-200"
+                        className="text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                         title="New Branch"
                       >
                         <Plus className="w-3 h-3" />
@@ -454,9 +557,16 @@ import {
                       const isCollapsed = isTOCHeading ? collapsedPaths.has(file.path) : (file.type === 'dir' && !expandedPaths.has(file.path));
 
                       return (
-                        <li key={file.path} className="relative">
-                          <div className={`flex items-center group ${file.status === 'pending' ? 'opacity-70' : ''}`}>
-                            <button 
+                        <li 
+                          key={file.path} 
+                          className="relative"
+                          draggable={!isAtTOC && file.type !== 'dir'}
+                          onDragStart={(e) => handleDragStart(e, file)}
+                          onDragEnd={handleDragEnd}
+                          onDragOver={(e) => handleDragOver(e, file)}
+                          onDrop={(e) => handleDrop(e, file)}
+                        >
+                          <div className={`flex items-center group ${dragOverPath === file.path ? 'bg-indigo-100 dark:bg-indigo-500/30 ring-1 ring-indigo-500 rounded' : ''} ${file.status === 'pending' ? 'opacity-70' : ''}`}>                            <button 
                               onClick={() => handleFileClick(file)} 
                               className={`flex-1 flex items-center px-2 rounded transition-colors text-left group min-w-0 relative ${file.type === 'heading' ? `${getHeaderStyle(file.level)} py-0.5` : `text-sm py-1 ${activeFile?.path === file.path && ((!activeFile.repo && file.isLocal) || (activeFile.repo === currentRepo && (activeFile.branch || currentBranch) === currentBranch)) && !isAtTOC ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300' : 'hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}`}`}
                               style={{ paddingLeft: isTOCHeading ? `${(file.level - 1) * 0.5}rem` : `${(file.depth || 0) * 0.5}rem` }}
@@ -506,7 +616,7 @@ import {
                                       className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded"
                                       title="New File in this folder"
                                     >
-                                      <FilePlus className="w-3.5 h-3.5" />
+                                      <FilePlus className="w-4 h-4" />
                                     </button>
                                     <button 
                                       onClick={(e) => { 
@@ -519,7 +629,7 @@ import {
                                       className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded"
                                       title="New Folder in this folder"
                                     >
-                                      <FolderPlus className="w-3.5 h-3.5" />
+                                      <FolderPlus className="w-4 h-4" />
                                     </button>
                                   </>
                                 )}

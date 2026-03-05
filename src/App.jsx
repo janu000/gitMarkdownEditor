@@ -57,7 +57,7 @@ export default function App() {
   const deferredContent = useDeferredValue(content);
 
   const {
-    localWorkspaceFiles, createLocalFile, createLocalFolder, renameLocalFile, deleteLocalFile, updateLocalFileContent
+    localWorkspaceFiles, createLocalFile, createLocalFolder, renameLocalFile, deleteLocalFile, moveLocalFile, updateLocalFileContent
   } = useWorkspace(showToast);
 
   // Sync refs (debounced for performance)
@@ -84,7 +84,7 @@ export default function App() {
     branches, setBranches, currentBranch, setCurrentBranch, currentBranchRef,
     manualRepo, setManualRepo, hiddenRepos, setHiddenRepos,
     apiRequest, fetchRepos, verifyGitHubToken, fetchRepoContents,
-    saveToGitHub, loadFile, renameFile: renameGHFile, deleteFile: deleteGHFile, createFile: createGHFile, createFolder: createGHFolder, loadTOC, createBranch
+    saveToGitHub, loadFile, renameFile: renameGHFile, moveFile: moveGHFile, deleteFile: deleteGHFile, createFile: createGHFile, createFolder: createGHFolder, loadTOC, createBranch
   } = useGitHub(showToast, setLoadingState, {
     content, setContent, defaultContent: defaultContent !== null ? defaultContent : DEFAULT_MARKDOWN,
     activeFile, setActiveFile, activeFileRef,
@@ -270,6 +270,20 @@ export default function App() {
       }
     }
   }, [currentRepo, deleteGHFile, deleteLocalFile, activeFile, setContent]);
+
+  const handleMoveFile = useCallback(async (file, targetPath) => {
+    if (currentRepo) {
+      // Use useGitHub's moveFile
+      await moveGHFile(file, targetPath);
+    } else {
+      // Use useWorkspace's moveLocalFile
+      const success = await moveLocalFile(file, targetPath);
+      if (success && activeFile?.path === file.path) {
+        const newPath = targetPath ? `${targetPath}/${file.name}` : file.name;
+        setActiveFile(prev => ({ ...prev, path: newPath }));
+      }
+    }
+  }, [currentRepo, moveGHFile, moveLocalFile, activeFile, setActiveFile]);
 
   // Helper to get depth of a path
   const getDepth = (path) => path === '' ? 0 : path.split('/').length;
@@ -586,6 +600,7 @@ export default function App() {
         createBranch={createBranch}
         loadTOC={loadTOC}
         jumpTo={jumpTo}
+        moveFile={handleMoveFile}
         modifiedFiles={modifiedFiles}
       />
 
