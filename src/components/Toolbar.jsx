@@ -27,7 +27,7 @@ const Toolbar = memo(({
   shortcuts
 }) => {
   return (
-    <div id="top-toolbar" className="h-14 bg-gray-50 dark:bg-[#161b22] border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-4 shrink-0">
+    <div id="top-toolbar" className="h-11 bg-gray-50 dark:bg-[#161b22] border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-4 shrink-0">
       <div className="flex items-center space-x-2">
         <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-1.5 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white hover:bg-gray-200 dark:hover:bg-gray-800 rounded transition-colors mr-2">
           <Columns className="w-5 h-5" />

@@ -62,6 +62,9 @@ const useStore = create((set, get) => ({
   showEmojiPicker: false,
   setShowEmojiPicker: (showEmojiPicker) => set((state) => ({ showEmojiPicker: typeof showEmojiPicker === 'function' ? showEmojiPicker(state.showEmojiPicker) : showEmojiPicker })),
   
+  showFormattingTools: true,
+  setShowFormattingTools: (showFormattingTools) => set((state) => ({ showFormattingTools: typeof showFormattingTools === 'function' ? showFormattingTools(state.showFormattingTools) : showFormattingTools })),
+
   shortcuts: loadShortcuts(),
   setShortcuts: (shortcuts) => set((state) => ({ shortcuts: typeof shortcuts === 'function' ? shortcuts(state.shortcuts) : shortcuts })),
   

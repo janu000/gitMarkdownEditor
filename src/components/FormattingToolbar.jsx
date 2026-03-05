@@ -24,7 +24,7 @@ const FormattingToolbar = memo(({
   if (viewMode === 'preview') return null;
 
   return (
-    <div id="formatting-toolbar" className="h-10 bg-gray-50 dark:bg-[#0d1117] border-t border-gray-200 dark:border-gray-800 flex items-center flex-wrap px-4 py-1 space-x-1 shrink-0">
+    <div id="formatting-toolbar" className="h-10 bg-gray-50 dark:bg-[#0d1117] flex items-center flex-wrap px-4 py-1 space-x-1 shrink-0">
       <ToolButton icon={<Bold className="w-4 h-4" />} onClick={() => insertText('**', '**', 'bold text')} title={`Bold (${formatShortcut(shortcuts.bold)})`} />
       <ToolButton icon={<Italic className="w-4 h-4" />} onClick={() => insertText('*', '*', 'italic text')} title={`Italic (${formatShortcut(shortcuts.italic)})`} />
       <div className="w-px h-5 bg-gray-300 dark:bg-gray-700 mx-1" />

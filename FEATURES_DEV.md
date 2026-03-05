@@ -168,6 +168,7 @@ This document provides a detailed breakdown of all implemented features in the G
 ### Theme System
 - **Dark/Light Mode:** Full UI support for GitHub-style themes.
 - **Visual Feedback:** Toast notifications, unsaved changes indicators, and breadcrumbs.
+- **Toggleable Tools:** The formatting toolbar and sidebar footer can now be toggled on/off via a dedicated button in the sidebar bottom. This state is managed globally and allows for a more focused, distraction-free writing environment.
 - **Visual Edit Highlighting:** The Sidebar now provides immediate visual feedback for files with unsaved changes. An **amber dot indicator** and color shift are applied to any file whose local IndexedDB draft differs from its original baseline. This tracking is path-aware and persists across file switches and app restarts.
 
 ### Export & Printing

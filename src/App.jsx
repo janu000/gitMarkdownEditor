@@ -42,6 +42,7 @@ export default function App() {
     showAuthModal, setShowAuthModal,
     showShortcutModal, setShowShortcutModal,
     showEmojiPicker, setShowEmojiPicker,
+    showFormattingTools, setShowFormattingTools,
     shortcuts, setShortcuts,
     localFileName, setLocalFileName,
     activeFile, setActiveFile,
@@ -512,6 +513,8 @@ export default function App() {
         ghUser={ghUser}
         setShowAuthModal={setShowAuthModal}
         setShowShortcutModal={setShowShortcutModal}
+        showFormattingTools={showFormattingTools}
+        setShowFormattingTools={setShowFormattingTools}
         importLocalFile={importLocalFile}
         createFile={handleCreateFile}
         getWorkspaceFiles={getWorkspaceFiles}
@@ -545,7 +548,7 @@ export default function App() {
       {isSidebarOpen && (
         <div 
           id="sidebar-resizer" 
-          className="w-1 cursor-col-resize hover:bg-indigo-500/50 active:bg-indigo-500 transition-colors z-10 flex items-center justify-center group" 
+          className="w-1 -ml-1 cursor-col-resize hover:bg-indigo-500/50 active:bg-indigo-500 transition-colors z-10 flex items-center justify-center group" 
           onMouseDown={() => { setIsResizingSidebar(true); document.body.style.cursor = 'col-resize'; }}
         >
           <div className="h-8 w-0.5 bg-gray-300 dark:bg-gray-700 rounded opacity-0 group-hover:opacity-100 transition-opacity group-hover:bg-white" />
@@ -583,7 +586,7 @@ export default function App() {
               className="flex flex-col h-full bg-white dark:bg-[#0d1117] relative"
               style={viewMode === 'split' ? { width: `${tempSplitRatio * 100}%` } : { flex: 1 }}
             >
-              <div className="flex-1 relative overflow-hidden">
+              <div className="flex-1 relative overflow-hidden pr-[2px]">
                 <SearchPanel editorRef={editorRef} />
                 <div className="h-full overflow-hidden">
                   <CodeMirrorEditor 
@@ -596,26 +599,28 @@ export default function App() {
                   />
                 </div>
               </div>
-              <FormattingToolbar 
-                viewMode={viewMode}
-                insertText={insertText}
-                insertListItem={insertListItem}
-                insertNumberedList={insertNumberedList}
-                insertTaskList={insertTaskList}
-                toggleCode={toggleCode}
-                toggleMath={toggleMath}
-                showEmojiPicker={showEmojiPicker}
-                setShowEmojiPicker={setShowEmojiPicker}
-                emojiPickerRef={emojiPickerRef}
-                shortcuts={shortcuts}
-              />
+              <div className={`overflow-hidden transition-all duration-300 shrink-0 ${showFormattingTools ? 'h-10 opacity-100 border-t border-gray-200 dark:border-gray-800' : 'h-0 opacity-0'}`}>
+                <FormattingToolbar 
+                  viewMode={viewMode}
+                  insertText={insertText}
+                  insertListItem={insertListItem}
+                  insertNumberedList={insertNumberedList}
+                  insertTaskList={insertTaskList}
+                  toggleCode={toggleCode}
+                  toggleMath={toggleMath}
+                  showEmojiPicker={showEmojiPicker}
+                  setShowEmojiPicker={setShowEmojiPicker}
+                  emojiPickerRef={emojiPickerRef}
+                  shortcuts={shortcuts}
+                />
+              </div>
             </div>
           )}
 
           {viewMode === 'split' && (
             <div 
               id="split-resizer" 
-              className="w-1 cursor-col-resize hover:bg-indigo-500/30 active:bg-indigo-500 transition-colors z-10 flex items-center justify-center group bg-transparent" 
+              className="w-1 -ml-1 cursor-col-resize hover:bg-indigo-500/30 active:bg-indigo-500 transition-colors z-10 flex items-center justify-center group bg-transparent" 
               onMouseDown={() => { setIsResizingSplit(true); document.body.style.cursor = 'col-resize'; }}
             >
               <div className="h-full w-px bg-gray-200 dark:bg-gray-800 group-hover:bg-indigo-500 group-active:bg-indigo-500 transition-colors" />
@@ -625,10 +630,10 @@ export default function App() {
           {/* Preview Column */}
           {(viewMode === 'preview' || viewMode === 'split') && (
             <div 
-              className={`flex flex-col h-full bg-white dark:bg-[#0d1117] ${viewMode === 'split' ? 'border-l border-gray-200 dark:border-gray-800' : ''}`}
+              className="flex flex-col h-full bg-white dark:bg-[#0d1117]"
               style={viewMode === 'split' ? { width: `${(1 - tempSplitRatio) * 100}%` } : { flex: 1 }}
             >
-              <div className="flex-1 overflow-hidden">
+              <div className="flex-1 overflow-hidden pl-[2px]">
                 <Preview 
                   previewRef={previewRef}
                   parsedHtml={parsedHtml}
