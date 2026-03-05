@@ -234,19 +234,17 @@ import {
                         <button 
                           onClick={() => handleFileClick(file)} 
                           className={`flex-1 flex items-center px-2 rounded transition-colors text-left group min-w-0 relative ${file.type === 'heading' ? `${getHeaderStyle(file.level)} py-0.5` : `text-sm py-1 ${activeFile?.path === file.path && ((!activeFile.repo && file.isLocal) || (activeFile.repo === currentRepo && (activeFile.branch || currentBranch) === currentBranch)) && !isAtTOC ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300' : 'hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}`}`}
-                          style={{ paddingLeft: isTOCHeading ? `${(file.level - 1) * 0.75 + 1}rem` : `${(file.depth || 0) * 0.75 + 1}rem` }}
+                          style={{ paddingLeft: isTOCHeading ? `${(file.level - 1) * 0.75}rem` : `${(file.depth || 0) * 0.75}rem` }}
                         >
-                          {hasChildren && (
-                            <span 
-                              className="absolute flex items-center justify-center pointer-events-none"
-                              style={{ left: isTOCHeading ? `${(file.level - 1) * 0.75 + 0.125}rem` : `${(file.depth || 0) * 0.75 + 0.125}rem`, width: '1rem', height: '100%' }}
-                            >
-                              {isCollapsed ? <ChevronRight className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />}
-                            </span>
-                          )}
-                          {file.type !== 'heading' && file.type !== 'dir' && (
-                              <FileText className={`w-4 h-4 mr-2 shrink-0 ${!file.isLocal && modifiedFiles.has(`${currentRepo}/${currentBranch}/${file.path}`) ? 'text-amber-500' : 'text-gray-500'}`} />
-                          )}
+                          <div className="w-5 h-5 flex items-center justify-center shrink-0 mr-1.5">
+                            {hasChildren ? (
+                              isCollapsed ? <ChevronRight className="w-5 h-5 text-gray-400 shrink-0" strokeWidth={2.5} /> : <ChevronDown className="w-5 h-5 text-gray-400 shrink-0" strokeWidth={2.5} />
+                            ) : (
+                              file.type !== 'heading' && (
+                                <FileText className={`w-4 h-4 shrink-0 ${!file.isLocal && modifiedFiles.has(`${currentRepo}/${currentBranch}/${file.path}`) ? 'text-amber-500' : 'text-gray-500'}`} />
+                              )
+                            )}
+                          </div>
                           <span 
                             className="flex-1 truncate min-w-0" 
                             title={file.rawName || file.name}
@@ -255,21 +253,21 @@ import {
                             {file.type !== 'heading' ? (
                               <div className="flex items-center justify-between">
                                 <span className="truncate">{file.name}</span>
-                                <div className="w-4 h-4 flex items-center justify-center ml-2 shrink-0">
-                                  {file.status === 'pending' ? (
-                                    <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-500" />
-                                  ) : (
-                                    !file.isLocal && modifiedFiles.has(`${currentRepo}/${currentBranch}/${file.path}`) && (
+                                {(file.status === 'pending' || (!file.isLocal && modifiedFiles.has(`${currentRepo}/${currentBranch}/${file.path}`))) && (
+                                  <div className="w-4 h-4 flex items-center justify-center ml-2 shrink-0">
+                                    {file.status === 'pending' ? (
+                                      <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-500" />
+                                    ) : (
                                       <span className="w-1.5 h-1.5 rounded-full bg-amber-500" title="Unsaved changes" />
-                                    )
-                                  )}
-                                </div>
+                                    )}
+                                  </div>
+                                )}
                               </div>
                             ) : null}
                           </span>
                         </button>
                         {file.type !== 'heading' && !isAtTOC && (
-                          <div className={`flex items-center transition-opacity opacity-0 ${file.status === 'pending' ? 'pointer-events-none' : 'group-hover:opacity-100'}`}>
+                          <div className={`hidden group-hover:flex items-center ${file.status === 'pending' ? 'pointer-events-none' : ''}`}>
                             {file.type === 'dir' && (
                               <>
                                 <button 
@@ -461,19 +459,17 @@ import {
                             <button 
                               onClick={() => handleFileClick(file)} 
                               className={`flex-1 flex items-center px-2 rounded transition-colors text-left group min-w-0 relative ${file.type === 'heading' ? `${getHeaderStyle(file.level)} py-0.5` : `text-sm py-1 ${activeFile?.path === file.path && ((!activeFile.repo && file.isLocal) || (activeFile.repo === currentRepo && (activeFile.branch || currentBranch) === currentBranch)) && !isAtTOC ? 'bg-indigo-100 dark:bg-indigo-500/20 text-indigo-700 dark:text-indigo-300' : 'hover:bg-gray-200 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}`}`}
-                              style={{ paddingLeft: isTOCHeading ? `${(file.level - 1) * 0.75 + 1}rem` : `${(file.depth || 0) * 0.75 + 1}rem` }}
+                              style={{ paddingLeft: isTOCHeading ? `${(file.level - 1) * 0.5}rem` : `${(file.depth || 0) * 0.5}rem` }}
                             >
-                              {hasChildren && (
-                                <span 
-                                  className="absolute flex items-center justify-center pointer-events-none"
-                                  style={{ left: isTOCHeading ? `${(file.level - 1) * 0.75 + 0.125}rem` : `${(file.depth || 0) * 0.75 + 0.125}rem`, width: '1rem', height: '100%' }}
-                                >
-                                  {isCollapsed ? <ChevronRight className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />}
-                                </span>
-                              )}
-                              {file.type !== 'heading' && file.type !== 'dir' && (
-                                  <FileText className={`w-4 h-4 mr-2 shrink-0 ${!file.isLocal && modifiedFiles.has(`${currentRepo}/${currentBranch}/${file.path}`) ? 'text-amber-500' : 'text-gray-500'}`} />
-                              )}
+                              <div className="w-5 h-5 flex items-center justify-center shrink-0 mr-1.5">
+                                {hasChildren ? (
+                                  isCollapsed ? <ChevronRight className="w-5 h-5 text-gray-400 shrink-0" strokeWidth={2.5} /> : <ChevronDown className="w-5 h-5 text-gray-400 shrink-0" strokeWidth={2.5} />
+                                ) : (
+                                  file.type !== 'heading' && (
+                                    <FileText className={`w-4 h-4 shrink-0 ${!file.isLocal && modifiedFiles.has(`${currentRepo}/${currentBranch}/${file.path}`) ? 'text-amber-500' : 'text-gray-500'}`} />
+                                  )
+                                )}
+                              </div>
                               <span 
                                 className="flex-1 truncate min-w-0" 
                                 title={file.rawName || file.name}
@@ -496,7 +492,7 @@ import {
                               </span>
                             </button>
                             {file.type !== 'heading' && !isAtTOC && (
-                              <div className={`flex items-center transition-opacity opacity-0 ${file.status === 'pending' ? 'pointer-events-none' : 'group-hover:opacity-100'}`}>
+                              <div className={`hidden group-hover:flex items-center ${file.status === 'pending' ? 'pointer-events-none' : ''}`}>
                                 {file.type === 'dir' && (
                                   <>
                                     <button 
