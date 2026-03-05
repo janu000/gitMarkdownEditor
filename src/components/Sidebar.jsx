@@ -46,6 +46,23 @@ import {
   const workspaceFiles = useMemo(() => getWorkspaceFiles(), [getWorkspaceFiles]);
   const clickTimerRef = useRef(null);
   const [collapsedPaths, setCollapsedPaths] = React.useState(new Set());
+  const [isBranchDropdownOpen, setIsBranchDropdownOpen] = React.useState(false);
+  const [branchSearch, setBranchSearch] = React.useState('');
+  const branchDropdownRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (branchDropdownRef.current && !branchDropdownRef.current.contains(event.target)) {
+        setIsBranchDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filteredBranches = useMemo(() => {
+    return branches.filter(b => b.name.toLowerCase().includes(branchSearch.toLowerCase()));
+  }, [branches, branchSearch]);
 
   const isAtTOC = useMemo(() => pathStack.length > 0 && pathStack[pathStack.length - 1].isTOC, [pathStack]);
 
@@ -136,7 +153,7 @@ import {
   if (!isSidebarOpen) return null;
 
   return (
-    <div id="main-sidebar" className="flex-shrink-0 bg-gray-50 dark:bg-[#161b22] border-r border-gray-200 dark:border-gray-800 flex flex-col transition-none overflow-hidden relative" style={{ width: sidebarWidth }}>
+    <div id="main-sidebar" className="group/sidebar flex-shrink-0 bg-gray-50 dark:bg-[#161b22] border-r border-gray-200 dark:border-gray-800 flex flex-col transition-none overflow-hidden relative" style={{ width: sidebarWidth }}>
       <div className="h-11 flex items-center px-4 border-b border-gray-200 dark:border-gray-800 shrink-0">
         <img src={logo} alt="Logo" className="h-5 w-auto mr-2" />
         <span className="font-bold text-gray-900 dark:text-gray-100 truncate">
@@ -154,11 +171,11 @@ import {
               </button>
             </div>
             <div>
-              <div className="flex items-center justify-between mb-2 px-1">
-                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider truncate">
+              <div className="flex items-center justify-between mb-2 px-1 h-7">
+                <h3 className="flex-1 min-w-0 text-xs font-semibold text-gray-500 uppercase tracking-wider truncate">
                   {isAtTOC ? pathStack[pathStack.length-1].name : (pathStack.length > 0 ? pathStack[pathStack.length-1].name : 'Local Workspace')}
                 </h3>
-                <div className="flex space-x-1">
+                <div className="hidden group-hover/sidebar:flex space-x-1 opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-200 ml-2">
                   {pathStack.length > 0 && (
                     <button onClick={() => { 
                       const ns = [...pathStack];
@@ -283,9 +300,9 @@ import {
               </div>
             ) : (
               <div>
-                <div className="flex items-center justify-between mb-2 px-1">
-                  <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider truncate" title={currentRepo}>{isAtTOC ? pathStack[pathStack.length-1].name : currentRepo}</h3>
-                  <div className="flex space-x-1">
+                <div className="flex items-center justify-between mb-2 px-1 h-7">
+                  <h3 className="flex-1 min-w-0 text-xs font-semibold text-gray-500 uppercase tracking-wider truncate" title={currentRepo}>{isAtTOC ? pathStack[pathStack.length-1].name : currentRepo}</h3>
+                  <div className="hidden group-hover/sidebar:flex space-x-1 opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-200 ml-2">
                     <button onClick={() => { 
                       if (isAtTOC) {
                         const ns = [...pathStack];
@@ -318,31 +335,67 @@ import {
                 </div>
 
                 {!isAtTOC && (
-                  <div className="px-1 mb-4">
-                    <div className="flex items-center justify-between mb-1.5">
+                  <div className="px-1 mb-4 relative" ref={branchDropdownRef}>
+                    <div className="flex items-center justify-between mb-1.5 px-0.5">
                       <div className="flex items-center text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                         <GitBranch className="w-3 h-3 mr-1" /> Branch
                       </div>
                       <button 
                         onClick={() => createBranch(prompt('New branch name:'))} 
-                        className="text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                        className="text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors opacity-0 group-hover/sidebar:opacity-100 transition-opacity duration-200"
                         title="New Branch"
                       >
                         <Plus className="w-3 h-3" />
                       </button>
                     </div>
-                    <select 
-                      value={currentBranch} 
-                      onChange={(e) => {
-                        setCurrentBranch(e.target.value);
-                        fetchRepoContents(currentRepo, '', e.target.value);
-                      }}
-                      className="w-full bg-white dark:bg-[#0d1117] border border-gray-300 dark:border-gray-700 rounded px-2 py-1.5 text-xs text-gray-900 dark:text-gray-200 focus:outline-none appearance-none cursor-pointer hover:border-gray-400 dark:hover:border-gray-600 transition-colors"
+                    
+                    <button
+                      onClick={() => setIsBranchDropdownOpen(!isBranchDropdownOpen)}
+                      className="w-full flex items-center justify-between bg-white dark:bg-[#0d1117] border border-gray-300 dark:border-gray-700 rounded-lg px-2.5 py-1.5 text-xs text-gray-900 dark:text-gray-200 hover:border-indigo-500 dark:hover:border-indigo-500 transition-all text-left shadow-sm group"
                     >
-                      {branches.map(b => (
-                        <option key={b.name} value={b.name}>{b.name}</option>
-                      ))}
-                    </select>
+                      <span className="truncate">
+                        {currentBranch}
+                      </span>
+                      <ChevronDown className={`w-3.5 h-3.5 text-gray-400 group-hover:text-indigo-500 transition-transform ${isBranchDropdownOpen ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {isBranchDropdownOpen && (
+                      <div className="absolute left-1 right-1 mt-1 z-50 bg-white dark:bg-[#161b22] border border-gray-200 dark:border-gray-700 rounded-xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="p-2 border-b border-gray-100 dark:border-gray-800">
+                          <div className="relative">
+                            <Hash className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 dark:text-gray-500" />
+                            <input
+                              autoFocus
+                              type="text"
+                              placeholder="Search branches..."
+                              value={branchSearch}
+                              onChange={(e) => setBranchSearch(e.target.value)}
+                              className="w-full bg-gray-50 dark:bg-[#0d1117] border border-gray-200 dark:border-gray-700 rounded-md pl-7 pr-2 py-1.5 text-xs text-gray-900 dark:text-gray-200 focus:outline-none focus:border-indigo-500 transition-colors"
+                            />
+                          </div>
+                        </div>
+                        <div className="max-h-48 overflow-y-auto custom-scrollbar py-1">
+                          {filteredBranches.length > 0 ? (
+                            filteredBranches.map(b => (
+                              <button
+                                key={b.name}
+                                onClick={() => {
+                                  setCurrentBranch(b.name);
+                                  fetchRepoContents(currentRepo, '', b.name);
+                                  setIsBranchDropdownOpen(false);
+                                  setBranchSearch('');
+                                }}
+                                className={`w-full flex items-center px-3 py-1.5 text-xs transition-colors hover:text-indigo-600 dark:hover:text-indigo-300 ${currentBranch === b.name ? 'text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-500/10' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800'}`}
+                              >
+                                <span className="truncate">{b.name}</span>
+                              </button>
+                            ))
+                          ) : (
+                            <div className="px-3 py-4 text-center text-xs text-gray-500 italic">No branches found</div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
