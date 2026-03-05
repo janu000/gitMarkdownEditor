@@ -35,7 +35,8 @@ const Toolbar = memo(({
         <div className="flex items-center text-sm">
           {activeFile ? (
             <>
-              <span className="text-gray-500">{currentRepo} ({currentBranch}) / </span>
+              {activeFile.repo && currentRepo && <span className="text-gray-500">{currentRepo} ({currentBranch}) / </span>}
+              {!activeFile.repo && <span className="text-gray-500 italic">Local / </span>}
               <span className="text-gray-900 dark:text-gray-200 ml-1 font-medium">{activeFile.name}</span>
               {isModified && <span className="w-2 h-2 rounded-full bg-yellow-500 ml-2" title="Unsaved changes"></span>}
             </>
