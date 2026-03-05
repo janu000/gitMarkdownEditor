@@ -12,11 +12,24 @@ localforage.config({
  */
 const getOriginalKey = (path) => `original_${path}`;
 const getDraftKey = (path) => `draft_${path}`;
+const getShaKey = (path) => `sha_${path}`;
 
 /**
  * File Storage API
  */
 export const storage = {
+  // Save SHA for cache validation
+  async saveSha(path, sha) {
+    if (!path) return;
+    return localforage.setItem(getShaKey(path), sha);
+  },
+
+  // Get stored SHA
+  async getSha(path) {
+    if (!path) return null;
+    return localforage.getItem(getShaKey(path));
+  },
+
   // Save original baseline from GitHub
   async saveOriginal(path, content) {
     if (!path) return;
@@ -46,16 +59,18 @@ export const storage = {
     if (!path) return;
     await Promise.all([
       localforage.removeItem(getOriginalKey(path)),
-      localforage.removeItem(getDraftKey(path))
+      localforage.removeItem(getDraftKey(path)),
+      localforage.removeItem(getShaKey(path))
     ]);
   },
 
   // Rename records (e.g. on file rename)
   async renameFile(oldPath, newPath) {
     if (!oldPath || !newPath) return;
-    const [original, draft] = await Promise.all([
+    const [original, draft, sha] = await Promise.all([
       this.getOriginal(oldPath),
-      this.getDraft(oldPath)
+      this.getDraft(oldPath),
+      this.getSha(oldPath)
     ]);
 
     const ops = [];
@@ -66,6 +81,10 @@ export const storage = {
     if (draft !== null) {
       ops.push(this.saveDraft(newPath, draft));
       ops.push(localforage.removeItem(getDraftKey(oldPath)));
+    }
+    if (sha !== null) {
+      ops.push(this.saveSha(newPath, sha));
+      ops.push(localforage.removeItem(getShaKey(oldPath)));
     }
     await Promise.all(ops);
   },

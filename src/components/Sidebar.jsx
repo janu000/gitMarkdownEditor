@@ -40,6 +40,7 @@ import {
   setCurrentRepo,
   branches,
   currentBranch,
+  setBranches,
   setCurrentBranch,
   createBranch,
   loadTOC,

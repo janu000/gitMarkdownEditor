@@ -581,6 +581,7 @@ export default function App() {
         setCurrentRepo={setCurrentRepo}
         branches={branches}
         currentBranch={currentBranch}
+        setBranches={setBranches}
         setCurrentBranch={setCurrentBranch}
         createBranch={createBranch}
         loadTOC={loadTOC}

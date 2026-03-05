@@ -22,6 +22,7 @@ export default function useGitHub(showToast, setLoadingState, {
   const currentBranchRef = useRef('');
   const [manualRepo, setManualRepo] = useState('');
   const [hiddenRepos, setHiddenRepos] = useState(() => JSON.parse(localStorage.getItem('gme_hidden_repos') || '[]'));
+  const [lastCommitShas, setLastCommitShas] = useState(() => JSON.parse(localStorage.getItem('gme_last_commit_shas') || '{}'));
 
   // Sync refs for async callbacks
   useEffect(() => { 
@@ -37,6 +38,7 @@ export default function useGitHub(showToast, setLoadingState, {
   }, [currentBranch]);
 
   useEffect(() => { localStorage.setItem('gme_hidden_repos', JSON.stringify(hiddenRepos)); }, [hiddenRepos]);
+  useEffect(() => { localStorage.setItem('gme_last_commit_shas', JSON.stringify(lastCommitShas)); }, [lastCommitShas]);
 
   const apiRequest = useCallback(async (endpoint, method = 'GET', body = null, customToken = null, useCache = false) => {
     const tokenToUse = customToken || ghToken;
@@ -56,7 +58,11 @@ export default function useGitHub(showToast, setLoadingState, {
       cache: useCache ? 'default' : 'no-store',
       body: body ? JSON.stringify(body) : null
     });
-    if (!response.ok) throw new Error(`GitHub API Error: ${response.status}`);
+    if (!response.ok) {
+      const err = new Error(`GitHub API Error: ${response.status}`);
+      err.status = response.status;
+      throw err;
+    }
     return response.json();
   }, [ghToken]);
 
@@ -103,19 +109,52 @@ export default function useGitHub(showToast, setLoadingState, {
     } finally {
       setLoadingState('');
     }
-  }, [fetchRepos, showToast, setLoadingState]);
+  }, [fetchRepos, showToast, setLoadingState, setShowAuthModal]);
 
   const getStoragePath = useCallback((path, repo = currentRepoRef.current, branch = currentBranchRef.current) => {
     if (!repo) return `local/${path}`;
     return `${repo}/${branch}/${path}`;
   }, []);
 
-  const fetchRepoContents = useCallback(async (repoFullName, path = '', branch = null, forceRefreshBranches = false, silent = false) => {
+  const syncAllFiles = useCallback(async (repoFullName, branch, files, silent = false) => {
+    const filesToSync = files.filter(f => f.type === 'file' && f.name.match(/\.(md|txt|mdx)$/i));
+    if (filesToSync.length === 0) return;
+    
+    if (!silent) showToast(`Syncing ${filesToSync.length} files...`, 'info');
+    
+    // Batch processing to avoid rate limits/browser hanging
+    const batchSize = 10;
+    for (let i = 0; i < filesToSync.length; i += batchSize) {
+      const batch = filesToSync.slice(i, i + batchSize);
+      await Promise.all(batch.map(async (file) => {
+        const fullPath = getStoragePath(file.path, repoFullName, branch);
+        const cachedSha = await storage.getSha(fullPath);
+        
+        if (cachedSha !== file.sha) {
+          try {
+            const data = await apiRequest(`/repos/${repoFullName}/contents/${file.path}?ref=${branch}`, 'GET', null, null, true);
+            const decodedContent = b64_to_utf8(data.content);
+            await Promise.all([
+              storage.saveSha(fullPath, data.sha),
+              storage.saveOriginal(fullPath, decodedContent),
+              storage.saveDraft(fullPath, decodedContent)
+            ]);
+          } catch (e) {
+            console.error(`Failed to sync ${file.path}`, e);
+          }
+        }
+      }));
+    }
+    if (!silent) showToast(`Repository synced`, 'success');
+  }, [apiRequest, getStoragePath, showToast]);
+
+  const fetchRepoContents = useCallback(async (repoFullName, _path = '', branch = null, forceRefresh = false, silent = false) => {
     if (!silent) setLoadingState('fetching');
     try {
       let targetBranch = branch || currentBranch;
       
-      if (repoFullName !== currentRepo || !targetBranch || forceRefreshBranches || branches.length === 0) {
+      // Fetch repo info and branches if needed
+      if (repoFullName !== currentRepo || !targetBranch || forceRefresh || branches.length === 0) {
         const [repoInfo, branchesData] = await Promise.all([
           apiRequest(`/repos/${repoFullName}`),
           apiRequest(`/repos/${repoFullName}/branches`)
@@ -128,69 +167,89 @@ export default function useGitHub(showToast, setLoadingState, {
         }
       }
 
-      const data = await apiRequest(`/repos/${repoFullName}/contents/${path}?ref=${targetBranch}`);
-      const newItems = Array.isArray(data) ? data : [data];
-      
-      setRepoContents(prev => {
-        if (path === '' && !branch && repoFullName !== currentRepo) {
-           return newItems.sort((a, b) => {
-            if (a.type === b.type) return a.name.localeCompare(b.name);
-            return a.type === 'dir' ? -1 : 1;
-          });
+      // Check if we need to fetch the tree
+      const branchData = branches.find(b => b.name === targetBranch) || 
+                         (await apiRequest(`/repos/${repoFullName}/branches/${targetBranch}`));
+      const currentCommitSha = branchData.commit.sha;
+      const repoBranchKey = `${repoFullName}/${targetBranch}`;
+
+      const isUpToDate = !forceRefresh && lastCommitShas[repoBranchKey] === currentCommitSha && repoContents.length > 0 && repoFullName === currentRepo;
+
+      // Fetch entire tree recursively
+      let treeData;
+      try {
+        treeData = await apiRequest(`/repos/${repoFullName}/git/trees/${currentCommitSha}?recursive=1`);
+      } catch (err) {
+        // Fallback for very large repos if recursive=1 fails
+        if (err.status === 422) {
+          const simpleData = await apiRequest(`/repos/${repoFullName}/contents/${_path}?ref=${targetBranch}`);
+          const items = Array.isArray(simpleData) ? simpleData : [simpleData];
+          setRepoContents(items.map(i => ({
+            name: i.name,
+            path: i.path,
+            type: i.type === 'dir' ? 'dir' : 'file',
+            sha: i.sha,
+            size: i.size
+          })));
+          setCurrentRepo(repoFullName);
+          if (!silent) setLoadingState('');
+          return;
         }
-        
-        // Merge: remove old items for this path's immediate children and add new ones
-        const otherItems = prev.filter(f => {
-          if (path === '') return f.path.includes('/'); // Keep subfolder items, remove root items
-          const isChild = f.path.startsWith(path + '/') && f.path.slice(path.length + 1).indexOf('/') === -1;
-          return !isChild;
-        });
-        
-        return [...otherItems, ...newItems].sort((a, b) => {
-          if (a.type === b.type) return a.path.localeCompare(b.path);
-          return a.type === 'dir' ? -1 : 1;
-        });
+        throw err;
+      }
+      
+      const newItems = treeData.tree.map(item => ({
+        name: item.path.split('/').pop(),
+        path: item.path,
+        type: item.type === 'tree' ? 'dir' : 'file',
+        sha: item.sha,
+        size: item.size
+      })).filter(item => item.name !== '.gitkeep').sort((a, b) => {
+        if (a.type === b.type) return a.path.localeCompare(b.path);
+        return a.type === 'dir' ? -1 : 1;
       });
       
+      setRepoContents(newItems);
       setCurrentRepo(repoFullName);
+      setLastCommitShas(prev => ({ ...prev, [repoBranchKey]: currentCommitSha }));
+
+      // Now sync ALL file contents if not up to date or if explicitly requested
+      if (!isUpToDate || forceRefresh) {
+        await syncAllFiles(repoFullName, targetBranch, newItems, silent);
+      }
     } catch (_error) {
-      if (!silent) showToast('Failed to fetch folder contents', 'error');
+      if (!silent) showToast('Failed to fetch repository contents', 'error');
     }
     if (!silent) setLoadingState('');
-  }, [apiRequest, currentBranch, currentRepo, setLoadingState, showToast, branches.length]);
+  }, [apiRequest, currentBranch, currentRepo, setLoadingState, showToast, branches, lastCommitShas, repoContents.length, syncAllFiles]);
 
   const loadFile = useCallback(async (file, forceFresh = false, silent = false) => {
     const targetRepo = file.repo || currentRepoRef.current;
     const targetBranch = file.branch || currentBranchRef.current;
     
     if (file.type === 'dir') {
-      // In VS Code style, clicking a folder toggles it. 
-      // This will be handled in Sidebar/App via expandedPaths.
-      // We just need to ensure contents are fetched.
-      if (targetRepo) fetchRepoContents(targetRepo, file.path, targetBranch, false, silent);
+      if (targetRepo && repoContents.length === 0) fetchRepoContents(targetRepo, file.path, targetBranch, false, silent);
       return;
     }
     
     if (!file.name.match(/\.(md|txt|mdx)$/i)) {
-      showToast('Only Markdown/Text files are supported', 'error');
+      if (!silent) showToast('Only Markdown/Text files are supported', 'error');
       return;
     }
 
     if (!targetRepo) {
-      console.log('[loadFile] No target repo, setting content from IndexedDB for local file');
-      setLoadingState('fetching');
+      if (!silent) setLoadingState('fetching');
       try {
         const fullPath = `local/${file.path}`;
         const localDraft = await storage.getDraft(fullPath);
         const contentToLoad = localDraft !== null ? localDraft : (file.content || '');
         setContent(contentToLoad);
         setActiveFile(file);
-        showToast(`Loaded ${file.name}`);
+        if (!silent) showToast(`Loaded ${file.name}`);
       } catch (err) {
-        console.error('[loadFile] Error loading local file:', err);
-        showToast('Failed to load local file', 'error');
+        if (!silent) showToast('Failed to load local file', 'error');
       } finally {
-        setLoadingState('');
+        if (!silent) setLoadingState('');
       }
       return;
     }
@@ -202,49 +261,59 @@ export default function useGitHub(showToast, setLoadingState, {
         setActiveFile({ ...file, branch: targetBranch });
         return;
       } else {
-        showToast('File is syncing, please wait...', 'info');
+        if (!silent) showToast('File is syncing, please wait...', 'info');
         return;
       }
     }
 
-    setLoadingState('fetching');
+    const fullPath = getStoragePath(file.path, targetRepo, targetBranch);
+    
     try {
-      // 1. Check for local draft first (unless forceFresh is true)
-      const fullPath = getStoragePath(file.path, targetRepo, targetBranch);
-      console.log('[loadFile] Evaluating fullPath:', fullPath);
-      
+      // 1. If not forcing fresh, check if we have matching SHA and draft/original
       if (!forceFresh) {
-        const localDraft = await storage.getDraft(fullPath);
-        if (localDraft !== null) {
-          console.log('[loadFile] Found local draft for:', fullPath);
-          setContent(localDraft);
-          setActiveFile({ path: file.path, sha: file.sha, name: file.name, type: 'file', repo: targetRepo, branch: targetBranch });
-          setLoadingState('');
-          showToast(`Loaded draft for ${file.name}`);
-          return;
+        const [localSha, localDraft, localOriginal] = await Promise.all([
+          storage.getSha(fullPath),
+          storage.getDraft(fullPath),
+          storage.getOriginal(fullPath)
+        ]);
+
+        if (localSha === file.sha) {
+          // Cache hit! SHA matches.
+          if (localDraft !== null) {
+            setContent(localDraft);
+            setActiveFile({ ...file, repo: targetRepo, branch: targetBranch });
+            if (!silent) showToast(`Loaded ${file.name} (cached)`);
+            return;
+          } else if (localOriginal !== null) {
+            setContent(localOriginal);
+            setActiveFile({ ...file, repo: targetRepo, branch: targetBranch });
+            if (!silent) showToast(`Loaded ${file.name} (cached)`);
+            return;
+          }
         }
       }
 
-      console.log('[loadFile] Fetching from GitHub API for:', fullPath);
-      // 2. No draft found or force sync requested: Fetch from GitHub
+      // 2. Cache miss or force sync requested: Fetch from GitHub
+      if (!silent) setLoadingState('fetching');
       const data = await apiRequest(`/repos/${targetRepo}/contents/${file.path}?ref=${targetBranch}`, 'GET', null, null, !forceFresh);
       const decodedContent = b64_to_utf8(data.content);
       
-      // 3. Save to IndexedDB (Original & Draft)
+      // 3. Save to IndexedDB (Original, Draft, and SHA)
       await Promise.all([
+        storage.saveSha(fullPath, data.sha),
         storage.saveOriginal(fullPath, decodedContent),
         storage.saveDraft(fullPath, decodedContent)
       ]);
 
       setContent(decodedContent);
       setActiveFile({ path: file.path, sha: data.sha, name: file.name, type: 'file', repo: targetRepo, branch: targetBranch });
-      showToast(forceFresh ? `Synced with GitHub` : `Loaded ${file.name}`);
+      if (!silent) showToast(forceFresh ? `Synced with GitHub` : `Loaded ${file.name}`);
     } catch (_error) {
-      console.error('[loadFile] Error loading file:', _error);
-      showToast('Failed to load file', 'error');
+      if (!silent) showToast('Failed to load file', 'error');
+    } finally {
+      if (!silent) setLoadingState('');
     }
-    setLoadingState('');
-  }, [apiRequest, fetchRepoContents, pendingOps, setActiveFile, setContent, setLoadingState, setPathStack, showToast, getStoragePath]);
+  }, [apiRequest, fetchRepoContents, pendingOps, setActiveFile, setContent, setLoadingState, showToast, getStoragePath, repoContents.length]);
 
   const saveToGitHub = useCallback(async () => {
     const currentActiveFile = activeFileRef.current;
@@ -551,6 +620,7 @@ export default function useGitHub(showToast, setLoadingState, {
       // Update cache
       const fullPath = getStoragePath(filePath, currentRepoRef.current, branchContext);
       await Promise.all([
+        storage.saveSha(fullPath, data.content.sha),
         storage.saveOriginal(fullPath, initialContent),
         storage.saveDraft(fullPath, initialContent)
       ]);
@@ -637,12 +707,12 @@ export default function useGitHub(showToast, setLoadingState, {
       const branchesData = await apiRequest(`/repos/${currentRepoRef.current}/branches`);
       setBranches(branchesData);
       setCurrentBranch(branchName);
-      fetchRepoContents(currentRepoRef.current, '', branchName);
+      fetchRepoContents(currentRepoRef.current, '', branchName, true);
     } catch (_error) {
       showToast(`Failed to create branch: ${_error.message}`, 'error');
     }
     setLoadingState('');
-  }, [apiRequest, fetchRepoContents, setLoadingState, showToast]);
+  }, [apiRequest, fetchRepoContents, setLoadingState, showToast, setCurrentBranch]);
 
   useEffect(() => {
     const savedToken = localStorage.getItem('gme_gh_token');
@@ -689,6 +759,7 @@ export default function useGitHub(showToast, setLoadingState, {
     createFile,
     createFolder,
     loadTOC,
-    createBranch
+    createBranch,
+    setBranches
   };
 }
