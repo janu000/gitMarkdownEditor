@@ -2,7 +2,8 @@ import React, { memo, useEffect, useRef } from 'react';
 import { 
   lineNumbers, highlightActiveLineGutter, highlightSpecialChars,
   drawSelection, dropCursor, rectangularSelection, crosshairCursor,
-  highlightActiveLine, keymap, EditorView, scrollPastEnd
+  highlightActiveLine, keymap, EditorView, scrollPastEnd,
+  ViewPlugin, Decoration
 } from '@codemirror/view';
 import { EditorState, Compartment, Transaction } from '@codemirror/state';
 import { 
@@ -26,6 +27,64 @@ const languageConfig = new Compartment();
 const highlightConfig = new Compartment();
 const baseThemeConfig = new Compartment();
 
+const pipeDecoration = Decoration.mark({ class: "cm-pipe-highlight" });
+
+const pipeHighlightPlugin = ViewPlugin.fromClass(class {
+  constructor(view) {
+    this.decorations = this.getDecorations(view);
+  }
+
+  update(update) {
+    if (update.docChanged || update.viewportChanged) {
+      this.decorations = this.getDecorations(update.view);
+    }
+  }
+
+  getDecorations(view) {
+    const builder = [];
+    const doc = view.state.doc;
+
+    for (const { from, to } of view.visibleRanges) {
+      for (let pos = from; pos <= to; ) {
+        const line = doc.lineAt(pos);
+        const pipeCount = (line.text.match(/\|/g) || []).length;
+
+        if (pipeCount > 0) {
+          let shouldHighlight = false;
+
+          // Check previous line
+          if (line.number > 1) {
+            const prevLine = doc.line(line.number - 1);
+            if ((prevLine.text.match(/\|/g) || []).length === pipeCount) {
+              shouldHighlight = true;
+            }
+          }
+
+          // Check next line
+          if (!shouldHighlight && line.number < doc.lines) {
+            const nextLine = doc.line(line.number + 1);
+            if ((nextLine.text.match(/\|/g) || []).length === pipeCount) {
+              shouldHighlight = true;
+            }
+          }
+
+          if (shouldHighlight) {
+            for (let i = 0; i < line.text.length; i++) {
+              if (line.text[i] === '|') {
+                builder.push(pipeDecoration.range(line.from + i, line.from + i + 1));
+              }
+            }
+          }
+        }
+        pos = line.to + 1;
+      }
+    }
+    return Decoration.set(builder);
+  }
+}, {
+  decorations: v => v.decorations
+});
+
 // Modern, pleasant colors for Light Mode
 const lightHighlightStyle = HighlightStyle.define([
   { tag: t.heading1, color: "#4f46e5", fontWeight: "bold" },
@@ -46,9 +105,9 @@ const lightHighlightStyle = HighlightStyle.define([
 
 // Modern, pleasant colors for Dark Mode
 const darkHighlightStyle = HighlightStyle.define([
-  { tag: t.heading1, color: "#a5b4fc", fontWeight: "bold" },
-  { tag: t.heading2, color: "#a5b4fc", fontWeight: "bold" },
-  { tag: t.heading3, color: "#a5b4fc", fontWeight: "bold" },
+  { tag: t.heading1, color: "#818cf8", fontWeight: "bold" },
+  { tag: t.heading2, color: "#818cf8", fontWeight: "bold" },
+  { tag: t.heading3, color: "#818cf8", fontWeight: "bold" },
   { tag: t.keyword, color: "#a78bfa" },
   { tag: t.atom, color: "#60a5fa" },
   { tag: t.number, color: "#fbbf24" },
@@ -56,7 +115,7 @@ const darkHighlightStyle = HighlightStyle.define([
   { tag: t.comment, color: "#6b7280", fontStyle: "italic" },
   { tag: t.emphasis, fontStyle: "italic" },
   { tag: t.strong, fontWeight: "bold" },
-  { tag: t.link, color: "#a5b4fc", textDecoration: "underline" },
+  { tag: t.link, color: "#818cf8", textDecoration: "underline" },
   { tag: t.url, color: "#9ca3af" },
   { tag: t.monospace, color: "#f472b6" },
   { tag: t.strikethrough, textDecoration: "line-through" },
@@ -79,6 +138,7 @@ const customBasicSetup = [
   rectangularSelection(),
   crosshairCursor(),
   highlightActiveLine(),
+  pipeHighlightPlugin,
   search({
     top: true,
     createPanel: () => ({ dom: document.createElement("div") }) // Dummy panel to prevent default UI from showing
@@ -124,6 +184,10 @@ const getBaseTheme = (theme) => EditorView.theme({
   ".cm-searchMatch-selected": {
     backgroundColor: "rgba(255, 150, 50, 0.6) !important",
     outline: "1px solid rgba(255, 150, 50, 1) !important"
+  },
+  ".cm-pipe-highlight": {
+    color: "#f97316 !important", // orange-500
+    fontWeight: "bold"
   }
 });
 
