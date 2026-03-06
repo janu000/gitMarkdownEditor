@@ -50,7 +50,7 @@ const FormattingToolbar = memo(({
       <div className="relative inline-block">
         <ToolButton icon={<Smile className="w-4 h-4" />} onClick={() => setShowEmojiPicker(!showEmojiPicker)} title="Emoji" />
         {showEmojiPicker && (
-          <div ref={emojiPickerRef} className="absolute bottom-full mb-2 left-0 z-50 bg-white dark:bg-[#161b22] border border-gray-200 dark:border-gray-800 p-3 rounded-lg shadow-xl w-64 animate-in fade-in slide-in-from-bottom-2">
+          <div ref={emojiPickerRef} className="absolute bottom-full mb-2 right-0 z-50 bg-white dark:bg-[#161b22] border border-gray-200 dark:border-gray-800 p-3 rounded-lg shadow-xl w-64 animate-in fade-in slide-in-from-bottom-2 duration-200">
             <div className="max-h-72 overflow-y-auto custom-scrollbar pr-1">
               {emojiCategories.map(category => (
                 <div key={category.name} className="mb-3 last:mb-0">
