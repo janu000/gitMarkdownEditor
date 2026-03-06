@@ -46,9 +46,9 @@ const lightHighlightStyle = HighlightStyle.define([
 
 // Modern, pleasant colors for Dark Mode
 const darkHighlightStyle = HighlightStyle.define([
-  { tag: t.heading1, color: "#818cf8", fontWeight: "bold" },
-  { tag: t.heading2, color: "#818cf8", fontWeight: "bold" },
-  { tag: t.heading3, color: "#818cf8", fontWeight: "bold" },
+  { tag: t.heading1, color: "#a5b4fc", fontWeight: "bold" },
+  { tag: t.heading2, color: "#a5b4fc", fontWeight: "bold" },
+  { tag: t.heading3, color: "#a5b4fc", fontWeight: "bold" },
   { tag: t.keyword, color: "#a78bfa" },
   { tag: t.atom, color: "#60a5fa" },
   { tag: t.number, color: "#fbbf24" },
@@ -56,7 +56,7 @@ const darkHighlightStyle = HighlightStyle.define([
   { tag: t.comment, color: "#6b7280", fontStyle: "italic" },
   { tag: t.emphasis, fontStyle: "italic" },
   { tag: t.strong, fontWeight: "bold" },
-  { tag: t.link, color: "#818cf8", textDecoration: "underline" },
+  { tag: t.link, color: "#a5b4fc", textDecoration: "underline" },
   { tag: t.url, color: "#9ca3af" },
   { tag: t.monospace, color: "#f472b6" },
   { tag: t.strikethrough, textDecoration: "line-through" },

@@ -207,6 +207,7 @@ This document provides a detailed breakdown of all implemented features in the G
 - **Preview Syntax Highlighting Fix:** Integrated `rehype-highlight` into the `markdownWorker.js` unified pipeline to ensure that code blocks rendered in the preview pane are correctly syntax-highlighted. We implement dynamic "GitHub" and "GitHub Dark" themes natively in `src/index.css` via CSS variables mapped to the `.dark` Tailwind class, and ensured inner `<code>` elements remain transparent so they rely gracefully on the parent `<pre>` background.
 - **Local Workspace Move Confirmation Fix:** Removed the redundant `window.confirm` prompt when dragging and moving files within the local workspace (where `currentRepo` is null). This streamlines the user experience for local file management while preserving the safety check for remote GitHub operations.
 - **Manual Repository Entry Removal:** Streamlined the GitHub integration by removing the "Can't see your repo? Enter manually" feature. This involved removing the `manualRepo` state from the `useGitHub` hook, updating `App.jsx` to stop passing these props, and cleaning up the `Sidebar.jsx` UI to focus exclusively on authenticated repository browsing.
+- **Dark Mode Editor Header Refinement:** Lightened the highlighting color for Markdown headers (h1, h2, h3) and links in the CodeMirror editor when in dark mode. Updated the color from `#818cf8` (indigo-400) to `#a5b4fc` (indigo-300) to improve legibility against the dark background.
 
 ---
 
