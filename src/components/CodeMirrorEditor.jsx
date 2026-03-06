@@ -73,7 +73,6 @@ const customBasicSetup = [
   dropCursor(),
   EditorState.allowMultipleSelections.of(true),
   indentOnInput(),
-  cmSyntaxHighlighting(lightHighlightStyle), // Default highlight style
   bracketMatching(),
   closeBrackets(),
   autocompletion(),

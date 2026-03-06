@@ -208,6 +208,7 @@ This document provides a detailed breakdown of all implemented features in the G
 - **Local Workspace Move Confirmation Fix:** Removed the redundant `window.confirm` prompt when dragging and moving files within the local workspace (where `currentRepo` is null). This streamlines the user experience for local file management while preserving the safety check for remote GitHub operations.
 - **Manual Repository Entry Removal:** Streamlined the GitHub integration by removing the "Can't see your repo? Enter manually" feature. This involved removing the `manualRepo` state from the `useGitHub` hook, updating `App.jsx` to stop passing these props, and cleaning up the `Sidebar.jsx` UI to focus exclusively on authenticated repository browsing.
 - **Dark Mode Editor Header Refinement:** Lightened the highlighting color for Markdown headers (h1, h2, h3) and links in the CodeMirror editor when in dark mode. Updated the color from `#818cf8` (indigo-400) to `#a5b4fc` (indigo-300) to improve legibility against the dark background.
+- **Dynamic Highlighting Fix:** Resolved an issue where `darkHighlightStyle` was not being applied correctly in dark mode. The fix involved removing a hardcoded `lightHighlightStyle` from `customBasicSetup` which was overriding the dynamic compartment-based highlighting logic.
 
 ---
 
