@@ -210,6 +210,9 @@ This document provides a detailed breakdown of all implemented features in the G
 - **Dark Mode Editor Header Refinement:** Lightened the highlighting color for Markdown headers (h1, h2, h3) and links in the CodeMirror editor when in dark mode. Updated the color from `#818cf8` (indigo-400) to `#a5b4fc` (indigo-300) to improve legibility against the dark background.
 - **Dynamic Highlighting Fix:** Resolved an issue where `darkHighlightStyle` was not being applied correctly in dark mode. The fix involved removing a hardcoded `lightHighlightStyle` from `customBasicSetup` which was overriding the dynamic compartment-based highlighting logic.
 - **Table Structural Highlighting:** Implemented a custom CodeMirror `ViewPlugin` (`tableHighlightPlugin`) that dynamically highlights all pipe characters (`|`) whenever consecutive lines share the same number of pipes (n > 0). The highlighting color is theme-aware: `#f9e616` (yellow) in dark mode and `#f97316` (orange) in light mode. Additionally, sequences of dashes (`-`) that appear strictly between two pipes are also highlighted, providing better visual structure for Markdown table separators.
+- **Math/KaTeX Structural Highlighting:** Implemented a custom CodeMirror `ViewPlugin` (`mathHighlightPlugin`) for enhanced LaTeX visibility in the editor. 
+    - **Delimiters & Symbols:** Highlights `$`, `$$`, and all non-command math content using theme-aware colors (`#f9e616` in dark mode, `#f97316` in light mode).
+    - **LaTeX Commands:** Intelligently identifies and highlights LaTeX commands (starting with `\`) using the standard "code" color palette (`#f472b6` in dark mode, `#db2777` in light mode), ensuring clear visual distinction between operators and functions.
 
 ---
 

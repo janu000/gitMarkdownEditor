@@ -94,6 +94,64 @@ const tableHighlightPlugin = ViewPlugin.fromClass(class {
   decorations: v => v.decorations
 });
 
+const mathDecoration = Decoration.mark({ class: "cm-math-highlight" });
+const mathCommandDecoration = Decoration.mark({ class: "cm-math-command-highlight" });
+
+const mathHighlightPlugin = ViewPlugin.fromClass(class {
+  constructor(view) {
+    this.decorations = this.getDecorations(view);
+  }
+
+  update(update) {
+    if (update.docChanged || update.viewportChanged) {
+      this.decorations = this.getDecorations(update.view);
+    }
+  }
+
+  getDecorations(view) {
+    const builder = [];
+    const doc = view.state.doc;
+    const text = doc.toString();
+
+    for (const { from, to } of view.visibleRanges) {
+      const rangeText = text.slice(from, to);
+      
+      // Block Math: $$ ... $$
+      const blockRegex = /\$\$\n?([\s\S]+?)\n?\$\$/g;
+      let match;
+      while ((match = blockRegex.exec(rangeText)) !== null) {
+        const start = from + match.index;
+        const end = start + match[0].length;
+        this.addMathDecorations(builder, start, end, text);
+      }
+      
+      // Inline Math: $ ... $
+      const inlineRegex = /(?<!\$)\$((?:\\\$|[^$])+)\$(?!\$)/g;
+      while ((match = inlineRegex.exec(rangeText)) !== null) {
+        const start = from + match.index;
+        const end = start + match[0].length;
+        this.addMathDecorations(builder, start, end, text);
+      }
+    }
+    return Decoration.set(builder, true);
+  }
+
+  addMathDecorations(builder, start, end, fullText) {
+    builder.push(mathDecoration.range(start, end));
+    
+    const mathContent = fullText.slice(start, end);
+    const cmdRegex = /\\[a-zA-Z]+/g;
+    let cmdMatch;
+    while ((cmdMatch = cmdRegex.exec(mathContent)) !== null) {
+      const cmdStart = start + cmdMatch.index;
+      const cmdEnd = cmdStart + cmdMatch[0].length;
+      builder.push(mathCommandDecoration.range(cmdStart, cmdEnd));
+    }
+  }
+}, {
+  decorations: v => v.decorations
+});
+
 // Modern, pleasant colors for Light Mode
 const lightHighlightStyle = HighlightStyle.define([
   { tag: t.heading1, color: "#4f46e5", fontWeight: "bold" },
@@ -148,6 +206,7 @@ const customBasicSetup = [
   crosshairCursor(),
   highlightActiveLine(),
   tableHighlightPlugin,
+  mathHighlightPlugin,
   search({
     top: true,
     createPanel: () => ({ dom: document.createElement("div") }) // Dummy panel to prevent default UI from showing
@@ -196,6 +255,13 @@ const getBaseTheme = (theme) => EditorView.theme({
   },
   ".cm-table-highlight": {
     color: theme === 'dark' ? "#f9e616 !important" : "#f97316 !important",
+    fontWeight: "bold"
+  },
+  ".cm-math-highlight": {
+    color: theme === 'dark' ? "#f9e616 !important" : "#f97316 !important"
+  },
+  ".cm-math-command-highlight": {
+    color: theme === 'dark' ? "#f472b6 !important" : "#db2777 !important",
     fontWeight: "bold"
   }
   });
