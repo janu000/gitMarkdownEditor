@@ -27,9 +27,9 @@ const languageConfig = new Compartment();
 const highlightConfig = new Compartment();
 const baseThemeConfig = new Compartment();
 
-const pipeDecoration = Decoration.mark({ class: "cm-pipe-highlight" });
+const tableDecoration = Decoration.mark({ class: "cm-table-highlight" });
 
-const pipeHighlightPlugin = ViewPlugin.fromClass(class {
+const tableHighlightPlugin = ViewPlugin.fromClass(class {
   constructor(view) {
     this.decorations = this.getDecorations(view);
   }
@@ -71,7 +71,7 @@ const pipeHighlightPlugin = ViewPlugin.fromClass(class {
           if (shouldHighlight) {
             for (let i = 0; i < line.text.length; i++) {
               if (line.text[i] === '|') {
-                builder.push(pipeDecoration.range(line.from + i, line.from + i + 1));
+                builder.push(tableDecoration.range(line.from + i, line.from + i + 1));
 
                 // Also highlight segments between pipes if they only consist of dashes
                 let j = i + 1;
@@ -79,7 +79,7 @@ const pipeHighlightPlugin = ViewPlugin.fromClass(class {
                   j++;
                 }
                 if (j < line.text.length && line.text[j] === '|' && j > i + 1) {
-                  builder.push(pipeDecoration.range(line.from + i + 1, line.from + j));
+                  builder.push(tableDecoration.range(line.from + i + 1, line.from + j));
                 }
               }
             }
@@ -147,7 +147,7 @@ const customBasicSetup = [
   rectangularSelection(),
   crosshairCursor(),
   highlightActiveLine(),
-  pipeHighlightPlugin,
+  tableHighlightPlugin,
   search({
     top: true,
     createPanel: () => ({ dom: document.createElement("div") }) // Dummy panel to prevent default UI from showing
@@ -194,7 +194,7 @@ const getBaseTheme = (theme) => EditorView.theme({
     backgroundColor: "rgba(255, 150, 50, 0.6) !important",
     outline: "1px solid rgba(255, 150, 50, 1) !important"
   },
-  ".cm-pipe-highlight": {
+  ".cm-table-highlight": {
     color: theme === 'dark' ? "#f9e616 !important" : "#f97316 !important",
     fontWeight: "bold"
   }
