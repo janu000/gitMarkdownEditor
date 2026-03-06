@@ -186,10 +186,10 @@ const getBaseTheme = (theme) => EditorView.theme({
     outline: "1px solid rgba(255, 150, 50, 1) !important"
   },
   ".cm-pipe-highlight": {
-    color: "#f97316 !important", // orange-500
+    color: theme === 'dark' ? "#f9e616 !important" : "#f97316 !important",
     fontWeight: "bold"
   }
-});
+  });
 
 const isUrl = (str) => {
   try {
