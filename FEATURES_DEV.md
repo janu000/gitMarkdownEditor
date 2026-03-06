@@ -213,6 +213,7 @@ This document provides a detailed breakdown of all implemented features in the G
 - **Math/KaTeX Structural Highlighting:** Implemented a custom CodeMirror `ViewPlugin` (`mathHighlightPlugin`) for enhanced LaTeX visibility in the editor. 
     - **Delimiters & Symbols:** Highlights `$`, `$$`, and all non-command math content using theme-aware colors (`#f9e616` in dark mode, `#f97316` in light mode).
     - **LaTeX Commands:** Intelligently identifies and highlights LaTeX commands (starting with `\`) using the standard "code" color palette (`#f472b6` in dark mode, `#db2777` in light mode), ensuring clear visual distinction between operators and functions.
+- **Bottom Bar Height Refinement:** Reduced the height of the entire bottom bar (including the formatting toolbar and sidebar shortcut footer) from `h-10` (40px) to `h-8` (32px). This involved updating `Sidebar.jsx`, `FormattingToolbar.jsx`, and `App.jsx`, along with adjusting internal paddings and icons to ensure a clean, compact layout.
 
 ---
 

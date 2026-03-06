@@ -656,7 +656,7 @@ export default function App() {
                   />
                 </div>
               </div>
-              <div className={`overflow-hidden transition-all duration-300 shrink-0 ${showFormattingTools ? 'h-10 opacity-100 border-t border-gray-200 dark:border-gray-800' : 'h-0 opacity-0'}`}>
+              <div className={`overflow-hidden transition-all duration-300 shrink-0 ${showFormattingTools ? 'h-8 opacity-100 border-t border-gray-200 dark:border-gray-800' : 'h-0 opacity-0'}`}>
                 <FormattingToolbar 
                   viewMode={viewMode}
                   insertText={insertText}

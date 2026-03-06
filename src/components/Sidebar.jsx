@@ -640,25 +640,25 @@ import {
           </div>
         )}
       </div>
-      <div className={`border-t border-gray-200 dark:border-gray-800 shrink-0 relative z-20 transition-all duration-300 bg-gray-50 dark:bg-[#161b22] ${showFormattingTools ? 'h-10 opacity-100' : 'h-0 opacity-0 overflow-hidden'}`}>
-        <div className="flex items-center px-2 h-10">
+      <div className={`border-t border-gray-200 dark:border-gray-800 shrink-0 relative z-20 transition-all duration-300 bg-gray-50 dark:bg-[#161b22] ${showFormattingTools ? 'h-8 opacity-100' : 'h-0 opacity-0 overflow-hidden'}`}>
+        <div className="flex items-center px-2 h-8">
           <button 
             onClick={() => setShowFormattingTools(false)}
-            className="p-1.5 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-md transition-colors"
+            className="p-1 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-md transition-colors"
             title="Hide tools"
           >
             <ChevronDown className="w-4 h-4" />
           </button>
           <button 
             onClick={() => setShowShortcutModal(true)} 
-            className="flex-1 flex items-center px-3 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-lg transition-all"
+            className="flex-1 flex items-center px-3 py-1 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-lg transition-all"
           >
             <Keyboard className="w-4 h-4 mr-3" />
             Shortcuts
           </button>
         </div>
       </div>
-      <div className={`absolute left-2 z-10 transition-all duration-300 ease-out ${showFormattingTools ? 'bottom-[-40px] opacity-0' : 'bottom-2 opacity-100'}`}>
+      <div className={`absolute left-2 z-10 transition-all duration-300 ease-out ${showFormattingTools ? 'bottom-[-32px] opacity-0' : 'bottom-2 opacity-100'}`}>
           <button 
             onClick={() => setShowFormattingTools(true)}
             className="p-1.5 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-800 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-md shadow-lg transition-all"
