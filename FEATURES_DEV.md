@@ -215,6 +215,7 @@ This document provides a detailed breakdown of all implemented features in the G
     - **LaTeX Commands:** Intelligently identifies and highlights LaTeX commands (starting with `\`) using the standard "code" color palette (`#f472b6` in dark mode, `#db2777` in light mode), ensuring clear visual distinction between operators and functions.
 - **Bottom Bar Height Refinement:** Reduced the height of the entire bottom bar (including the formatting toolbar and sidebar shortcut footer) from `h-10` (40px) to `h-8` (32px). This involved updating `Sidebar.jsx`, `FormattingToolbar.jsx`, and `App.jsx`, along with adjusting internal paddings and icons to ensure a clean, compact layout.
 - **Bottom Bar Height Consolidation:** Standardized the bottom bar height management by defining a `--bottom-bar-height` CSS variable in `src/index.css`. All relevant components (`App.jsx`, `FormattingToolbar.jsx`, `Sidebar.jsx`) now consume this variable via Tailwind arbitrary values (`h-[var(--bottom-bar-height)]`), providing a single point of truth for layout adjustments.
+- **Document Statistics Bar:** Integrated a theme-aware statistics bar at the bottom of the preview column. It provides real-time word and character counts calculated from the current document content. The bar uses the consolidated `--bottom-bar-height` variable and synchronizes its visibility with the formatting toolbar for a symmetrical, polished interface.
 
 ---
 

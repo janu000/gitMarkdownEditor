@@ -117,6 +117,10 @@ html, body, #root {
   .search-icon-btn {
     @apply p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md text-gray-500 dark:text-gray-400 transition-colors flex items-center justify-center;
   }
+
+  .gme-stats-bar {
+    @apply h-[var(--bottom-bar-height)] bg-gray-50 dark:bg-[#0d1117] border-t border-gray-200 dark:border-gray-800 flex items-center px-4 text-[11px] font-medium text-gray-500 dark:text-gray-400 space-x-4 shrink-0 overflow-hidden select-none;
+  }
 }
 
 /* Markdown Global Styles - Light Mode Defaults */
@@ -211,7 +215,7 @@ html, body, #root {
 
 /* highlight.js Modern Themes (GitHub Light/Dark) with CSS Variables */
 :root {
-  --bottom-bar-height: 2rem; /* 32px (h-8) */
+  --bottom-bar-height: 2.2rem; /* 32px (h-8) */
   --hljs-color: #24292e;
   --hljs-keyword: #d73a49;
   --hljs-title: #6f42c1;

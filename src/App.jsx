@@ -154,6 +154,13 @@ export default function App() {
   useShortcuts(shortcuts, actions);
   const triggerSyncUpdate = useSyncScroll(editorRef, previewRef, viewMode === 'split', parsedHtml);
 
+  const stats = useMemo(() => {
+    const text = content || '';
+    const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+    const chars = text.length;
+    return { words, chars };
+  }, [content]);
+
   // --- Effects ---
   useEffect(() => {
     // Adaptive Debounce based on parsing complexity
@@ -696,6 +703,19 @@ export default function App() {
                   parsedHtml={parsedHtml}
                   onClick={handlePreviewClick}
                 />
+              </div>
+              <div className={`overflow-hidden transition-all duration-300 shrink-0 ${showFormattingTools ? 'h-[var(--bottom-bar-height)] opacity-100' : 'h-0 opacity-0'}`}>
+                <div className="gme-stats-bar">
+                  <div className="flex items-center">
+                    <span className="text-gray-400 mr-1.5">Words:</span>
+                    <span className="text-gray-700 dark:text-gray-300">{stats.words.toLocaleString()}</span>
+                  </div>
+                  <div className="w-px h-3 bg-gray-200 dark:bg-gray-800" />
+                  <div className="flex items-center">
+                    <span className="text-gray-400 mr-1.5">Characters:</span>
+                    <span className="text-gray-700 dark:text-gray-300">{stats.chars.toLocaleString()}</span>
+                  </div>
+                </div>
               </div>
             </div>
           )}
