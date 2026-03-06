@@ -72,6 +72,15 @@ const pipeHighlightPlugin = ViewPlugin.fromClass(class {
             for (let i = 0; i < line.text.length; i++) {
               if (line.text[i] === '|') {
                 builder.push(pipeDecoration.range(line.from + i, line.from + i + 1));
+
+                // Also highlight segments between pipes if they only consist of dashes
+                let j = i + 1;
+                while (j < line.text.length && line.text[j] === '-') {
+                  j++;
+                }
+                if (j < line.text.length && line.text[j] === '|' && j > i + 1) {
+                  builder.push(pipeDecoration.range(line.from + i + 1, line.from + j));
+                }
               }
             }
           }
