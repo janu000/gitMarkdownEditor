@@ -211,6 +211,7 @@ html, body, #root {
 
 /* highlight.js Modern Themes (GitHub Light/Dark) with CSS Variables */
 :root {
+  --bottom-bar-height: 2rem; /* 32px (h-8) */
   --hljs-color: #24292e;
   --hljs-keyword: #d73a49;
   --hljs-title: #6f42c1;
