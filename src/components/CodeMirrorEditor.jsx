@@ -254,11 +254,11 @@ const getBaseTheme = (theme) => EditorView.theme({
     outline: "1px solid rgba(255, 150, 50, 1) !important"
   },
   ".cm-table-highlight": {
-    color: theme === 'dark' ? "#f9e616 !important" : "#f97316 !important",
+    color: theme === 'dark' ? "#f9e616 !important" : "#059669 !important",
     fontWeight: "bold"
   },
   ".cm-math-highlight": {
-    color: theme === 'dark' ? "#f9e616 !important" : "#f97316 !important"
+    color: theme === 'dark' ? "#f9e616 !important" : "#059669 !important"
   },
   ".cm-math-command-highlight": {
     color: theme === 'dark' ? "#f472b6 !important" : "#db2777 !important",
