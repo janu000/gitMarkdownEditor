@@ -170,6 +170,7 @@ This document provides a detailed breakdown of all implemented features in the G
 - **Visual Feedback:** Toast notifications, unsaved changes indicators, and breadcrumbs.
 - **Toggleable Tools:** The formatting toolbar and sidebar footer can now be toggled on/off via a dedicated button in the sidebar bottom. This state is managed globally and allows for a more focused, distraction-free writing environment.
 - **Visual Edit Highlighting:** The Sidebar now provides immediate visual feedback for files with unsaved changes. An **amber dot indicator** and color shift are applied to any file whose local IndexedDB draft differs from its original baseline. This tracking is path-aware and persists across file switches and app restarts.
+- **Automatic Explorer Expansion:** The file explorer now automatically expands all parent folders of the currently open file. This ensures that the active file is always visible in the sidebar tree upon initial load (from `localStorage` session restoration) or when switching between files. The expansion logic is path-aware and works seamlessly for both local workspace files and GitHub repository contents.
 
 ### Export & Printing
 - **PDF Export:** Optimized `@media print` rules for the preview pane.
@@ -209,7 +210,10 @@ This document provides a detailed breakdown of all implemented features in the G
 - **Manual Repository Entry Removal:** Streamlined the GitHub integration by removing the "Can't see your repo? Enter manually" feature. This involved removing the `manualRepo` state from the `useGitHub` hook, updating `App.jsx` to stop passing these props, and cleaning up the `Sidebar.jsx` UI to focus exclusively on authenticated repository browsing.
 - **Dark Mode Editor Header Refinement:** Lightened the highlighting color for Markdown headers (h1, h2, h3) and links in the CodeMirror editor when in dark mode. Updated the color from `#818cf8` (indigo-400) to `#a5b4fc` (indigo-300) to improve legibility against the dark background.
 - **Dynamic Highlighting Fix:** Resolved an issue where `darkHighlightStyle` was not being applied correctly in dark mode. The fix involved removing a hardcoded `lightHighlightStyle` from `customBasicSetup` which was overriding the dynamic compartment-based highlighting logic.
-- **Table Structural Highlighting:** Implemented a custom CodeMirror `ViewPlugin` (`tableHighlightPlugin`) that dynamically highlights all pipe characters (`|`) whenever consecutive lines share the same number of pipes (n > 0). The highlighting color is theme-aware: `#f9e616` (yellow) in dark mode and `#f97316` (orange) in light mode. Additionally, sequences of dashes (`-`) that appear strictly between two pipes are also highlighted, providing better visual structure for Markdown table separators.
+- **Table Structural Highlighting:** Implemented a custom CodeMirror `ViewPlugin` (`tableHighlightPlugin`) for enhanced Markdown table visibility.
+    - **Pipes:** Always highlights pipe characters (`|`) in any line containing multiple pipes.
+    - **Dashes:** Automatically highlights unbroken sequences of dashes (`---`) when they are encapsulated between two pipes, allowing for optional surrounding whitespace.
+    - **Theme Awareness:** Highlighting colors are theme-sensitive: `#f9e616` (yellow) in dark mode and `#059669` (green) in light mode.
 - **Math/KaTeX Structural Highlighting:** Implemented a custom CodeMirror `ViewPlugin` (`mathHighlightPlugin`) for enhanced LaTeX visibility in the editor. 
     - **Delimiters & Symbols:** Highlights `$`, `$$`, and all non-command math content using theme-aware colors (`#f9e616` in dark mode, `#f97316` in light mode).
     - **LaTeX Commands:** Intelligently identifies and highlights LaTeX commands (starting with `\`) using the standard "code" color palette (`#f472b6` in dark mode, `#db2777` in light mode), ensuring clear visual distinction between operators and functions.

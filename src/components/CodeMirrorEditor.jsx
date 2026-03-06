@@ -49,37 +49,23 @@ const tableHighlightPlugin = ViewPlugin.fromClass(class {
         const line = doc.lineAt(pos);
         const pipeCount = (line.text.match(/\|/g) || []).length;
 
-        if (pipeCount > 0) {
-          let shouldHighlight = false;
+        if (pipeCount > 1) {
+          for (let i = 0; i < line.text.length; i++) {
+            if (line.text[i] === '|') {
+              builder.push(tableDecoration.range(line.from + i, line.from + i + 1));
 
-          // Check previous line
-          if (line.number > 1) {
-            const prevLine = doc.line(line.number - 1);
-            if ((prevLine.text.match(/\|/g) || []).length === pipeCount) {
-              shouldHighlight = true;
-            }
-          }
-
-          // Check next line
-          if (!shouldHighlight && line.number < doc.lines) {
-            const nextLine = doc.line(line.number + 1);
-            if ((nextLine.text.match(/\|/g) || []).length === pipeCount) {
-              shouldHighlight = true;
-            }
-          }
-
-          if (shouldHighlight) {
-            for (let i = 0; i < line.text.length; i++) {
-              if (line.text[i] === '|') {
-                builder.push(tableDecoration.range(line.from + i, line.from + i + 1));
-
-                // Also highlight segments between pipes if they only consist of dashes
-                let j = i + 1;
-                while (j < line.text.length && line.text[j] === '-') {
-                  j++;
-                }
-                if (j < line.text.length && line.text[j] === '|' && j > i + 1) {
-                  builder.push(tableDecoration.range(line.from + i + 1, line.from + j));
+              // Also highlight segments between pipes if they consist of dashes (allowing whitespace)
+              let j = i + 1;
+              while (j < line.text.length && line.text[j] === ' ') j++; // Skip leading whitespace
+              
+              let dashStart = j;
+              while (j < line.text.length && line.text[j] === '-') j++; // Find dashes
+              let dashEnd = j;
+              
+              if (dashEnd > dashStart) { // Found some dashes
+                while (j < line.text.length && line.text[j] === ' ') j++; // Skip trailing whitespace
+                if (j < line.text.length && line.text[j] === '|') {
+                  builder.push(tableDecoration.range(line.from + dashStart, line.from + dashEnd));
                 }
               }
             }

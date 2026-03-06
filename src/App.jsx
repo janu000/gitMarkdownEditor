@@ -53,6 +53,28 @@ export default function App() {
     setSearchVisible, setReplaceVisible
   } = useStore();
 
+  // Automatically expand parent folders of active file
+  useEffect(() => {
+    if (activeFile && activeFile.path) {
+      const parts = activeFile.path.split('/');
+      if (parts.length > 1) {
+        setExpandedPaths(prev => {
+          const next = new Set(prev);
+          let currentPath = '';
+          let changed = false;
+          for (let i = 0; i < parts.length - 1; i++) {
+            currentPath = currentPath ? `${currentPath}/${parts[i]}` : parts[i];
+            if (!next.has(currentPath)) {
+              next.add(currentPath);
+              changed = true;
+            }
+          }
+          return changed ? next : prev;
+        });
+      }
+    }
+  }, [activeFile, setExpandedPaths]);
+
   // Use deferred value for expensive operations like parsing
   const deferredContent = useDeferredValue(content);
 
