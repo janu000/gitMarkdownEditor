@@ -31,8 +31,6 @@ import {
   setHiddenRepos,
   fetchRepoContents,
   handleRefreshRepo,
-  manualRepo,
-  setManualRepo,
   pathStack,
   setPathStack,
   expandedPaths,
@@ -123,7 +121,7 @@ import {
     const draggedParentPath = draggedFile.path.includes('/') ? draggedFile.path.split('/').slice(0, -1).join('/') : '';
     if (draggedParentPath === targetPath) return; // Already there
 
-    if (window.confirm(`Move '${draggedFile.name}' to ${targetPath ? `'${targetPath}'` : 'root'}?`)) {
+    if (!currentRepo || window.confirm(`Move '${draggedFile.name}' to ${targetPath ? `'${targetPath}'` : 'root'}?`)) {
       moveFile(draggedFile, targetPath);
     }
     setDraggedFile(null);
@@ -312,7 +310,7 @@ import {
                   setDragOverPath(null);
                   if (draggedFile.path.indexOf('/') === -1) return;
                   
-                  if (window.confirm(`Move '${draggedFile.name}' to root?`)) {
+                  if (!currentRepo || window.confirm(`Move '${draggedFile.name}' to root?`)) {
                     moveFile(draggedFile, '');
                   }
                   setDraggedFile(null);
@@ -445,13 +443,6 @@ import {
                         <button onClick={() => setHiddenRepos([])} className="text-[10px] uppercase tracking-wider text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors">Restore {hiddenRepos.length} hidden repo(s)</button>
                       </div>
                     )}
-                    <div className="px-1 border-t border-gray-200 dark:border-gray-800 pt-3">
-                      <p className="text-xs text-gray-500 mb-2">Can't see your repo? Enter manually:</p>
-                      <div className="flex space-x-2">
-                        <input type="text" placeholder="owner/repo" value={manualRepo} onChange={(e) => setManualRepo(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && manualRepo && fetchRepoContents(manualRepo)} className="flex-1 w-full bg-white dark:bg-[#0d1117] border border-gray-300 dark:border-gray-700 rounded px-2 py-1.5 text-xs text-gray-900 dark:text-gray-200 focus:outline-none" />
-                        <button onClick={() => manualRepo && fetchRepoContents(manualRepo)} disabled={!manualRepo} className="bg-gray-200 hover:bg-gray-300 dark:bg-gray-800 dark:hover:bg-gray-700 px-3 py-1.5 rounded text-xs font-medium text-gray-700 dark:text-gray-300">Go</button>
-                      </div>
-                    </div>
                   </div>
                 )}
               </div>

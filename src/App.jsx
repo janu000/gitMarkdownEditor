@@ -82,7 +82,7 @@ export default function App() {
     ghToken, setGhToken, ghUser, setGhUser, repos, setRepos,
     currentRepo, setCurrentRepo, currentRepoRef, repoContents, setRepoContents,
     branches, setBranches, currentBranch, setCurrentBranch, currentBranchRef,
-    manualRepo, setManualRepo, hiddenRepos, setHiddenRepos,
+    hiddenRepos, setHiddenRepos,
     apiRequest, fetchRepos, verifyGitHubToken, fetchRepoContents,
     saveToGitHub, loadFile, renameFile: renameGHFile, moveFile: moveGHFile, deleteFile: deleteGHFile, createFile: createGHFile, createFolder: createGHFolder, loadTOC, createBranch
   } = useGitHub(showToast, setLoadingState, {
@@ -586,8 +586,6 @@ export default function App() {
         setHiddenRepos={setHiddenRepos}
         fetchRepoContents={fetchRepoContents}
         handleRefreshRepo={handleRefreshRepo}
-        manualRepo={manualRepo}
-        setManualRepo={setManualRepo}
         pathStack={pathStack}
         setPathStack={setPathStack}
         expandedPaths={expandedPaths}

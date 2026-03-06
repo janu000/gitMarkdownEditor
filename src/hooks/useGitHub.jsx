@@ -20,7 +20,6 @@ export default function useGitHub(showToast, setLoadingState, {
   const [branches, setBranches] = useState([]);
   const [currentBranch, setCurrentBranch] = useState(() => localStorage.getItem('gme_current_branch') || '');
   const currentBranchRef = useRef('');
-  const [manualRepo, setManualRepo] = useState('');
   const [hiddenRepos, setHiddenRepos] = useState(() => JSON.parse(localStorage.getItem('gme_hidden_repos') || '[]'));
   const [lastCommitShas, setLastCommitShas] = useState(() => JSON.parse(localStorage.getItem('gme_last_commit_shas') || '{}'));
 
@@ -812,7 +811,6 @@ export default function useGitHub(showToast, setLoadingState, {
     branches, setBranches,
     currentBranch, setCurrentBranch,
     currentBranchRef,
-    manualRepo, setManualRepo,
     hiddenRepos, setHiddenRepos,
     apiRequest,
     fetchRepos,
