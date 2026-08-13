@@ -5,7 +5,7 @@ export default function useShortcuts(shortcuts, actions) {
   const { 
     saveToGitHub, handleExportPdf, 
     insertText, insertListItem, insertNumberedList, insertTaskList,
-    toggleCode, toggleMath,
+    toggleCode, toggleMath, insertTable,
     setSearchVisible, setReplaceVisible
   } = actions;
 
@@ -24,12 +24,12 @@ export default function useShortcuts(shortcuts, actions) {
       if (matchesShortcut(e, shortcuts.quote)) { e.preventDefault(); insertText('> ', '', 'Quote'); }
       if (matchesShortcut(e, shortcuts.code_block)) { e.preventDefault(); toggleCode(); }
       if (matchesShortcut(e, shortcuts.inline_code)) { e.preventDefault(); toggleCode(); }
-      if (matchesShortcut(e, shortcuts.table)) { e.preventDefault(); insertText('\n| Header 1 | Header 2 |\n| -------- | -------- |\n| Cell 1   | Cell 2   |\n', '', ''); }
+      if (matchesShortcut(e, shortcuts.table)) { e.preventDefault(); insertTable(); }
       if (matchesShortcut(e, shortcuts.math_block)) { e.preventDefault(); toggleMath(); }
       if (matchesShortcut(e, shortcuts.search)) { e.preventDefault(); setSearchVisible(true); setReplaceVisible(false); }
       if (matchesShortcut(e, shortcuts.replace)) { e.preventDefault(); setSearchVisible(true); setReplaceVisible(true); }
     };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [saveToGitHub, handleExportPdf, insertText, insertListItem, insertNumberedList, insertTaskList, shortcuts]);
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => window.removeEventListener('keydown', handleKeyDown, true);
+  }, [saveToGitHub, handleExportPdf, insertText, insertListItem, insertNumberedList, insertTaskList, insertTable, toggleCode, toggleMath, setSearchVisible, setReplaceVisible, shortcuts]);
 }

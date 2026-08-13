@@ -1,14 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { utf8_to_b64, b64_to_utf8 } from '../utils/encoding';
 import { storage } from '../utils/storage';
-
+import { ensureMarkdownExtension } from '../utils/markdown';
 export default function useGitHub(showToast, setLoadingState, {
   content, setContent, defaultContent,
-  activeFile, setActiveFile,
+  setActiveFile,
   activeFileRef,
   pendingOps, setPendingOps,
   pathStack, setPathStack,
-  updateTOC,
   setShowAuthModal
 }) {
   const [ghToken, setGhToken] = useState(() => localStorage.getItem('gme_gh_token') || '');
@@ -70,7 +69,7 @@ export default function useGitHub(showToast, setLoadingState, {
     try {
       const data = await apiRequest('/user/repos?affiliation=owner,collaborator&sort=updated&per_page=100', 'GET', null, tokenOverride);
       setRepos(Array.isArray(data) ? data.filter(repo => repo?.permissions?.push === true) : []);
-    } catch (_error) {
+    } catch {
       showToast('Failed to fetch repositories', 'error');
     }
     setLoadingState('');
@@ -103,7 +102,7 @@ export default function useGitHub(showToast, setLoadingState, {
       if (setShowAuthModal) setShowAuthModal(false);
       if (!silent) showToast('Connected to GitHub');
       return user;
-    } catch (_error) {
+    } catch {
       if (!silent) showToast('Connection Error', 'error');
     } finally {
       setLoadingState('');
@@ -216,7 +215,7 @@ export default function useGitHub(showToast, setLoadingState, {
       if (!isUpToDate || forceRefresh) {
         await syncAllFiles(repoFullName, targetBranch, newItems, silent);
       }
-    } catch (_error) {
+    } catch {
       if (!silent) showToast('Failed to fetch repository contents', 'error');
     }
     if (!silent) setLoadingState('');
@@ -245,7 +244,7 @@ export default function useGitHub(showToast, setLoadingState, {
         setContent(contentToLoad);
         setActiveFile(file);
         if (!silent) showToast(`Loaded ${file.name}`);
-      } catch (err) {
+      } catch {
         if (!silent) showToast('Failed to load local file', 'error');
       } finally {
         if (!silent) setLoadingState('');
@@ -307,7 +306,7 @@ export default function useGitHub(showToast, setLoadingState, {
       setContent(decodedContent);
       setActiveFile({ path: file.path, sha: data.sha, name: file.name, type: 'file', repo: targetRepo, branch: targetBranch });
       if (!silent) showToast(forceFresh ? `Synced with GitHub` : `Loaded ${file.name}`);
-    } catch (_error) {
+    } catch {
       if (!silent) showToast('Failed to load file', 'error');
     } finally {
       if (!silent) setLoadingState('');
@@ -382,7 +381,7 @@ export default function useGitHub(showToast, setLoadingState, {
     }
   }, [apiRequest, content, setActiveFile, setPendingOps, setLoadingState, showToast, activeFileRef, getStoragePath]);
 
-  const renameFile = useCallback(async (fileToRename) => {
+  const renameFile = useCallback(async (fileToRename, customNewName = null) => {
     const branchContext = fileToRename.branch || currentBranchRef.current;
     if (!currentRepoRef.current) return;
 
@@ -399,7 +398,7 @@ export default function useGitHub(showToast, setLoadingState, {
           return;
         }
 
-        const newName = prompt(`Rename folder ${fileToRename.name} to:`, fileToRename.name);
+        const newName = customNewName !== null ? customNewName : prompt(`Rename folder ${fileToRename.name} to:`, fileToRename.name);
         if (!newName || newName === fileToRename.name) {
           setLoadingState('');
           return;
@@ -436,7 +435,7 @@ export default function useGitHub(showToast, setLoadingState, {
         });
         showToast(`Renamed to ${newName}`);
 
-      } catch (error) {
+      } catch {
         showToast('Failed to check or rename folder', 'error');
       } finally {
         setLoadingState('');
@@ -444,7 +443,7 @@ export default function useGitHub(showToast, setLoadingState, {
       return;
     }
 
-    const newName = prompt(`Rename ${fileToRename.name} to:`, fileToRename.name);
+    const newName = customNewName !== null ? customNewName : prompt(`Rename ${fileToRename.name} to:`, fileToRename.name);
     if (!newName || newName === fileToRename.name) return;
 
     const currentPath = pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '';
@@ -498,8 +497,8 @@ export default function useGitHub(showToast, setLoadingState, {
       showToast(`Renamed ${newName}`);
       
       if (activeFileRef.current && activeFileRef.current.path === newPath) setActiveFile(prev => ({ ...prev, sha: createRes.content.sha }));
-    } catch (_error) {
-      showToast(`Failed to rename: ${_error.message || 'Unknown error'}`, 'error');
+    } catch (err) {
+      showToast(`Failed to rename: ${err.message || 'Unknown error'}`, 'error');
       setPendingOps(prev => {
         const newState = { ...prev };
         delete newState[fileToRename.path];
@@ -508,7 +507,7 @@ export default function useGitHub(showToast, setLoadingState, {
       });
       if (activeFileRef.current?.path === newPath) setActiveFile(fileToRename);
     }
-  }, [apiRequest, fetchRepoContents, pathStack, setActiveFile, setPendingOps, showToast, activeFileRef, getStoragePath]);
+  }, [apiRequest, pathStack, setActiveFile, setPendingOps, showToast, activeFileRef, getStoragePath, setLoadingState]);
 
   const moveFile = useCallback(async (fileToMove, targetDirPath) => {
     const branchContext = fileToMove.branch || currentBranchRef.current;
@@ -570,8 +569,8 @@ export default function useGitHub(showToast, setLoadingState, {
       showToast(`Moved ${fileToMove.name}`);
       
       if (activeFileRef.current && activeFileRef.current.path === newPath) setActiveFile(prev => ({ ...prev, sha: createRes.content.sha }));
-    } catch (_error) {
-      showToast(`Failed to move: ${_error.message || 'Unknown error'}`, 'error');
+    } catch (err) {
+      showToast(`Failed to move: ${err.message || 'Unknown error'}`, 'error');
       setPendingOps(prev => {
         const newState = { ...prev };
         delete newState[fileToMove.path];
@@ -580,7 +579,7 @@ export default function useGitHub(showToast, setLoadingState, {
       });
       if (activeFileRef.current?.path === newPath) setActiveFile(fileToMove);
     }
-  }, [apiRequest, fetchRepoContents, pathStack, setActiveFile, setPendingOps, showToast, activeFileRef, getStoragePath]);
+  }, [apiRequest, setActiveFile, setPendingOps, showToast, activeFileRef, getStoragePath]);
 
   const deleteFile = useCallback(async (fileToDelete) => {
     if (!currentRepoRef.current) return;
@@ -618,7 +617,7 @@ export default function useGitHub(showToast, setLoadingState, {
 
         setRepoContents(prev => prev.filter(f => f.path !== fileToDelete.path));
         showToast(`Deleted folder ${fileToDelete.name}`);
-      } catch (error) {
+      } catch {
         showToast(`Failed to delete folder ${fileToDelete.name}`, 'error');
       } finally {
         setLoadingState('');
@@ -656,28 +655,29 @@ export default function useGitHub(showToast, setLoadingState, {
       setPendingOps(prev => { const newState = { ...prev }; delete newState[fileToDelete.path]; return newState; });
       showToast(`Deleted ${fileToDelete.name}`);
       
-    } catch (_error) {
+    } catch {
       showToast(`Failed to delete ${fileToDelete.name}`, 'error');
       setPendingOps(prev => { const newState = { ...prev }; delete newState[fileToDelete.path]; return newState; });
     }
-  }, [apiRequest, fetchRepoContents, pendingOps, setActiveFile, setContent, setPendingOps, showToast, activeFileRef, pathStack, getStoragePath]);
+  }, [apiRequest, pendingOps, setActiveFile, setContent, setPendingOps, showToast, activeFileRef, getStoragePath, defaultContent, setLoadingState]);
 
   const createFile = useCallback(async (fileName, initialContent = '', parentPath = null) => {
+    const formattedName = ensureMarkdownExtension(fileName);
     const currentPath = parentPath !== null ? parentPath : (pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '');
-    const filePath = currentPath ? `${currentPath}/${fileName}` : fileName;
+    const filePath = currentPath ? `${currentPath}/${formattedName}` : formattedName;
     const branchContext = currentBranchRef.current;
 
     if (!currentRepoRef.current) return;
 
-    const tempFile = { name: fileName, path: filePath, type: 'file', sha: null, content: initialContent, repo: currentRepoRef.current, branch: branchContext };
+    const tempFile = { name: formattedName, path: filePath, type: 'file', sha: null, content: initialContent, repo: currentRepoRef.current, branch: branchContext };
     setPendingOps(prev => ({ ...prev, [filePath]: { action: 'add', file: tempFile, content: initialContent } }));
     setActiveFile(tempFile);
     setContent(initialContent);
-    showToast(`Creating ${fileName}...`); 
+    showToast(`Creating ${formattedName}...`); 
 
     try {
       const body = { 
-        message: `Create ${fileName} via Git Markdown Editor`, 
+        message: `Create ${formattedName} via Git Markdown Editor`, 
         content: utf8_to_b64(initialContent),
         branch: branchContext
       };
@@ -691,7 +691,7 @@ export default function useGitHub(showToast, setLoadingState, {
         storage.saveDraft(fullPath, initialContent)
       ]);
 
-      const newFileEntry = { name: fileName, path: filePath, type: 'file', sha: data.content.sha };
+      const newFileEntry = { name: formattedName, path: filePath, type: 'file', sha: data.content.sha };
       setRepoContents(prev => {
         const filtered = prev.filter(f => f.path !== filePath);
         return [...filtered, newFileEntry].sort((a, b) => {
@@ -702,13 +702,13 @@ export default function useGitHub(showToast, setLoadingState, {
 
       setPendingOps(prev => { const newState = { ...prev }; delete newState[filePath]; return newState; });
       setActiveFile(prev => prev && prev.path === filePath ? { ...prev, sha: data.content.sha } : prev);
-      showToast(`Synced ${fileName}`);
-    } catch (_error) {
-      showToast(`Failed to create file: ${fileName}`, 'error');
+      showToast(`Synced ${formattedName}`);
+    } catch {
+      showToast(`Failed to create file: ${formattedName}`, 'error');
       setPendingOps(prev => { const newState = { ...prev }; delete newState[filePath]; return newState; });
       setActiveFile(prev => prev && prev.path === filePath ? null : prev);
     }
-  }, [apiRequest, fetchRepoContents, pathStack, setActiveFile, setContent, setPendingOps, showToast, getStoragePath]);
+  }, [apiRequest, pathStack, setActiveFile, setContent, setPendingOps, showToast, getStoragePath]);
 
   const createFolder = useCallback(async (folderName, parentPath = null) => {
     const currentPath = parentPath !== null ? parentPath : (pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '');
@@ -736,10 +736,10 @@ export default function useGitHub(showToast, setLoadingState, {
         });
       });
       showToast(`Created folder ${folderName}`);
-    } catch (_error) {
+    } catch {
       showToast(`Failed to create folder: ${folderName}`, 'error');
     }
-  }, [apiRequest, fetchRepoContents, pathStack, showToast]);
+  }, [apiRequest, pathStack, showToast]);
 
   const loadTOC = useCallback(async (file) => {
     if (file.type === 'dir') return;
@@ -773,8 +773,8 @@ export default function useGitHub(showToast, setLoadingState, {
       setBranches(branchesData);
       setCurrentBranch(branchName);
       fetchRepoContents(currentRepoRef.current, '', branchName, true);
-    } catch (_error) {
-      showToast(`Failed to create branch: ${_error.message}`, 'error');
+    } catch (err) {
+      showToast(`Failed to create branch: ${err.message}`, 'error');
     }
     setLoadingState('');
   }, [apiRequest, fetchRepoContents, setLoadingState, showToast, setCurrentBranch]);
@@ -824,7 +824,6 @@ export default function useGitHub(showToast, setLoadingState, {
     createFile,
     createFolder,
     loadTOC,
-    createBranch,
-    setBranches
+    createBranch
   };
 }

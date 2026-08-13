@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { storage } from '../utils/storage';
+import { ensureMarkdownExtension } from '../utils/markdown';
 
 export default function useWorkspace(showToast) {
   const [localWorkspaceFiles, setLocalWorkspaceFiles] = useState(() => {
@@ -10,21 +11,22 @@ export default function useWorkspace(showToast) {
   useEffect(() => {
     // Only store metadata, not content, to prevent quota exhaustion
     const metadataOnly = localWorkspaceFiles.map(f => {
-      const { content, ...rest } = f;
+      const { content: _content, ...rest } = f;
       return rest;
     });
     localStorage.setItem('gme_local_workspace', JSON.stringify(metadataOnly));
   }, [localWorkspaceFiles]);
 
   const createLocalFile = useCallback(async (fileName, currentPath = '', initialContent = '') => {
-    const fullPath = currentPath ? `${currentPath}/${fileName}` : fileName;
+    const formattedName = ensureMarkdownExtension(fileName);
+    const fullPath = currentPath ? `${currentPath}/${formattedName}` : formattedName;
     const existingFile = localWorkspaceFiles.find(f => f.path === fullPath);
     if (existingFile) {
-      showToast(`File '${fileName}' already exists in this folder.`, 'error');
+      showToast(`File '${formattedName}' already exists in this folder.`, 'error');
       return null;
     }
     const newFile = { 
-      name: fileName, 
+      name: formattedName, 
       path: fullPath, 
       type: 'file', 
       isLocal: true,
@@ -39,7 +41,7 @@ export default function useWorkspace(showToast) {
     ]);
 
     setLocalWorkspaceFiles(prev => [...prev, newFile]);
-    showToast(`Created ${fileName}`);
+    showToast(`Created ${formattedName}`);
     return newFile;
   }, [localWorkspaceFiles, showToast]);
 

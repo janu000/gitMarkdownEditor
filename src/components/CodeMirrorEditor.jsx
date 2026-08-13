@@ -22,7 +22,6 @@ import { languages } from '@codemirror/language-data';
 import { tags as t } from '@lezer/highlight';
 import useStore from '../store/useStore';
 
-const themeConfig = new Compartment();
 const languageConfig = new Compartment();
 const highlightConfig = new Compartment();
 const baseThemeConfig = new Compartment();
@@ -256,7 +255,7 @@ const isUrl = (str) => {
   try {
     const url = new URL(str.trim());
     return url.protocol === 'http:' || url.protocol === 'https:';
-  } catch (_) {
+  } catch {
     return false;
   }
 };
@@ -394,6 +393,7 @@ const CodeMirrorEditor = memo(({
       clearTimeout(debounceTimer);
       view.destroy();
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Sync search state

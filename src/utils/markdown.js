@@ -25,6 +25,7 @@ export const fallbackParse = (md) => {
   html = html.replace(/^> (.*$)/gim, '<blockquote class="border-l-4 border-indigo-500 pl-4 py-1 my-4 text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 rounded-r">$1</blockquote>');
   html = html.replace(/!\[([^\]]+)\]\(([^)]+)\)/g, '<img src="$2" alt="$1" class="max-w-full rounded-lg my-4 shadow-md" />');
   html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" class="text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 underline underline-offset-2" target="_blank">$1</a>');
+  html = html.replace(/^\s*-\s\[([ xX])\]\s*(.*$)/gim, (_, checked, content) => `<li class="task-list-item"><input type="checkbox" disabled${checked.toLowerCase() === 'x' ? ' checked' : ''}>${content}</li>`);
   html = html.replace(/^\s*-\s(.*$)/gim, '<li class="ml-4 list-disc mb-1">$1</li>');
   html = html.replace(/<\/li>\n<li/g, '</li><li'); 
   return `<div class="space-y-4 text-gray-800 dark:text-gray-300 leading-relaxed">${html.split('\n\n').map(p => {
@@ -32,3 +33,21 @@ export const fallbackParse = (md) => {
     return `<p>${p}</p>`;
   }).join('')}</div>`;
 };
+
+export const ensureMarkdownExtension = (filename) => {
+  if (!filename || typeof filename !== 'string') return filename;
+  const trimmed = filename.trim();
+  if (!trimmed) return trimmed;
+  
+  const lastPart = trimmed.split('/').pop();
+  if (/\.[a-zA-Z0-9]+$/i.test(lastPart)) {
+    return trimmed;
+  }
+  
+  if (trimmed.endsWith('.')) {
+    return `${trimmed}md`;
+  }
+  
+  return `${trimmed}.md`;
+};
+

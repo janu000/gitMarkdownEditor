@@ -6,18 +6,17 @@ import {
   FilePlus, FolderPlus
   } from 'lucide-react';
   import logo from '../assets/logo.svg';
+  import CreateItemModal from './CreateItemModal';
 
   const Sidebar = memo(({ 
   isSidebarOpen, 
   sidebarWidth,
-  theme,
   ghUser,
   setShowAuthModal,
   setShowShortcutModal,
-  showFormattingTools,
-  setShowFormattingTools,
   importLocalFile,
   createFile,
+  createFolder,
   getWorkspaceFiles,  loadFile,
   activeFile,
   renameFile,
@@ -55,6 +54,38 @@ import {
 
   const [draggedFile, setDraggedFile] = React.useState(null);
   const [dragOverPath, setDragOverPath] = React.useState(null);
+
+  const [modalState, setModalState] = React.useState({
+    isOpen: false,
+    mode: 'file',
+    initialValue: '',
+    parentPath: null,
+    targetFile: null
+  });
+
+  const handleOpenCreateModal = (mode = 'file', parentPath = null, targetFile = null, initialValue = '') => {
+    setModalState({
+      isOpen: true,
+      mode,
+      initialValue: targetFile ? targetFile.name : initialValue,
+      parentPath,
+      targetFile
+    });
+  };
+
+  const handleModalSubmit = (name, type, parentPath) => {
+    if (modalState.mode === 'rename') {
+      if (modalState.targetFile) {
+        renameFile(modalState.targetFile, name);
+      }
+    } else if (modalState.mode === 'branch') {
+      createBranch(name);
+    } else if (type === 'folder') {
+      createFolder(name, parentPath);
+    } else {
+      createFile(name, '', parentPath);
+    }
+  };
 
   const handleDragStart = (e, file) => {
     if (isAtTOC) return;
@@ -99,7 +130,6 @@ import {
   const handleDrop = (e, targetFolderOrFile) => {
     e.preventDefault();
     e.stopPropagation();
-    const currentDragOverPath = dragOverPath;
     setDragOverPath(null);
     
     if (!draggedFile || isAtTOC) return;
@@ -290,7 +320,7 @@ import {
                   {!isAtTOC && (
                     <>
                       <button onClick={importLocalFile} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xs bg-gray-200 dark:bg-gray-800 px-1.5 py-1 rounded" title="Import File"><FileUp className="w-3 h-3" /></button>
-                      <button onClick={() => createFile(prompt('Enter new file or folder name (no extension for folders):') || 'untitled.md')} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xs bg-gray-200 dark:bg-gray-800 px-1.5 py-1 rounded" title="New file or folder"><Plus className="w-3 h-3" /></button>
+                      <button onClick={() => handleOpenCreateModal('file', null)} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xs bg-gray-200 dark:bg-gray-800 px-1.5 py-1 rounded" title="New file or folder"><Plus className="w-3 h-3" /></button>
                     </>
                   )}
                 </div>
@@ -316,7 +346,7 @@ import {
                   setDraggedFile(null);
                 }}
               >
-                {visibleItems.map((file, idx) => {
+                {visibleItems.map((file) => {
                   const isTOCHeading = isAtTOC && file.type === 'heading';
                   const hasChildren = isTOCHeading ? (workspaceFiles[workspaceFiles.indexOf(file) + 1]?.level > file.level) : (file.type === 'dir');
                   const isCollapsed = isTOCHeading ? collapsedPaths.has(file.path) : (file.type === 'dir' && !expandedPaths.has(file.path));
@@ -374,10 +404,7 @@ import {
                                 <button 
                                   onClick={(e) => { 
                                     e.stopPropagation(); 
-                                    const name = prompt('New file name:');
-                                    if (name) {
-                                      createFile(name, '', file.path);
-                                    }
+                                    handleOpenCreateModal('file', file.path);
                                   }} 
                                   className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded"
                                   title="New File in this folder"
@@ -387,10 +414,7 @@ import {
                                 <button 
                                   onClick={(e) => { 
                                     e.stopPropagation(); 
-                                    const name = prompt('New folder name:');
-                                    if (name) {
-                                      createFile(name, '', file.path);
-                                    }
+                                    handleOpenCreateModal('folder', file.path);
                                   }} 
                                   className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded"
                                   title="New Folder in this folder"
@@ -399,7 +423,7 @@ import {
                                 </button>
                               </>
                             )}
-                            <button onClick={(e) => { e.stopPropagation(); renameFile(file); }} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded mr-1"><FileEdit className="w-4 h-4" /></button>
+                            <button onClick={(e) => { e.stopPropagation(); handleOpenCreateModal('rename', null, file); }} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded mr-1"><FileEdit className="w-4 h-4" /></button>
                             <button onClick={(e) => { e.stopPropagation(); deleteFile(file); }} className="p-1 hover:bg-red-100 dark:hover:bg-red-900/50 text-gray-400 hover:text-red-500 dark:hover:text-red-400 rounded"><Trash2 className="w-4 h-4" /></button>
                           </div>
                         )}
@@ -467,8 +491,8 @@ import {
                     }} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xs bg-gray-200 dark:bg-gray-800 px-1.5 py-1 rounded"><ArrowLeft className="w-3 h-3" /></button>
                     {!isAtTOC && (
                       <>
-                        <button onClick={importLocalFile} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xs bg-gray-200 dark:bg-gray-800 px-1.5 py-1 rounded"><FileUp className="w-3 h-3" /></button>
-                        <button onClick={() => createFile(prompt('Enter new file name:') || 'untitled.md')} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xs bg-gray-200 dark:bg-gray-800 px-1.5 py-1 rounded"><Plus className="w-3 h-3" /></button>
+                        <button onClick={importLocalFile} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xs bg-gray-200 dark:bg-gray-800 px-1.5 py-1 rounded" title="Import File"><FileUp className="w-3 h-3" /></button>
+                        <button onClick={() => handleOpenCreateModal('file', null)} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xs bg-gray-200 dark:bg-gray-800 px-1.5 py-1 rounded" title="New file or folder"><Plus className="w-3 h-3" /></button>
                         <button onClick={handleRefreshRepo} className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white text-xs bg-gray-200 dark:bg-gray-800 px-1.5 py-1 rounded" title="Refresh file list and branches"><RefreshCcw className="w-3 h-3" /></button>
                       </>
                     )}
@@ -481,13 +505,6 @@ import {
                       <div className="flex items-center text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
                         <GitBranch className="w-3 h-3 mr-1" /> Branch
                       </div>
-                      <button 
-                        onClick={() => createBranch(prompt('New branch name:'))} 
-                        className="text-gray-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                        title="New Branch"
-                      >
-                        <Plus className="w-3 h-3" />
-                      </button>
                     </div>
                     
                     <button
@@ -516,6 +533,17 @@ import {
                           </div>
                         </div>
                         <div className="max-h-48 overflow-y-auto custom-scrollbar py-1">
+                          <button
+                            onClick={() => {
+                              setIsBranchDropdownOpen(false);
+                              setBranchSearch('');
+                              handleOpenCreateModal('branch', null);
+                            }}
+                            className="w-full flex items-center px-3 py-1.5 text-xs text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 font-medium border-b border-gray-100 dark:border-gray-800 transition-colors"
+                          >
+                            <Plus className="w-3.5 h-3.5 mr-2 shrink-0" />
+                            <span className="truncate">Create new branch...</span>
+                          </button>
                           {filteredBranches.length > 0 ? (
                             filteredBranches.map(b => (
                               <button
@@ -542,7 +570,7 @@ import {
 
                 {loadingState === 'fetching' ? <div className="flex justify-center p-4"><Loader2 className="w-5 h-5 animate-spin text-gray-500" /></div> : (
                   <ul className="space-y-0.5">
-                    {visibleItems.map((file, idx) => {
+                    {visibleItems.map((file) => {
                       const isTOCHeading = isAtTOC && file.type === 'heading';
                       const hasChildren = isTOCHeading ? (workspaceFiles[workspaceFiles.indexOf(file) + 1]?.level > file.level) : (file.type === 'dir');
                       const isCollapsed = isTOCHeading ? collapsedPaths.has(file.path) : (file.type === 'dir' && !expandedPaths.has(file.path));
@@ -599,10 +627,7 @@ import {
                                     <button 
                                       onClick={(e) => { 
                                         e.stopPropagation(); 
-                                        const name = prompt('New file name:');
-                                        if (name) {
-                                          createFile(name, '', file.path);
-                                        }
+                                        handleOpenCreateModal('file', file.path);
                                       }} 
                                       className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded"
                                       title="New File in this folder"
@@ -612,10 +637,7 @@ import {
                                     <button 
                                       onClick={(e) => { 
                                         e.stopPropagation(); 
-                                        const name = prompt('New folder name:');
-                                        if (name) {
-                                          createFile(name, '', file.path);
-                                        }
+                                        handleOpenCreateModal('folder', file.path);
                                       }} 
                                       className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded"
                                       title="New Folder in this folder"
@@ -624,7 +646,7 @@ import {
                                     </button>
                                   </>
                                 )}
-                                <button onClick={(e) => { e.stopPropagation(); renameFile(file); }} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded mr-1"><FileEdit className="w-4 h-4" /></button>
+                                <button onClick={(e) => { e.stopPropagation(); handleOpenCreateModal('rename', null, file); }} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded mr-1"><FileEdit className="w-4 h-4" /></button>
                                 <button onClick={(e) => { e.stopPropagation(); deleteFile(file); }} className="p-1 hover:bg-red-100 dark:hover:bg-red-900/50 text-gray-400 hover:text-red-500 dark:hover:text-red-400 rounded"><Trash2 className="w-4 h-4" /></button>
                               </div>
                             )}
@@ -640,15 +662,8 @@ import {
           </div>
         )}
       </div>
-      <div className={`border-t border-gray-200 dark:border-gray-800 shrink-0 relative z-20 transition-all duration-300 bg-gray-50 dark:bg-[#161b22] ${showFormattingTools ? 'h-[var(--bottom-bar-height)] opacity-100' : 'h-0 opacity-0 overflow-hidden'}`}>
-        <div className="flex items-center px-2 h-[var(--bottom-bar-height)]">
-          <button 
-            onClick={() => setShowFormattingTools(false)}
-            className="p-1 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-md transition-colors"
-            title="Hide tools"
-          >
-            <ChevronDown className="w-4 h-4" />
-          </button>
+      <div className="border-t border-gray-200 dark:border-gray-800 shrink-0 relative z-20 bg-gray-50 dark:bg-[#161b22] h-[var(--bottom-bar-height)]">
+        <div className="flex items-center px-2 h-full">
           <button 
             onClick={() => setShowShortcutModal(true)} 
             className="flex-1 flex items-center px-3 py-1 text-sm font-medium text-gray-600 dark:text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/10 rounded-lg transition-all"
@@ -658,15 +673,16 @@ import {
           </button>
         </div>
       </div>
-      <div className={`absolute left-2 z-10 transition-all duration-300 ease-out ${showFormattingTools ? 'bottom-[calc(-1*var(--bottom-bar-height))] opacity-0' : 'bottom-2 opacity-100'}`}>
-          <button 
-            onClick={() => setShowFormattingTools(true)}
-            className="p-1.5 bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-800 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-md shadow-lg transition-all"
-            title="Show tools"
-          >
-            <ChevronUp className="w-4 h-4" />
-          </button>
-      </div>
+
+      <CreateItemModal
+        key={`${modalState.isOpen}-${modalState.mode}-${modalState.initialValue}-${modalState.parentPath}`}
+        isOpen={modalState.isOpen}
+        mode={modalState.mode}
+        initialValue={modalState.initialValue}
+        parentPath={modalState.parentPath}
+        onClose={() => setModalState(prev => ({ ...prev, isOpen: false }))}
+        onSubmit={handleModalSubmit}
+      />
     </div>
   );
 });

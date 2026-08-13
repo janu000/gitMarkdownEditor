@@ -161,7 +161,10 @@ html, body, #root {
 .markdown-body tr:nth-child(even) { background-color: #f9fafb; }
 .markdown-body del { text-decoration: line-through; color: #9ca3af; }
 .markdown-body input[type="checkbox"] { margin-right: 0.5rem; accent-color: #4f46e5; transform: translateY(0.125rem); }
-.markdown-body li.task-list-item { list-style: none; margin-left: -1.5rem; display: flex; align-items: flex-start; }
+.markdown-body ul.contains-task-list { list-style: none; padding-left: 0; }
+.markdown-body ul:has(> li.task-list-item),
+.markdown-body ul:has(> li > input[type="checkbox"]) { list-style: none; padding-left: 0; }
+.markdown-body li.task-list-item { list-style: none; margin-left: 0; display: flex; align-items: flex-start; }
 
 /* Markdown Dark Mode Overrides */
 .dark .markdown-body { color: #e5e7eb; }
@@ -182,6 +185,65 @@ html, body, #root {
 .dark .markdown-body input[type="checkbox"] { accent-color: #6366f1; }
 
 .katex-display { overflow-x: auto; padding: 0.5rem 0; }
+
+/* Visual editor: preserve the application's surfaces while Crepe provides rich interactions. */
+.rich-markdown-editor .milkdown {
+  --crepe-base-font-size: 14px;
+  --crepe-font-default: ui-sans-serif, system-ui, sans-serif;
+  --crepe-font-title: ui-sans-serif, system-ui, sans-serif;
+  --crepe-color-primary: #4f46e5;
+  --crepe-color-inline-code: #db2777;
+  min-height: 100%;
+  background: var(--crepe-color-background);
+  color: var(--crepe-color-on-background);
+}
+
+.rich-markdown-editor .milkdown .ProseMirror {
+  min-height: 100%;
+  padding: 1.5rem;
+}
+
+.rich-markdown-editor .milkdown-top-bar {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.rich-markdown-editor .milkdown-top-bar::-webkit-scrollbar { display: none; }
+
+.rich-markdown-editor .milkdown-top-bar .top-bar-inner {
+  flex-wrap: nowrap;
+  min-width: max-content;
+}
+
+.visual-editor-loading {
+  display: grid;
+  min-height: 100%;
+  place-items: center;
+  color: #6b7280;
+  font-size: 0.875rem;
+}
+
+.dark .visual-editor-loading { color: #9ca3af; }
+
+.rich-markdown-editor-dark .milkdown {
+  --crepe-color-background: #0d1117;
+  --crepe-color-on-background: #d1d5db;
+  --crepe-color-surface: #161b22;
+  --crepe-color-surface-low: #1f2937;
+  --crepe-color-on-surface: #f3f4f6;
+  --crepe-color-on-surface-variant: #9ca3af;
+  --crepe-color-outline: #374151;
+  --crepe-color-primary: #a5b4fc;
+  --crepe-color-secondary: #30363d;
+  --crepe-color-on-secondary: #f3f4f6;
+  --crepe-color-inverse: #f3f4f6;
+  --crepe-color-on-inverse: #111827;
+  --crepe-color-inline-code: #f472b6;
+  --crepe-color-hover: #21262d;
+  --crepe-color-selected: #3730a3;
+  --crepe-color-inline-area: #30363d;
+}
 
 /* Print Styles */
 @media print {

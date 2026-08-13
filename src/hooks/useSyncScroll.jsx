@@ -20,7 +20,7 @@ export default function useSyncScroll(editorRef, previewRef, active, parsedHtml)
   // Cache for anchor points mapped between scroller coordinate systems
   const syncCache = useRef(null);
 
-  const updateSyncCache = useCallback((force = false) => {
+  const updateSyncCache = useCallback(function updateSyncCacheInternal(force = false) {
     if (!previewRef.current || !editorRef.current) return;
     
     const now = Date.now();
@@ -29,7 +29,7 @@ export default function useSyncScroll(editorRef, previewRef, active, parsedHtml)
     
     if (!force && now - lastUpdate.current < limit) {
       if (updateTimeout.current) clearTimeout(updateTimeout.current);
-      updateTimeout.current = setTimeout(() => updateSyncCache(force), limit);
+      updateTimeout.current = setTimeout(() => updateSyncCacheInternal(force), limit);
       return;
     }
 
@@ -37,7 +37,7 @@ export default function useSyncScroll(editorRef, previewRef, active, parsedHtml)
     // UNLESS it's a forced update (e.g. from a layout shift or CM measurement)
     if (!force && (isScrollingEditor.current || isScrollingPreview.current)) {
       if (updateTimeout.current) clearTimeout(updateTimeout.current);
-      updateTimeout.current = setTimeout(() => updateSyncCache(), 200);
+      updateTimeout.current = setTimeout(() => updateSyncCacheInternal(), 200);
       return;
     }
 
@@ -68,7 +68,7 @@ export default function useSyncScroll(editorRef, previewRef, active, parsedHtml)
             editorTop: line.top + editorTopOffset,
             previewTop: rect.top - previewRect.top + preview.scrollTop,
           });
-        } catch (e) {
+        } catch {
           // Ignore lines that can't be measured
         }
       }
@@ -97,7 +97,9 @@ export default function useSyncScroll(editorRef, previewRef, active, parsedHtml)
           filtered.push({ editorTop: editorContentEnd, previewTop: previewContentEnd });
           last = filtered[filtered.length - 1];
         }
-      } catch (e) {}
+      } catch {
+        // Ignore parsing errors for the last line
+      }
 
       const editorMax = view.scrollDOM.scrollHeight;
       const previewMax = preview.scrollHeight;
@@ -236,6 +238,7 @@ export default function useSyncScroll(editorRef, previewRef, active, parsedHtml)
       if (updateTimeout.current) clearTimeout(updateTimeout.current);
       if (rafId.current) cancelAnimationFrame(rafId.current);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, editorRef.current, previewRef.current, updateSyncCache, performSync, parsedHtml]);
 
   return updateSyncCache;

@@ -35,6 +35,13 @@ const useStore = create((set, get) => ({
   
   viewMode: 'split',
   setViewMode: (viewMode) => set((state) => ({ viewMode: typeof viewMode === 'function' ? viewMode(state.viewMode) : viewMode })),
+
+  editorMode: typeof localStorage !== 'undefined' && localStorage.getItem('gme_editor_mode') === 'visual' ? 'visual' : 'source',
+  setEditorMode: (editorMode) => set((state) => {
+    const newEditorMode = typeof editorMode === 'function' ? editorMode(state.editorMode) : editorMode;
+    if (typeof localStorage !== 'undefined') localStorage.setItem('gme_editor_mode', newEditorMode);
+    return { editorMode: newEditorMode };
+  }),
   
   syntaxHighlighting: true,
   setSyntaxHighlighting: (syntaxHighlighting) => set((state) => ({ syntaxHighlighting: typeof syntaxHighlighting === 'function' ? syntaxHighlighting(state.syntaxHighlighting) : syntaxHighlighting })),

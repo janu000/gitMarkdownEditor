@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { redo, undo } from '@codemirror/commands';
 import { EditorView } from 'codemirror';
 
 // Helper to detect any list prefix at the start of a string
@@ -279,6 +280,41 @@ export default function useFormatting(editorRef) {
     insertListItem(prefix, defaultText);
   }, [insertListItem]);
 
+    const setBlockType = useCallback((level) => {
+        const view = editorRef.current;
+        if (!view || !(view instanceof EditorView)) return;
+
+        const { state } = view;
+        const { from, to } = state.selection.main;
+        const startLine = state.doc.lineAt(from);
+        const endLine = state.doc.lineAt(to);
+        const prefix = level === 0 ? '' : `${'#'.repeat(level)} `;
+        const changes = [];
+
+        for (let lineNumber = startLine.number; lineNumber <= endLine.number; lineNumber++) {
+            const line = state.doc.line(lineNumber);
+            const heading = line.text.match(/^#{1,6}\s+/);
+            changes.push({
+                from: line.from,
+                to: line.from + (heading ? heading[0].length : 0),
+                insert: prefix,
+            });
+        }
+
+        view.dispatch({ changes, scrollIntoView: true });
+        view.focus();
+    }, [editorRef]);
+
+    const undoChange = useCallback(() => {
+        const view = editorRef.current;
+        if (view instanceof EditorView) undo(view);
+    }, [editorRef]);
+
+    const redoChange = useCallback(() => {
+        const view = editorRef.current;
+        if (view instanceof EditorView) redo(view);
+    }, [editorRef]);
+
   const toggleCode = useCallback((defaultText = 'code') => {
     const view = editorRef.current;
     if (!view || !(view instanceof EditorView)) return;
@@ -400,6 +436,9 @@ export default function useFormatting(editorRef) {
     insertListItem,
     insertNumberedList,
     insertTaskList,
+    setBlockType,
+    undoChange,
+    redoChange,
     toggleCode,
     toggleMath
   };

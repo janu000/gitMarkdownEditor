@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useCallback, useDeferredValue, useMemo } from 'react';
+import React, { Suspense, lazy, useEffect, useRef, useCallback, useDeferredValue, useMemo, useState } from 'react';
 
 // Components
 import Toast from './components/Toast';
@@ -6,7 +6,9 @@ import AuthModal from './components/AuthModal';
 import Sidebar from './components/Sidebar';
 import Toolbar from './components/Toolbar';
 import FormattingToolbar from './components/FormattingToolbar';
+import FloatingFormattingToolbar from './components/FloatingFormattingToolbar';
 import { EditorView } from 'codemirror';
+import { Code2, Highlighter, PenLine } from 'lucide-react';
 import CodeMirrorEditor from './components/CodeMirrorEditor';
 import Preview from './components/Preview';
 import ShortcutModal from './components/ShortcutModal';
@@ -22,21 +24,27 @@ import useShortcuts from './hooks/useShortcuts';
 import useWorkspace from './hooks/useWorkspace';
 import useSyncScroll from './hooks/useSyncScroll';
 import { storage } from './utils/storage';
+import { ensureMarkdownExtension } from './utils/markdown';
+
+const RichMarkdownEditor = lazy(() => import('./components/RichMarkdownEditor'));
 
 export default function App() {
   // --- Refs ---
   const editorRef = useRef(null);
+  const richEditorRef = useRef(null);
   const previewRef = useRef(null);
   const mainAreaRef = useRef(null);
   const emojiPickerRef = useRef(null);
   const activeFileRef = useRef(null);
+  const [activeFormats, setActiveFormats] = useState(null);
 
   // --- State from Store ---
   const {
     content, setContent,
     theme, setTheme,
     viewMode, setViewMode,
-    syntaxHighlighting, setSyntaxHighlighting,
+    editorMode, setEditorMode,
+    syntaxHighlighting,
     loadingState, setLoadingState,
     toast, showToast,
     showAuthModal, setShowAuthModal,
@@ -44,7 +52,7 @@ export default function App() {
     showEmojiPicker, setShowEmojiPicker,
     showFormattingTools, setShowFormattingTools,
     shortcuts, setShortcuts,
-    localFileName, setLocalFileName,
+    localFileName,
     activeFile, setActiveFile,
     pendingOps, setPendingOps,
     pathStack, setPathStack,
@@ -89,7 +97,7 @@ export default function App() {
   
   // --- Hooks ---
   const { 
-    sidebarWidth, splitRatio, tempSplitRatio, setSplitRatio, 
+    sidebarWidth, tempSplitRatio, 
     isResizingSidebar, setIsResizingSidebar, 
     isResizingSplit, setIsResizingSplit, 
     isSidebarOpen, setIsSidebarOpen 
@@ -101,11 +109,11 @@ export default function App() {
   } = useMarkdownParser(showToast, setLoadingState);
 
   const {
-    ghToken, setGhToken, ghUser, setGhUser, repos, setRepos,
-    currentRepo, setCurrentRepo, currentRepoRef, repoContents, setRepoContents,
-    branches, setBranches, currentBranch, setCurrentBranch, currentBranchRef,
+    setGhToken, ghUser, setGhUser, repos,
+    currentRepo, setCurrentRepo, repoContents,
+    branches, currentBranch, setCurrentBranch, setBranches,
     hiddenRepos, setHiddenRepos,
-    apiRequest, fetchRepos, verifyGitHubToken, fetchRepoContents,
+    verifyGitHubToken, fetchRepoContents,
     saveToGitHub, loadFile, renameFile: renameGHFile, moveFile: moveGHFile, deleteFile: deleteGHFile, createFile: createGHFile, createFolder: createGHFolder, loadTOC, createBranch
   } = useGitHub(showToast, setLoadingState, {
     content, setContent, defaultContent: defaultContent !== null ? defaultContent : DEFAULT_MARKDOWN,
@@ -122,7 +130,7 @@ export default function App() {
       const file = JSON.parse(savedActiveFile);
       loadFile(file);
     }
-  }, []); // Only once on mount
+  }, [loadFile]); // Only once on mount
 
   // Per-file Auto-save to IndexedDB & Modified State Tracking
   useEffect(() => {
@@ -155,26 +163,73 @@ export default function App() {
     }, 500);
 
     return () => clearTimeout(handler);
-  }, [content, activeFile, currentRepo, currentBranch]);
+  }, [content, activeFile, currentRepo, currentBranch, setModifiedFiles]);
 
   const { 
     insertText, insertListItem, insertNumberedList, insertTaskList,
-    toggleCode, toggleMath
+    setBlockType, undoChange, redoChange, toggleCode, toggleMath
   } = useFormatting(editorRef);
+
+  const runFormattingCommand = useCallback((visualCommand, sourceCommand) => {
+    if (editorMode === 'visual') {
+      richEditorRef.current?.[visualCommand]?.();
+      return;
+    }
+    sourceCommand();
+  }, [editorMode]);
+
+  const formattingActions = useMemo(() => ({
+    insertText: (before, after = '', defaultText = '') => {
+      const visualCommands = {
+        '**': 'bold',
+        '*': 'italic',
+        '~~': 'strikethrough',
+        '# ': 'heading',
+        '## ': 'heading',
+        '> ': 'quote',
+        '[': 'link',
+        '![alt text](': 'image',
+      };
+      const command = visualCommands[before];
+      if (editorMode === 'visual' && command) {
+        if (command === 'heading') richEditorRef.current?.heading(before === '# ' ? 1 : 2);
+        else richEditorRef.current?.[command]?.();
+        return;
+      }
+      if (editorMode === 'visual') {
+        richEditorRef.current?.insertText(before + defaultText + after);
+        return;
+      }
+      insertText(before, after, defaultText);
+    },
+    insertListItem: (prefix, defaultText) => runFormattingCommand('bulletList', () => insertListItem(prefix, defaultText)),
+    insertNumberedList: (startNumber, defaultText) => runFormattingCommand('numberedList', () => insertNumberedList(startNumber, defaultText)),
+    insertTaskList: (prefix, defaultText) => runFormattingCommand('taskList', () => insertTaskList(prefix, defaultText)),
+    setBlockType: (level) => runFormattingCommand('setBlockType', () => setBlockType(level)),
+    insertTable: () => runFormattingCommand('insertTable', () => insertText(`
+  | Header 1 | Header 2 |
+  | -------- | -------- |
+  | Cell 1   | Cell 2   |
+  `, '', '')),
+    toggleCode: () => runFormattingCommand('code', () => toggleCode()),
+    insertCodeBlock: () => runFormattingCommand('codeBlock', () => toggleCode()),
+    toggleMath: () => runFormattingCommand('math', () => toggleMath()),
+    undo: () => runFormattingCommand('undo', undoChange),
+    redo: () => runFormattingCommand('redo', redoChange),
+  }), [editorMode, insertListItem, insertNumberedList, insertTaskList, insertText, redoChange, runFormattingCommand, setBlockType, toggleCode, toggleMath, undoChange]);
 
   const handleExportPdf = useCallback(() => window.print(), []);
 
   const actions = useMemo(() => ({
     saveToGitHub, handleExportPdf, 
-    insertText, insertListItem, insertNumberedList, insertTaskList,
-    toggleCode, toggleMath,
+    ...formattingActions,
     setSearchVisible, setReplaceVisible
-  }), [saveToGitHub, handleExportPdf, insertText, insertListItem, insertNumberedList, insertTaskList, toggleCode, toggleMath, setSearchVisible, setReplaceVisible]);
+  }), [saveToGitHub, handleExportPdf, formattingActions, setSearchVisible, setReplaceVisible]);
 
   const handleExportPdfCallback = useCallback(() => handleExportPdf(), [handleExportPdf]);
 
   useShortcuts(shortcuts, actions);
-  const triggerSyncUpdate = useSyncScroll(editorRef, previewRef, viewMode === 'split', parsedHtml);
+  const triggerSyncUpdate = useSyncScroll(editorRef, previewRef, viewMode === 'split' && editorMode === 'source', parsedHtml);
 
   const stats = useMemo(() => {
     const text = content || '';
@@ -208,6 +263,13 @@ export default function App() {
   }, [theme]);
 
   useEffect(() => {
+    if (editorMode === 'visual') {
+      setSearchVisible(false);
+      setReplaceVisible(false);
+    }
+  }, [editorMode, setSearchVisible, setReplaceVisible]);
+
+  useEffect(() => {
     const handleClickOutside = (e) => {
       if (emojiPickerRef.current && !emojiPickerRef.current.contains(e.target)) {
         setShowEmojiPicker(false);
@@ -215,7 +277,7 @@ export default function App() {
     };
     if (showEmojiPicker) document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showEmojiPicker]);
+  }, [showEmojiPicker, setShowEmojiPicker]);
 
   // --- Unified File Operations ---
   const handleSave = useCallback(async () => {
@@ -229,32 +291,23 @@ export default function App() {
 
   const handleCreateFile = useCallback(async (name, initialContent = '', parentPath = null) => {
     if (!name) return;
-
-    const isFolder = !name.includes('.');
-
-    if (isFolder) {
-      if (currentRepo) {
-        await createGHFolder(name, parentPath);
-      } else {
-        const currentPath = parentPath !== null ? parentPath : (pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '');
-        await createLocalFolder(name, currentPath);
-      }
-      return;
-    }
+    const formattedName = ensureMarkdownExtension(name);
 
     if (currentRepo) {
-      await createGHFile(name, initialContent, parentPath);
+      await createGHFile(formattedName, initialContent, parentPath);
     } else {
       const currentPath = parentPath !== null ? parentPath : (pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '');
-      const newFile = await createLocalFile(name, currentPath, initialContent);
+      const newFile = await createLocalFile(formattedName, currentPath, initialContent);
       if (newFile) {
         setActiveFile(newFile);
         setContent(initialContent);
       }
     }
-  }, [currentRepo, createGHFile, createLocalFile, createGHFolder, createLocalFolder, setContent, pathStack]);
+  }, [currentRepo, createGHFile, createLocalFile, setContent, pathStack, setActiveFile]);
 
   const handleCreateFolder = useCallback(async (name, parentPath = null) => {
+    if (!name) return;
+
     if (currentRepo) {
       await createGHFolder(name, parentPath);
     } else {
@@ -263,11 +316,11 @@ export default function App() {
     }
   }, [currentRepo, createGHFolder, createLocalFolder, pathStack]);
 
-  const handleRenameFile = useCallback(async (file) => {
+  const handleRenameFile = useCallback(async (file, customNewName = null) => {
     if (currentRepo) {
-      await renameGHFile(file);
+      await renameGHFile(file, customNewName);
     } else {
-      const newName = prompt(`Rename ${file.name} to:`, file.name);
+      const newName = customNewName !== null ? customNewName : prompt(`Rename ${file.name} to:`, file.name);
       if (newName && (await renameLocalFile(file, newName))) {
         if (file.type === 'dir' && activeFile?.path.startsWith(`${file.path}/`)) {
           const pathParts = file.path.split('/');
@@ -281,7 +334,7 @@ export default function App() {
         }
       }
     }
-  }, [currentRepo, renameGHFile, renameLocalFile, activeFile]);
+  }, [currentRepo, renameGHFile, renameLocalFile, activeFile, setActiveFile]);
 
   const handleDeleteFile = useCallback(async (file) => {
     if (currentRepo) {
@@ -298,7 +351,7 @@ export default function App() {
         }
       }
     }
-  }, [currentRepo, deleteGHFile, deleteLocalFile, activeFile, setContent]);
+  }, [currentRepo, deleteGHFile, deleteLocalFile, activeFile, setContent, setActiveFile]);
 
   const handleMoveFile = useCallback(async (file, targetPath) => {
     if (currentRepo) {
@@ -317,7 +370,6 @@ export default function App() {
   // Helper to get depth of a path
   const getDepth = (path) => path === '' ? 0 : path.split('/').length;
 
-  // --- Helper Functions ---
   const getWorkspaceFiles = useCallback(() => {
     if (pathStack.length > 0 && pathStack[pathStack.length - 1].isTOC) return tocHeadings;
     
@@ -464,7 +516,7 @@ export default function App() {
     } else {
       showToast('No baseline found to revert to', 'error');
     }
-  }, [activeFile, currentRepo, currentBranch, setContent, setModifiedFiles, showToast]);
+  }, [activeFile, currentBranch, setContent, setModifiedFiles, showToast]);
 
   const isModified = useMemo(() => {
     if (!activeFile) {
@@ -477,7 +529,7 @@ export default function App() {
 
     const storagePath = `${activeFile.repo}/${activeFile.branch || currentBranch}/${activeFile.path}`;
     return modifiedFiles.has(storagePath);
-  }, [activeFile, currentRepo, currentBranch, modifiedFiles, content]);
+  }, [activeFile, currentBranch, modifiedFiles, content]);
 
   const jumpTo = useCallback(({ line, offset, endOffset }) => {
     const view = editorRef.current;
@@ -562,7 +614,7 @@ export default function App() {
     try {
       const text = await file.text();
       await handleCreateFile(file.name, text);
-    } catch (_error) {
+    } catch {
       showToast('Failed to import local file', 'error');
     }
   };
@@ -575,8 +627,8 @@ export default function App() {
           multiple: false,
         });
         await importSelectedLocalFile(await handle.getFile());
-      } catch (_error) {
-        if (_error.name !== 'AbortError') showToast('Failed to open local file', 'error');
+      } catch (error) {
+        if (error.name !== 'AbortError') showToast('Failed to open local file', 'error');
       }
       return;
     }
@@ -593,6 +645,16 @@ export default function App() {
   return (
     <div className="flex h-screen w-full bg-white dark:bg-[#0d1117] text-gray-900 dark:text-gray-200 font-sans overflow-hidden selection:bg-indigo-500/30">
       {toast && <Toast type={toast.type} message={toast.message} />}
+
+      <FloatingFormattingToolbar
+        enabled={editorMode === 'visual' && (viewMode === 'edit' || viewMode === 'split')}
+        insertText={formattingActions.insertText}
+        toggleCode={formattingActions.toggleCode}
+        insertCodeBlock={formattingActions.insertCodeBlock}
+        toggleMath={formattingActions.toggleMath}
+        activeFormats={editorMode === 'visual' ? activeFormats : null}
+        shortcuts={shortcuts}
+      />
 
       {(isResizingSidebar || isResizingSplit) && (
         <div className="fixed inset-0 z-[100] cursor-col-resize select-none" />
@@ -614,14 +676,12 @@ export default function App() {
       <Sidebar 
         isSidebarOpen={isSidebarOpen}
         sidebarWidth={sidebarWidth}
-        theme={theme}
         ghUser={ghUser}
         setShowAuthModal={setShowAuthModal}
         setShowShortcutModal={setShowShortcutModal}
-        showFormattingTools={showFormattingTools}
-        setShowFormattingTools={setShowFormattingTools}
         importLocalFile={importLocalFile}
         createFile={handleCreateFile}
+        createFolder={handleCreateFolder}
         getWorkspaceFiles={getWorkspaceFiles}
         loadFile={loadFile}
         activeFile={activeFile}
@@ -675,8 +735,6 @@ export default function App() {
           setTheme={setTheme}
           viewMode={viewMode}
           setViewMode={setViewMode}
-          syntaxHighlighting={syntaxHighlighting}
-          setSyntaxHighlighting={setSyntaxHighlighting}
           handleDownload={handleDownload}
           handleExportPdf={handleExportPdfCallback}
           saveToGitHub={handleSave}
@@ -684,6 +742,10 @@ export default function App() {
           isModified={isModified}
           loadingState={loadingState}
           shortcuts={shortcuts}
+          editorMode={editorMode}
+          setEditorMode={setEditorMode}
+          showFormattingTools={showFormattingTools}
+          setShowFormattingTools={setShowFormattingTools}
         />
 
         <div ref={mainAreaRef} className="flex-1 flex overflow-hidden relative">
@@ -693,34 +755,52 @@ export default function App() {
               id="editor-container"
               className="flex flex-col h-full bg-white dark:bg-[#0d1117] relative"
               style={viewMode === 'split' ? { width: `${tempSplitRatio * 100}%` } : { flex: 1 }}
-            >
-              <div className="flex-1 relative overflow-hidden pr-[2px]">
-                <SearchPanel editorRef={editorRef} />
-                <div className="h-full overflow-hidden">
-                  <CodeMirrorEditor 
-                    editorRef={editorRef}
-                    content={content}
-                    setContent={setContent}
-                    theme={theme}
-                    syntaxHighlighting={syntaxHighlighting}
-                    onUpdate={() => triggerSyncUpdate(true)}
-                  />
-                </div>
-              </div>
-              <div className={`transition-all duration-300 shrink-0 ${showFormattingTools ? 'h-[var(--bottom-bar-height)] opacity-100 border-t border-gray-200 dark:border-gray-800 overflow-visible' : 'h-0 opacity-0 overflow-hidden'}`}>
+              >
+              <div className={`transition-all duration-300 shrink-0 ${showFormattingTools ? 'h-[var(--bottom-bar-height)] opacity-100 border-b border-gray-200 dark:border-gray-800 overflow-visible' : 'h-0 opacity-0 overflow-hidden'}`}>
                 <FormattingToolbar 
                   viewMode={viewMode}
-                  insertText={insertText}
-                  insertListItem={insertListItem}
-                  insertNumberedList={insertNumberedList}
-                  insertTaskList={insertTaskList}
-                  toggleCode={toggleCode}
-                  toggleMath={toggleMath}
+                  insertText={formattingActions.insertText}
+                  insertListItem={formattingActions.insertListItem}
+                  insertNumberedList={formattingActions.insertNumberedList}
+                  insertTaskList={formattingActions.insertTaskList}
+                  setBlockType={formattingActions.setBlockType}
+                  insertTable={formattingActions.insertTable}
+                  undo={formattingActions.undo}
+                  redo={formattingActions.redo}
+                  toggleCode={formattingActions.toggleCode}
+                  insertCodeBlock={formattingActions.insertCodeBlock}
+                  toggleMath={formattingActions.toggleMath}
+                  activeFormats={editorMode === 'visual' ? activeFormats : null}
                   showEmojiPicker={showEmojiPicker}
                   setShowEmojiPicker={setShowEmojiPicker}
                   emojiPickerRef={emojiPickerRef}
                   shortcuts={shortcuts}
                 />
+              </div>
+              <div className="flex-1 relative overflow-hidden pr-[2px]">
+                {editorMode === 'source' && <SearchPanel editorRef={editorRef} />}
+                <div className="h-full overflow-hidden">
+                  {editorMode === 'source' ? (
+                    <CodeMirrorEditor 
+                      editorRef={editorRef}
+                      content={content}
+                      setContent={setContent}
+                      theme={theme}
+                      syntaxHighlighting={syntaxHighlighting}
+                      onUpdate={() => triggerSyncUpdate(true)}
+                    />
+                  ) : (
+                    <Suspense fallback={<div className="visual-editor-loading">Loading visual editor...</div>}>
+                      <RichMarkdownEditor
+                        ref={richEditorRef}
+                        content={content}
+                        setContent={setContent}
+                        onSelectionFormatChange={setActiveFormats}
+                        theme={theme}
+                      />
+                    </Suspense>
+                  )}
+                </div>
               </div>
             </div>
           )}
@@ -735,31 +815,30 @@ export default function App() {
             </div>
           )}
 
-          {/* Preview Column */}
           <div 
             id="preview-column"
             className={`flex flex-col h-full bg-white dark:bg-[#0d1117] ${viewMode === 'edit' ? 'hidden' : ''}`}
             style={viewMode === 'split' ? { width: `${(1 - tempSplitRatio) * 100}%` } : { flex: 1 }}
           >
+            <div id="preview-stats" className={`overflow-hidden transition-all duration-300 shrink-0 ${showFormattingTools ? 'h-[var(--bottom-bar-height)] opacity-100 border-b border-gray-200 dark:border-gray-800' : 'h-0 opacity-0'}`}>
+              <div className="gme-stats-bar h-full flex items-center px-4 bg-gray-50 dark:bg-[#0d1117] space-x-3 text-xs">
+                <div className="flex items-center">
+                  <span className="text-gray-400 mr-1.5">Words:</span>
+                  <span className="text-gray-700 dark:text-gray-300">{stats.words.toLocaleString()}</span>
+                </div>
+                <div className="w-px h-3 bg-gray-300 dark:bg-gray-700" />
+                <div className="flex items-center">
+                  <span className="text-gray-400 mr-1.5">Characters:</span>
+                  <span className="text-gray-700 dark:text-gray-300">{stats.chars.toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
             <div id="preview-content" className="flex-1 overflow-hidden pl-[2px]">
               <Preview 
                 previewRef={previewRef}
                 parsedHtml={parsedHtml}
                 onClick={handlePreviewClick}
               />
-            </div>
-            <div id="preview-stats" className={`overflow-hidden transition-all duration-300 shrink-0 ${showFormattingTools ? 'h-[var(--bottom-bar-height)] opacity-100' : 'h-0 opacity-0'}`}>
-              <div className="gme-stats-bar">
-                <div className="flex items-center">
-                  <span className="text-gray-400 mr-1.5">Words:</span>
-                  <span className="text-gray-700 dark:text-gray-300">{stats.words.toLocaleString()}</span>
-                </div>
-                <div className="w-px h-3 bg-gray-200 dark:bg-gray-800" />
-                <div className="flex items-center">
-                  <span className="text-gray-400 mr-1.5">Characters:</span>
-                  <span className="text-gray-700 dark:text-gray-300">{stats.chars.toLocaleString()}</span>
-                </div>
-              </div>
             </div>
           </div>
         </div>

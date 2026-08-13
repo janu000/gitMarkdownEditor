@@ -1,6 +1,6 @@
 import React, { memo } from 'react';
 import { 
-  Columns, Sun, Moon, Edit3, Eye, Download, Printer, Save, Loader2, Highlighter 
+  Columns, Sun, Moon, PenLine, Eye, Download, Printer, Save, Loader2, Code2, Highlighter, FileText, Type
 } from 'lucide-react';
 import { formatShortcut } from '../utils/shortcutManager';
 
@@ -10,21 +10,21 @@ const Toolbar = memo(({
   activeFile,
   currentRepo,
   currentBranch,
-  content,
   localFileName,
   theme,
   setTheme,
   viewMode,
   setViewMode,
-  syntaxHighlighting,
-  setSyntaxHighlighting,
   handleDownload,
   handleExportPdf,
   saveToGitHub,
-  handleDiscardChanges,
   isModified,
   loadingState,
-  shortcuts
+  shortcuts,
+  editorMode,
+  setEditorMode,
+  showFormattingTools,
+  setShowFormattingTools
 }) => {
   return (
     <div id="top-toolbar" className="h-11 bg-gray-50 dark:bg-[#161b22] border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-4 shrink-0">
@@ -58,20 +58,43 @@ const Toolbar = memo(({
         </div>
       </div>
       <div className="flex items-center space-x-2">
-        <button 
-          onClick={() => setSyntaxHighlighting(!syntaxHighlighting)} 
-          className={`p-1.5 rounded transition-colors mr-1 ${syntaxHighlighting ? 'text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/10' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200 dark:hover:text-white dark:hover:bg-gray-800'}`}
-          title={syntaxHighlighting ? "Turn Off Syntax Highlighting" : "Turn On Syntax Highlighting"}
-        >
-          <Highlighter className="w-5 h-5" />
+        <button onClick={() => setShowFormattingTools(!showFormattingTools)} className={`p-1.5 rounded transition-colors mr-2 ${showFormattingTools ? 'bg-indigo-100 text-indigo-600 dark:bg-indigo-500/20 dark:text-indigo-400' : 'text-gray-500 hover:text-gray-900 hover:bg-gray-200 dark:hover:text-white dark:hover:bg-gray-800'}`} title="Toggle Formatting Tools">
+          <Type className="w-5 h-5" />
         </button>
         <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-200 dark:hover:text-white dark:hover:bg-gray-800 rounded mr-2">
           {theme === 'dark' ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
         </button>
-        <div className="flex bg-gray-100 dark:bg-gray-900 rounded-lg p-0.5 border border-gray-300 dark:border-gray-700 mr-4">
-          <button onClick={() => setViewMode('edit')} className={`p-1.5 rounded-md transition-all ${viewMode === 'edit' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}><Edit3 className="w-4 h-4" /></button>
-          <button onClick={() => setViewMode('split')} className={`p-1.5 rounded-md transition-all ${viewMode === 'split' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}><Columns className="w-4 h-4" /></button>
-          <button onClick={() => setViewMode('preview')} className={`p-1.5 rounded-md transition-all ${viewMode === 'preview' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}><Eye className="w-4 h-4" /></button>
+        {viewMode !== 'preview' && (
+          <div className="flex bg-gray-100 dark:bg-gray-900 rounded-md p-0.5 border border-gray-300 dark:border-gray-700 mr-2" role="group" aria-label="Editor type">
+            <button
+              onClick={() => setEditorMode('visual')}
+              aria-pressed={editorMode === 'visual'}
+              className={`inline-flex h-7 w-7 items-center justify-center rounded transition-all ${editorMode === 'visual' ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+              title="Visual editor"
+            >
+              <FileText className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setEditorMode('source')}
+              aria-pressed={editorMode === 'source'}
+              className={`inline-flex h-7 w-7 items-center justify-center rounded transition-all ${editorMode === 'source' ? 'bg-white dark:bg-gray-700 text-indigo-600 dark:text-indigo-400 shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+              title="Markdown source editor"
+            >
+              <Code2 className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+        <div className="w-px h-5 bg-gray-300 dark:bg-gray-700 mx-2 mr-4"></div>
+        <div className="flex bg-gray-100 dark:bg-gray-900 rounded-md p-0.5 border border-gray-300 dark:border-gray-700 mr-4" role="group" aria-label="Document view">
+          <button onClick={() => setViewMode('edit')} aria-pressed={viewMode === 'edit'} className={`inline-flex h-7 w-7 items-center justify-center rounded transition-all ${viewMode === 'edit' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`} title="Write">
+            <PenLine className="w-4 h-4" />
+          </button>
+          <button onClick={() => setViewMode('split')} aria-pressed={viewMode === 'split'} className={`inline-flex h-7 w-7 items-center justify-center rounded transition-all ${viewMode === 'split' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`} title="Split">
+            <Columns className="w-4 h-4" />
+          </button>
+          <button onClick={() => setViewMode('preview')} aria-pressed={viewMode === 'preview'} className={`inline-flex h-7 w-7 items-center justify-center rounded transition-all ${viewMode === 'preview' ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`} title="Preview">
+            <Eye className="w-4 h-4" />
+          </button>
         </div>
         <button onClick={handleDownload} className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-200 dark:hover:text-white dark:hover:bg-gray-800 rounded mr-2" title="Download File"><Download className="w-5 h-5" /></button>
         <button onClick={handleExportPdf} className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-200 dark:hover:text-white dark:hover:bg-gray-800 rounded mr-2" title={`Export to PDF (${formatShortcut(shortcuts.print)})`}><Printer className="w-5 h-5" /></button>
