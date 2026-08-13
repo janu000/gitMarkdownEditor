@@ -551,22 +551,43 @@ export default function App() {
     }
   }, [jumpTo]);
 
-  const importLocalFile = async () => {
-    if (!('showOpenFilePicker' in window)) {
-      showToast('Browser not supported for direct file access.', 'error');
+  const importSelectedLocalFile = async (file) => {
+    if (!file) return;
+
+    if (!/\.(md|markdown|mdx|txt)$/i.test(file.name)) {
+      showToast('Please choose a Markdown or text file.', 'error');
       return;
     }
+
     try {
-      const [handle] = await window.showOpenFilePicker({
-        types: [{ description: 'Markdown Files', accept: { 'text/markdown': ['.md', '.markdown', '.mdx', '.txt'] } }],
-        multiple: false,
-      });
-      const file = await handle.getFile();
       const text = await file.text();
-      handleCreateFile(file.name, text);
+      await handleCreateFile(file.name, text);
     } catch (_error) {
-      if (_error.name !== 'AbortError') showToast('Failed to open local file', 'error');
+      showToast('Failed to import local file', 'error');
     }
+  };
+
+  const importLocalFile = async () => {
+    if ('showOpenFilePicker' in window) {
+      try {
+        const [handle] = await window.showOpenFilePicker({
+          types: [{ description: 'Markdown Files', accept: { 'text/markdown': ['.md', '.markdown', '.mdx', '.txt'] } }],
+          multiple: false,
+        });
+        await importSelectedLocalFile(await handle.getFile());
+      } catch (_error) {
+        if (_error.name !== 'AbortError') showToast('Failed to open local file', 'error');
+      }
+      return;
+    }
+
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.md,.markdown,.mdx,.txt,text/markdown,text/plain';
+    input.addEventListener('change', () => {
+      void importSelectedLocalFile(input.files?.[0]);
+    }, { once: true });
+    input.click();
   };
 
   return (
@@ -669,6 +690,7 @@ export default function App() {
           {/* Editor Column */}
           {(viewMode === 'edit' || viewMode === 'split') && (
             <div 
+              id="editor-container"
               className="flex flex-col h-full bg-white dark:bg-[#0d1117] relative"
               style={viewMode === 'split' ? { width: `${tempSplitRatio * 100}%` } : { flex: 1 }}
             >
@@ -714,33 +736,32 @@ export default function App() {
           )}
 
           {/* Preview Column */}
-          {(viewMode === 'preview' || viewMode === 'split') && (
-            <div 
-              className="flex flex-col h-full bg-white dark:bg-[#0d1117]"
-              style={viewMode === 'split' ? { width: `${(1 - tempSplitRatio) * 100}%` } : { flex: 1 }}
-            >
-              <div className="flex-1 overflow-hidden pl-[2px]">
-                <Preview 
-                  previewRef={previewRef}
-                  parsedHtml={parsedHtml}
-                  onClick={handlePreviewClick}
-                />
-              </div>
-              <div className={`overflow-hidden transition-all duration-300 shrink-0 ${showFormattingTools ? 'h-[var(--bottom-bar-height)] opacity-100' : 'h-0 opacity-0'}`}>
-                <div className="gme-stats-bar">
-                  <div className="flex items-center">
-                    <span className="text-gray-400 mr-1.5">Words:</span>
-                    <span className="text-gray-700 dark:text-gray-300">{stats.words.toLocaleString()}</span>
-                  </div>
-                  <div className="w-px h-3 bg-gray-200 dark:bg-gray-800" />
-                  <div className="flex items-center">
-                    <span className="text-gray-400 mr-1.5">Characters:</span>
-                    <span className="text-gray-700 dark:text-gray-300">{stats.chars.toLocaleString()}</span>
-                  </div>
+          <div 
+            id="preview-column"
+            className={`flex flex-col h-full bg-white dark:bg-[#0d1117] ${viewMode === 'edit' ? 'hidden' : ''}`}
+            style={viewMode === 'split' ? { width: `${(1 - tempSplitRatio) * 100}%` } : { flex: 1 }}
+          >
+            <div id="preview-content" className="flex-1 overflow-hidden pl-[2px]">
+              <Preview 
+                previewRef={previewRef}
+                parsedHtml={parsedHtml}
+                onClick={handlePreviewClick}
+              />
+            </div>
+            <div id="preview-stats" className={`overflow-hidden transition-all duration-300 shrink-0 ${showFormattingTools ? 'h-[var(--bottom-bar-height)] opacity-100' : 'h-0 opacity-0'}`}>
+              <div className="gme-stats-bar">
+                <div className="flex items-center">
+                  <span className="text-gray-400 mr-1.5">Words:</span>
+                  <span className="text-gray-700 dark:text-gray-300">{stats.words.toLocaleString()}</span>
+                </div>
+                <div className="w-px h-3 bg-gray-200 dark:bg-gray-800" />
+                <div className="flex items-center">
+                  <span className="text-gray-400 mr-1.5">Characters:</span>
+                  <span className="text-gray-700 dark:text-gray-300">{stats.chars.toLocaleString()}</span>
                 </div>
               </div>
             </div>
-          )}
+          </div>
         </div>
       </div>
     </div>

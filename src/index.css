@@ -186,10 +186,12 @@ html, body, #root {
 /* Print Styles */
 @media print {
   @page { size: a4 portrait; margin: 20mm; }
-  #main-sidebar, #sidebar-resizer, #top-toolbar, #formatting-toolbar, #editor-container, #split-resizer { display: none !important; }
+  #main-sidebar, #sidebar-resizer, #top-toolbar, #formatting-toolbar, #editor-container, #split-resizer, #preview-stats { display: none !important; }
   body, html, #root, .flex.h-screen.w-full { height: auto !important; overflow: visible !important; background: white !important; margin: 0 !important; padding: 0 !important; }
   .flex-1.flex.flex-col.min-w-0 { flex: 1 1 100% !important; max-width: 100% !important; min-width: unset !important; width: 100% !important; }
   .flex-1.flex.overflow-hidden.relative { flex: 1 1 100% !important; max-width: 100% !important; overflow: visible !important; }
+  #preview-column { display: flex !important; flex: 1 1 100% !important; width: 100% !important; max-width: none !important; height: auto !important; }
+  #preview-content { overflow: visible !important; height: auto !important; }
   #preview-container { width: 100% !important; max-width: none !important; padding: 0 !important; margin: 0 !important; background: white !important; overflow: visible !important; flex: 1 1 100% !important; height: auto !important; }
   .max-w-3xl.mx-auto.w-full { box-shadow: none !important; padding: 0 !important; margin: 0 auto !important; max-width: 100% !important; min-height: 0 !important; }
   .markdown-body pre, .markdown-body blockquote, .markdown-body img, .markdown-body table, .markdown-body tr, .markdown-body h1, .markdown-body h2, .markdown-body h3, .katex-display-wrapper { page-break-inside: avoid !important; break-inside: avoid !important; }
