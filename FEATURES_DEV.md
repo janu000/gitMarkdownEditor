@@ -28,7 +28,13 @@ This document provides a detailed breakdown of all implemented features in the G
     - Auto-bracket closing.
     - Smart indentation.
     - Line wrapping and active line highlighting.
-    - **Scroll Past End:** Enabled scrolling beyond the last line of the document for better vertical positioning.
+- **Collapsible Code Blocks:**
+    - Integrated interactive fold buttons directly to the left of fenced code block start tags (```` ``` ```` / `~~~`).
+    - Buttons are enlarged (1.5rem / 24px) with subtle, theme-aware neutral grey hover highlights for a cleaner editor look.
+    - Buttons are hidden (`opacity: 0`) by default and appear smoothly on hover when hovering over the code block opening line or directly to the left of it (and remain visible when collapsed).
+    - Clicking the button collapses the body lines and closing fence into a sleek, clickable `... N lines ...` placeholder pill while preserving the opening language indicator.
+    - Clicking either the toggle button or the collapsed pill expands the block back to full view.
+    - Implemented via a custom CodeMirror 6 `StateField` and `ViewPlugin`, ensuring document AST, drafts, and undo/redo histories remain 100% intact.
 - **Transaction-based State:** Uses CodeMirror's functional state model for robust undo/redo history and precise programmatic updates.
 
 ### Multi-File Persistence (IndexedDB)
@@ -46,10 +52,11 @@ This document provides a detailed breakdown of all implemented features in the G
     - **Fast-Path Updates:** Uses a temporary split ratio for instantaneous layout updates during dragging.
     - **Debounced Re-renders:** Heavy engine resizing is debounced to 16ms (60fps) to prevent stuttering.
     - **Resizer Overlay:** Invisible pointer-lock overlay during drag operations to prevent iframe/editor event hijacking.
-- **View Modes:**
-    - **Edit Mode:** Full-screen editor.
-    - **Split Mode:** Side-by-side editor and preview with a slim 1px separator.
-    - **Preview Mode:** Full-screen rendered output.
+- **View Modes (Persistent via `localStorage`):**
+    - **Edit Mode:** Full-screen editor (`'edit'`).
+    - **Split Mode:** Side-by-side editor and preview with a slim 1px separator (`'split'`).
+    - **Preview Mode:** Full-screen rendered output (`'preview'`).
+    - **Auto-Restoration:** The user's last chosen view mode is saved under `gme_view_mode` in `localStorage` and automatically restored on page refresh or startup.
 - **Pane-Specific Headers:** 
     - Editor pane hosts the `FormattingToolbar`.
     - Preview pane has a dedicated "PREVIEW" tracking header.
@@ -136,6 +143,11 @@ This document provides a detailed breakdown of all implemented features in the G
 - **Browser-based Storage:** Full CRUD support for files and folders stored in `localStorage` metadata and IndexedDB.
 - **Local Draft:** Default scratchpad area that persists across refreshes.
 - **Empty State Fallback:** Displays a dedicated `welcome.md` guide instead of a blank editor when the user first loads the application or deletes their currently active file.
+- **Exclusively Markdown:**
+    - The application strictly filters and supports Markdown files (`.md`, `.markdown`, `.mdown`, `.mkdn`, `.mkd`).
+    - File creation and renaming enforce valid markdown file structures automatically.
+- **Clean Display Names (Hidden File Extensions):**
+    - The user interface (Sidebar workspace list, GitHub repository tree, top Toolbar breadcrumbs, modal dialogs, and browser document title) strips `.md` / `.markdown` extensions for a cleaner, note-taking aesthetic while preserving raw filenames under the hood.
 
 ### Native File System Access
 - **Local File Import:** Uses `window.showOpenFilePicker` to read files from disk into the workspace.
@@ -227,9 +239,19 @@ This document provides a detailed breakdown of all implemented features in the G
 - **Comprehensive Linting & React Hooks Cleanup:** Resolved all ESLint and React compiler rules (specifically `react-hooks/set-state-in-effect` and `react-hooks/exhaustive-deps`) across the codebase, ensuring zero errors and zero warnings.
 - **Automatic File Extension Appending:** Added `ensureMarkdownExtension` utility in `src/utils/markdown.js`. When creating new files without a valid file extension (such as typing `"my-file-name"`), the application automatically appends `.md` by default (creating `"my-file-name.md"`). Existing extensions like `.txt`, `.markdown`, `.json` are preserved, and folder creation is handled explicitly via dedicated `createFolder` handlers.
 - **Custom Item Creation Widget (`CreateItemModal`):** Replaced native browser `prompt(...)` dialogs with a modern, glassmorphic React modal widget (`CreateItemModal.jsx`). Triggered via the sidebar `+` button or the "Create new branch..." option inside the branch selector dropdown, it features clean "File" vs "Folder" toggle switching, real-time file extension previewing (`Creates: my-file-name.md` for files), folder creation without extensions, preset extensions (`.md`, `.txt`), target directory path badges, and keyboard navigation (`Enter`/`Escape`).
-- **Raw Markdown Tool Highlight Reset Fix:** Resolved an issue where tool button active highlights (e.g. bold, italic) from visual editor mode persisted when switching to raw Markdown source mode (`editorMode === 'source'`). Added an `editorMode` listener in `App.jsx` to clear `activeFormats` to `null` whenever entering source mode, ensuring tool buttons are never highlighted in raw Markdown mode.
-- **Pre-typing Active Formatting Highlights:** Enhanced `getSelectionFormats` and added `listener.updated` subscription in `RichMarkdownEditor.jsx` to check ProseMirror's `storedMarks` and `$from.marks()`. Clicking formatting tools like Bold or Italic before typing now immediately highlights the tool button in purple foreground text (`text-purple-600 dark:text-purple-400`), accurately reflecting that the next typed characters will receive those styles.
-- **Visual Editor Content Width Constraint:** Constrained the max width of rendered contents in the Visual Editor (`.rich-markdown-editor .milkdown .ProseMirror`) to `56rem` (`896px`), horizontally centered with `margin: 0 auto` for optimal reading and editing typography.
+- **Seamless Excalidraw Integration:** Full bidirectional support for Excalidraw diagrams across Markdown, WYSIWYG, and standalone drawing documents.
+    - **Inline Fenced Block (` ```excalidraw `):** Store diagrams directly in any `.md` file with standard Excalidraw JSON.
+    - **Visual Editor (WYSIWYG) Integration:** Automatically intercepts Excalidraw code blocks in Milkdown/Crepe and renders interactive vector snapshot blocks (`ExcalidrawBlock.jsx`). Users can draw, edit, resize, and delete drawings in-place without touching JSON.
+    - **Live Preview Rendering:** Automatically renders `code.language-excalidraw` blocks in the live preview pane as pure, read-only SVG diagrams seamlessly integrated into the document flow with zero borders, headers, or click-to-edit overlays.
+    - **Fullscreen Modal Canvas (`ExcalidrawModal.jsx`):** Allows distraction-free sketching on a large interactive canvas with full drawing tools, library support, and auto-sync back to the markdown document.
+    - **Dedicated Drawing Files (`.excalidraw` & `.excalidraw.md`):** Complete compatibility with Obsidian vaults and Excalidraw files. Sidebar features custom palette icons for drawing files, with top-bar toggling between Canvas View and Raw Markdown/JSON.
+    - **Toolbar Action:** Added "Insert Excalidraw Drawing" button to both the main Formatting Toolbar and Floating Formatting Toolbar.
+    - **Performance & Theme Sync:** Lazy-loaded Excalidraw bundles, light/dark theme synchronization, drag-to-resize handles, and event isolation to prevent ProseMirror/CodeMirror key conflicts during drawing.
+    - **Full Custom Font Support:** Bundled complete Excalidraw web font assets (`Virgil`, `Cascadia`, `Excalifont`, `Comic Shanns`, `Nunito`, `Assistant`) into `public/fonts` with `window.EXCALIDRAW_ASSET_PATH`, CSS `@font-face` rules, and PWA workbox caching. Text elements inside Excalidraw diagrams now render with their authentic hand-drawn and code typography.
+    - **Left-Docked Styling Widget:** Configured the embedded drawing editor so its styling and properties palette docks neatly on the left side (`max-width: 250px`) instead of spanning full width across the canvas.
+- **Visual Editor Fluid Text Layout:**
+    - Normal text elements (paragraphs, headings, lists, blockquotes) now span 100% of the editor container width for an unconstrained, modern widescreen note-taking experience.
+    - Structural and rich content blocks (Markdown tables, code blocks, images, KaTeX math displays, and Excalidraw diagrams) remain cleanly bounded to `max-width: 56rem` (896px) to preserve optimal reading and tabular layout ergonomics.
 
 ---
 
@@ -238,5 +260,6 @@ This document provides a detailed breakdown of all implemented features in the G
 - **Iconography:** Consistent `lucide-react` usage.
 - **UTF-8 Safe Base64:** Custom encoding utilities for special character support.
 - **Custom Vite Debug Logger:** Intercepts build errors and writes to `debug.log` for agent diagnostics.
+
 
 

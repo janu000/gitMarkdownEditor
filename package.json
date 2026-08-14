@@ -17,6 +17,7 @@
     "@codemirror/state": "^6.5.4",
     "@codemirror/theme-one-dark": "^6.1.3",
     "@codemirror/view": "^6.39.15",
+    "@excalidraw/excalidraw": "^0.18.1",
     "@milkdown/crepe": "^7.22.1",
     "codemirror": "^6.0.2",
     "highlight.js": "^11.11.1",

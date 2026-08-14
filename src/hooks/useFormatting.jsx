@@ -1,6 +1,7 @@
 import { useCallback } from 'react';
 import { redo, undo } from '@codemirror/commands';
 import { EditorView } from 'codemirror';
+import { createDefaultExcalidrawScene } from '../utils/excalidraw';
 
 // Helper to detect any list prefix at the start of a string
 // Group 1: Indentation, Group 2: The actual marker (for numbered lists)
@@ -431,6 +432,24 @@ export default function useFormatting(editorRef) {
     view.focus();
   }, [editorRef]);
 
+  const insertExcalidraw = useCallback((customScene) => {
+    const view = editorRef.current;
+    if (!view || !(view instanceof EditorView)) return;
+
+    const { state } = view;
+    const { from, to } = state.selection.main;
+    const scene = customScene || createDefaultExcalidrawScene();
+    const jsonStr = JSON.stringify(scene, null, 2);
+    const blockText = `\n\`\`\`excalidraw\n${jsonStr}\n\`\`\`\n`;
+
+    view.dispatch({
+      changes: { from, to, insert: blockText },
+      selection: { anchor: from + blockText.length, head: from + blockText.length },
+      scrollIntoView: true,
+    });
+    view.focus();
+  }, [editorRef]);
+
   return {
     insertText,
     insertListItem,
@@ -440,6 +459,8 @@ export default function useFormatting(editorRef) {
     undoChange,
     redoChange,
     toggleCode,
-    toggleMath
+    toggleMath,
+    insertExcalidraw,
   };
 }
+

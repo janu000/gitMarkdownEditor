@@ -24,9 +24,17 @@ import useShortcuts from './hooks/useShortcuts';
 import useWorkspace from './hooks/useWorkspace';
 import useSyncScroll from './hooks/useSyncScroll';
 import { storage } from './utils/storage';
-import { ensureMarkdownExtension } from './utils/markdown';
+import { ensureMarkdownExtension, isMarkdownFile, getDisplayName } from './utils/markdown';
+import { 
+  isExcalidrawFile, 
+  parseExcalidrawContent, 
+  serializeToCodeBlock, 
+  serializeToObsidianDoc 
+} from './utils/excalidraw';
 
 const RichMarkdownEditor = lazy(() => import('./components/RichMarkdownEditor'));
+const ExcalidrawModal = lazy(() => import('./components/ExcalidrawModal'));
+const ExcalidrawCanvas = lazy(() => import('./components/ExcalidrawCanvas'));
 
 export default function App() {
   // --- Refs ---
@@ -167,8 +175,29 @@ export default function App() {
 
   const { 
     insertText, insertListItem, insertNumberedList, insertTaskList,
-    setBlockType, undoChange, redoChange, toggleCode, toggleMath
+    setBlockType, undoChange, redoChange, toggleCode, toggleMath, insertExcalidraw
   } = useFormatting(editorRef);
+
+  // Synchronize document window title with active file display name
+  useEffect(() => {
+    if (activeFile) {
+      document.title = `${getDisplayName(activeFile.name)} - Git Markdown Editor`;
+    } else if (localFileName) {
+      document.title = `${getDisplayName(localFileName)} - Git Markdown Editor`;
+    } else {
+      document.title = 'Git Markdown Editor';
+    }
+  }, [activeFile, localFileName]);
+
+  const [excalidrawModalState, setExcalidrawModalState] = useState({
+    isOpen: false,
+    initialData: null,
+    rawCode: null,
+    offsetStart: null,
+    offsetEnd: null,
+  });
+
+  const [standaloneCanvasView, setStandaloneCanvasView] = useState('canvas'); // 'canvas' | 'raw'
 
   const runFormattingCommand = useCallback((visualCommand, sourceCommand) => {
     if (editorMode === 'visual') {
@@ -177,6 +206,56 @@ export default function App() {
     }
     sourceCommand();
   }, [editorMode]);
+
+  const handleOpenExcalidrawModal = useCallback((data, rawCode = null, offsetStart = null, offsetEnd = null) => {
+    setExcalidrawModalState({
+      isOpen: true,
+      initialData: data || null,
+      rawCode: rawCode || null,
+      offsetStart: offsetStart != null ? parseInt(offsetStart, 10) : null,
+      offsetEnd: offsetEnd != null ? parseInt(offsetEnd, 10) : null,
+    });
+  }, []);
+
+  const handleSaveExcalidrawModal = useCallback((updatedData) => {
+    const { rawCode, offsetStart, offsetEnd } = excalidrawModalState;
+    const newCodeBlock = serializeToCodeBlock(updatedData);
+
+    // Standalone .excalidraw or .excalidraw.md active file
+    if (activeFile && isExcalidrawFile(activeFile.name)) {
+      const formatted = activeFile.name.endsWith('.excalidraw')
+        ? JSON.stringify(updatedData, null, 2)
+        : serializeToObsidianDoc(updatedData);
+      setContent(formatted);
+      return;
+    }
+
+    // Direct update inside visual WYSIWYG editor
+    if (editorMode === 'visual' && typeof offsetStart === 'number') {
+      const updated = richEditorRef.current?.updateDrawing?.(offsetStart, updatedData);
+      if (updated) return;
+    }
+
+    // Replace matched rawCode in content
+    if (rawCode && content.includes(rawCode)) {
+      const newJson = JSON.stringify(updatedData, null, 2);
+      setContent((prev) => prev.replace(rawCode, newJson));
+      return;
+    }
+
+    // Replace by offset coordinates
+    if (offsetStart != null && offsetEnd != null && offsetEnd >= offsetStart) {
+      setContent((prev) => prev.slice(0, offsetStart) + newCodeBlock + prev.slice(offsetEnd));
+      return;
+    }
+
+    // Insert new drawing at cursor
+    if (editorMode === 'visual') {
+      richEditorRef.current?.insertDrawing?.(updatedData);
+    } else {
+      insertExcalidraw(updatedData);
+    }
+  }, [excalidrawModalState, activeFile, content, editorMode, insertExcalidraw, setContent]);
 
   const formattingActions = useMemo(() => ({
     insertText: (before, after = '', defaultText = '') => {
@@ -214,9 +293,16 @@ export default function App() {
     toggleCode: () => runFormattingCommand('code', () => toggleCode()),
     insertCodeBlock: () => runFormattingCommand('codeBlock', () => toggleCode()),
     toggleMath: () => runFormattingCommand('math', () => toggleMath()),
+    insertDrawing: () => {
+      if (editorMode === 'visual') {
+        richEditorRef.current?.insertDrawing?.();
+      } else {
+        insertExcalidraw();
+      }
+    },
     undo: () => runFormattingCommand('undo', undoChange),
     redo: () => runFormattingCommand('redo', redoChange),
-  }), [editorMode, insertListItem, insertNumberedList, insertTaskList, insertText, redoChange, runFormattingCommand, setBlockType, toggleCode, toggleMath, undoChange]);
+  }), [editorMode, insertListItem, insertNumberedList, insertTaskList, insertText, insertExcalidraw, redoChange, runFormattingCommand, setBlockType, toggleCode, toggleMath, undoChange]);
 
   const handleExportPdf = useCallback(() => window.print(), []);
 
@@ -606,8 +692,8 @@ export default function App() {
   const importSelectedLocalFile = async (file) => {
     if (!file) return;
 
-    if (!/\.(md|markdown|mdx|txt)$/i.test(file.name)) {
-      showToast('Please choose a Markdown or text file.', 'error');
+    if (!isMarkdownFile(file.name)) {
+      showToast('Please choose a Markdown file (.md, .markdown).', 'error');
       return;
     }
 
@@ -623,7 +709,7 @@ export default function App() {
     if ('showOpenFilePicker' in window) {
       try {
         const [handle] = await window.showOpenFilePicker({
-          types: [{ description: 'Markdown Files', accept: { 'text/markdown': ['.md', '.markdown', '.mdx', '.txt'] } }],
+          types: [{ description: 'Markdown Files', accept: { 'text/markdown': ['.md', '.markdown', '.mdown', '.mkd'] } }],
           multiple: false,
         });
         await importSelectedLocalFile(await handle.getFile());
@@ -635,7 +721,7 @@ export default function App() {
 
     const input = document.createElement('input');
     input.type = 'file';
-    input.accept = '.md,.markdown,.mdx,.txt,text/markdown,text/plain';
+    input.accept = '.md,.markdown,.mdown,.mkd,text/markdown';
     input.addEventListener('change', () => {
       void importSelectedLocalFile(input.files?.[0]);
     }, { once: true });
@@ -649,6 +735,7 @@ export default function App() {
       <FloatingFormattingToolbar
         enabled={editorMode === 'visual' && (viewMode === 'edit' || viewMode === 'split')}
         insertText={formattingActions.insertText}
+        insertDrawing={formattingActions.insertDrawing}
         toggleCode={formattingActions.toggleCode}
         insertCodeBlock={formattingActions.insertCodeBlock}
         toggleMath={formattingActions.toggleMath}
@@ -672,6 +759,19 @@ export default function App() {
         onClose={() => setShowShortcutModal(false)}
         onShortcutsUpdated={setShortcuts}
       />
+
+      <Suspense fallback={null}>
+        {excalidrawModalState.isOpen && (
+          <ExcalidrawModal
+            key={`modal-${excalidrawModalState.rawCode || 'active'}`}
+            isOpen={excalidrawModalState.isOpen}
+            initialData={excalidrawModalState.initialData}
+            onSave={handleSaveExcalidrawModal}
+            onClose={() => setExcalidrawModalState((prev) => ({ ...prev, isOpen: false }))}
+            theme={theme}
+          />
+        )}
+      </Suspense>
 
       <Sidebar 
         isSidebarOpen={isSidebarOpen}
@@ -748,101 +848,173 @@ export default function App() {
           setShowFormattingTools={setShowFormattingTools}
         />
 
-        <div ref={mainAreaRef} className="flex-1 flex overflow-hidden relative">
-          {/* Editor Column */}
-          {(viewMode === 'edit' || viewMode === 'split') && (
-            <div 
-              id="editor-container"
-              className="flex flex-col h-full bg-white dark:bg-[#0d1117] relative"
-              style={viewMode === 'split' ? { width: `${tempSplitRatio * 100}%` } : { flex: 1 }}
-              >
-              <div className={`transition-all duration-300 shrink-0 ${showFormattingTools ? 'h-[var(--bottom-bar-height)] opacity-100 border-b border-gray-200 dark:border-gray-800 overflow-visible' : 'h-0 opacity-0 overflow-hidden'}`}>
-                <FormattingToolbar 
-                  viewMode={viewMode}
-                  insertText={formattingActions.insertText}
-                  insertListItem={formattingActions.insertListItem}
-                  insertNumberedList={formattingActions.insertNumberedList}
-                  insertTaskList={formattingActions.insertTaskList}
-                  setBlockType={formattingActions.setBlockType}
-                  insertTable={formattingActions.insertTable}
-                  undo={formattingActions.undo}
-                  redo={formattingActions.redo}
-                  toggleCode={formattingActions.toggleCode}
-                  insertCodeBlock={formattingActions.insertCodeBlock}
-                  toggleMath={formattingActions.toggleMath}
-                  activeFormats={editorMode === 'visual' ? activeFormats : null}
-                  showEmojiPicker={showEmojiPicker}
-                  setShowEmojiPicker={setShowEmojiPicker}
-                  emojiPickerRef={emojiPickerRef}
-                  shortcuts={shortcuts}
+        {/* Dedicated Standalone Excalidraw Document View */}
+        {activeFile && isExcalidrawFile(activeFile.name) ? (
+          <div className="flex-1 flex flex-col h-full bg-white dark:bg-[#0d1117] overflow-hidden relative">
+            <div className="flex items-center justify-between px-4 py-1.5 bg-gray-50 dark:bg-[#161b22] border-b border-gray-200 dark:border-gray-800 text-xs shrink-0">
+              <div className="flex items-center space-x-2">
+                <span className="text-base">🎨</span>
+                <span className="font-semibold text-gray-800 dark:text-gray-200">{activeFile.name}</span>
+                <span className="text-[11px] text-gray-500 dark:text-gray-400">
+                  {activeFile.name.endsWith('.md') ? 'Obsidian Excalidraw Markdown' : 'Excalidraw Scene'}
+                </span>
+              </div>
+              <div className="flex items-center bg-gray-200 dark:bg-gray-800 p-0.5 rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => setStandaloneCanvasView('canvas')}
+                  className={`px-3 py-1 rounded-md text-xs font-medium transition ${
+                    standaloneCanvasView === 'canvas'
+                      ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-xs'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  Canvas View
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setStandaloneCanvasView('raw')}
+                  className={`px-3 py-1 rounded-md text-xs font-medium transition ${
+                    standaloneCanvasView === 'raw'
+                      ? 'bg-white dark:bg-gray-700 text-gray-900 dark:text-white shadow-xs'
+                      : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
+                  }`}
+                >
+                  Raw Markdown/JSON
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 relative w-full h-full min-h-0 overflow-hidden">
+              {standaloneCanvasView === 'canvas' ? (
+                <Suspense fallback={<div className="flex items-center justify-center h-full text-sm text-gray-500">Loading Canvas...</div>}>
+                  <ExcalidrawCanvas
+                    key={activeFile.path}
+                    initialData={parseExcalidrawContent(content)}
+                    onChange={(elements, appState, files) => {
+                      const updated = { elements, appState, files };
+                      const formatted = activeFile.name.endsWith('.excalidraw')
+                        ? JSON.stringify(updated, null, 2)
+                        : serializeToObsidianDoc(updated);
+                      setContent(formatted);
+                    }}
+                    theme={theme}
+                    style={{ height: '100%', width: '100%', minHeight: '100%', border: 'none', borderRadius: 0 }}
+                  />
+                </Suspense>
+              ) : (
+                <CodeMirrorEditor
+                  editorRef={editorRef}
+                  content={content}
+                  setContent={setContent}
+                  theme={theme}
+                  syntaxHighlighting={syntaxHighlighting}
+                  onUpdate={() => triggerSyncUpdate(true)}
                 />
-              </div>
-              <div className="flex-1 relative overflow-hidden pr-[2px]">
-                {editorMode === 'source' && <SearchPanel editorRef={editorRef} />}
-                <div className="h-full overflow-hidden">
-                  {editorMode === 'source' ? (
-                    <CodeMirrorEditor 
-                      editorRef={editorRef}
-                      content={content}
-                      setContent={setContent}
-                      theme={theme}
-                      syntaxHighlighting={syntaxHighlighting}
-                      onUpdate={() => triggerSyncUpdate(true)}
-                    />
-                  ) : (
-                    <Suspense fallback={<div className="visual-editor-loading">Loading visual editor...</div>}>
-                      <RichMarkdownEditor
-                        ref={richEditorRef}
-                        content={content}
-                        setContent={setContent}
-                        onSelectionFormatChange={setActiveFormats}
-                        theme={theme}
-                      />
-                    </Suspense>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {viewMode === 'split' && (
-            <div 
-              id="split-resizer" 
-              className="w-1 -ml-1 cursor-col-resize hover:bg-indigo-500/30 active:bg-indigo-500 transition-colors z-10 flex items-center justify-center group bg-transparent" 
-              onMouseDown={() => { setIsResizingSplit(true); document.body.style.cursor = 'col-resize'; }}
-            >
-              <div className="h-full w-px bg-gray-200 dark:bg-gray-800 group-hover:bg-indigo-500 group-active:bg-indigo-500 transition-colors" />
-            </div>
-          )}
-
-          <div 
-            id="preview-column"
-            className={`flex flex-col h-full bg-white dark:bg-[#0d1117] ${viewMode === 'edit' ? 'hidden' : ''}`}
-            style={viewMode === 'split' ? { width: `${(1 - tempSplitRatio) * 100}%` } : { flex: 1 }}
-          >
-            <div id="preview-stats" className={`overflow-hidden transition-all duration-300 shrink-0 ${showFormattingTools ? 'h-[var(--bottom-bar-height)] opacity-100 border-b border-gray-200 dark:border-gray-800' : 'h-0 opacity-0'}`}>
-              <div className="gme-stats-bar h-full flex items-center px-4 bg-gray-50 dark:bg-[#0d1117] space-x-3 text-xs">
-                <div className="flex items-center">
-                  <span className="text-gray-400 mr-1.5">Words:</span>
-                  <span className="text-gray-700 dark:text-gray-300">{stats.words.toLocaleString()}</span>
-                </div>
-                <div className="w-px h-3 bg-gray-300 dark:bg-gray-700" />
-                <div className="flex items-center">
-                  <span className="text-gray-400 mr-1.5">Characters:</span>
-                  <span className="text-gray-700 dark:text-gray-300">{stats.chars.toLocaleString()}</span>
-                </div>
-              </div>
-            </div>
-            <div id="preview-content" className="flex-1 overflow-hidden pl-[2px]">
-              <Preview 
-                previewRef={previewRef}
-                parsedHtml={parsedHtml}
-                onClick={handlePreviewClick}
-              />
+              )}
             </div>
           </div>
-        </div>
+        ) : (
+          <div ref={mainAreaRef} className="flex-1 flex overflow-hidden relative">
+            {/* Editor Column */}
+            {(viewMode === 'edit' || viewMode === 'split') && (
+              <div 
+                id="editor-container"
+                className="flex flex-col h-full bg-white dark:bg-[#0d1117] relative"
+                style={viewMode === 'split' ? { width: `${tempSplitRatio * 100}%` } : { flex: 1 }}
+              >
+                <div className={`transition-all duration-300 shrink-0 ${showFormattingTools ? 'h-[var(--bottom-bar-height)] opacity-100 border-b border-gray-200 dark:border-gray-800 overflow-visible' : 'h-0 opacity-0 overflow-hidden'}`}>
+                  <FormattingToolbar 
+                    viewMode={viewMode}
+                    insertText={formattingActions.insertText}
+                    insertListItem={formattingActions.insertListItem}
+                    insertNumberedList={formattingActions.insertNumberedList}
+                    insertTaskList={formattingActions.insertTaskList}
+                    setBlockType={formattingActions.setBlockType}
+                    insertTable={formattingActions.insertTable}
+                    insertDrawing={formattingActions.insertDrawing}
+                    undo={formattingActions.undo}
+                    redo={formattingActions.redo}
+                    toggleCode={formattingActions.toggleCode}
+                    insertCodeBlock={formattingActions.insertCodeBlock}
+                    toggleMath={formattingActions.toggleMath}
+                    activeFormats={editorMode === 'visual' ? activeFormats : null}
+                    showEmojiPicker={showEmojiPicker}
+                    setShowEmojiPicker={setShowEmojiPicker}
+                    emojiPickerRef={emojiPickerRef}
+                    shortcuts={shortcuts}
+                  />
+                </div>
+                <div className="flex-1 relative overflow-hidden pr-[2px]">
+                  {editorMode === 'source' && <SearchPanel editorRef={editorRef} />}
+                  <div className="h-full overflow-hidden">
+                    {editorMode === 'source' ? (
+                      <CodeMirrorEditor 
+                        editorRef={editorRef}
+                        content={content}
+                        setContent={setContent}
+                        theme={theme}
+                        syntaxHighlighting={syntaxHighlighting}
+                        onUpdate={() => triggerSyncUpdate(true)}
+                      />
+                    ) : (
+                      <Suspense fallback={<div className="visual-editor-loading">Loading visual editor...</div>}>
+                        <RichMarkdownEditor
+                          ref={richEditorRef}
+                          content={content}
+                          setContent={setContent}
+                          onSelectionFormatChange={setActiveFormats}
+                          theme={theme}
+                          onOpenExcalidrawModal={handleOpenExcalidrawModal}
+                        />
+                      </Suspense>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {viewMode === 'split' && (
+              <div 
+                id="split-resizer" 
+                className="w-1 -ml-1 cursor-col-resize hover:bg-indigo-500/30 active:bg-indigo-500 transition-colors z-10 flex items-center justify-center group bg-transparent" 
+                onMouseDown={() => { setIsResizingSplit(true); document.body.style.cursor = 'col-resize'; }}
+              >
+                <div className="h-full w-px bg-gray-200 dark:bg-gray-800 group-hover:bg-indigo-500 group-active:bg-indigo-500 transition-colors" />
+              </div>
+            )}
+
+            <div 
+              id="preview-column"
+              className={`flex flex-col h-full bg-white dark:bg-[#0d1117] ${viewMode === 'edit' ? 'hidden' : ''}`}
+              style={viewMode === 'split' ? { width: `${(1 - tempSplitRatio) * 100}%` } : { flex: 1 }}
+            >
+              <div id="preview-stats" className={`overflow-hidden transition-all duration-300 shrink-0 ${showFormattingTools ? 'h-[var(--bottom-bar-height)] opacity-100 border-b border-gray-200 dark:border-gray-800' : 'h-0 opacity-0'}`}>
+                <div className="gme-stats-bar h-full flex items-center px-4 bg-gray-50 dark:bg-[#0d1117] space-x-3 text-xs">
+                  <div className="flex items-center">
+                    <span className="text-gray-400 mr-1.5">Words:</span>
+                    <span className="text-gray-700 dark:text-gray-300">{stats.words.toLocaleString()}</span>
+                  </div>
+                  <div className="w-px h-3 bg-gray-300 dark:bg-gray-700" />
+                  <div className="flex items-center">
+                    <span className="text-gray-400 mr-1.5">Characters:</span>
+                    <span className="text-gray-700 dark:text-gray-300">{stats.chars.toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+              <div id="preview-content" className="flex-1 overflow-hidden pl-[2px]">
+                <Preview 
+                  previewRef={previewRef}
+                  parsedHtml={parsedHtml}
+                  onClick={handlePreviewClick}
+                  theme={theme}
+                />
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
+

@@ -3,10 +3,12 @@ import {
   Github, FileText, Folder, Plus, ArrowLeft, ArrowDown, RefreshCcw, 
   EyeOff, Trash2, FileEdit, FileUp, LogOut, Loader2, GitBranch,
   Keyboard, Hash, ChevronRight, ChevronDown, ChevronUp,
-  FilePlus, FolderPlus
-  } from 'lucide-react';
-  import logo from '../assets/logo.svg';
-  import CreateItemModal from './CreateItemModal';
+  FilePlus, FolderPlus, Palette
+} from 'lucide-react';
+import logo from '../assets/logo.svg';
+import CreateItemModal from './CreateItemModal';
+import { isExcalidrawFile } from '../utils/excalidraw';
+import { getDisplayName } from '../utils/markdown';
 
   const Sidebar = memo(({ 
   isSidebarOpen, 
@@ -67,7 +69,7 @@ import {
     setModalState({
       isOpen: true,
       mode,
-      initialValue: targetFile ? targetFile.name : initialValue,
+      initialValue: targetFile ? (targetFile.type === 'dir' ? targetFile.name : getDisplayName(targetFile.name)) : initialValue,
       parentPath,
       targetFile
     });
@@ -151,7 +153,7 @@ import {
     const draggedParentPath = draggedFile.path.includes('/') ? draggedFile.path.split('/').slice(0, -1).join('/') : '';
     if (draggedParentPath === targetPath) return; // Already there
 
-    if (!currentRepo || window.confirm(`Move '${draggedFile.name}' to ${targetPath ? `'${targetPath}'` : 'root'}?`)) {
+    if (!currentRepo || window.confirm(`Move '${getDisplayName(draggedFile.name)}' to ${targetPath ? `'${targetPath}'` : 'root'}?`)) {
       moveFile(draggedFile, targetPath);
     }
     setDraggedFile(null);
@@ -372,7 +374,11 @@ import {
                               isCollapsed ? <ChevronRight className="w-5 h-5 text-gray-400 shrink-0" strokeWidth={2.5} /> : <ChevronDown className="w-5 h-5 text-gray-400 shrink-0" strokeWidth={2.5} />
                             ) : (
                               file.type !== 'heading' && (
-                                <FileText className={`w-4 h-4 shrink-0 ${!file.isLocal && modifiedFiles.has(`${currentRepo}/${currentBranch}/${file.path}`) ? 'text-amber-500' : 'text-gray-500'}`} />
+                                isExcalidrawFile(file.name) ? (
+                                  <Palette className="w-4 h-4 shrink-0 text-indigo-500 dark:text-indigo-400" />
+                                ) : (
+                                  <FileText className={`w-4 h-4 shrink-0 ${!file.isLocal && modifiedFiles.has(`${currentRepo}/${currentBranch}/${file.path}`) ? 'text-amber-500' : 'text-gray-500'}`} />
+                                )
                               )
                             )}
                           </div>
@@ -383,7 +389,7 @@ import {
                           >
                             {file.type !== 'heading' ? (
                               <>
-                                <span className="truncate">{file.name}</span>
+                                <span className="truncate">{file.type === 'dir' ? file.name : getDisplayName(file.name)}</span>
                                 {(file.status === 'pending' || (!file.isLocal && modifiedFiles.has(`${currentRepo}/${currentBranch}/${file.path}`))) && (
                                   <div className="w-4 h-4 flex items-center justify-center ml-2 shrink-0">
                                     {file.status === 'pending' ? (
@@ -595,7 +601,11 @@ import {
                                   isCollapsed ? <ChevronRight className="w-5 h-5 text-gray-400 shrink-0" strokeWidth={2.5} /> : <ChevronDown className="w-5 h-5 text-gray-400 shrink-0" strokeWidth={2.5} />
                                 ) : (
                                   file.type !== 'heading' && (
-                                    <FileText className={`w-4 h-4 shrink-0 ${!file.isLocal && modifiedFiles.has(`${currentRepo}/${currentBranch}/${file.path}`) ? 'text-amber-500' : 'text-gray-500'}`} />
+                                    isExcalidrawFile(file.name) ? (
+                                      <Palette className="w-4 h-4 shrink-0 text-indigo-500 dark:text-indigo-400" />
+                                    ) : (
+                                      <FileText className={`w-4 h-4 shrink-0 ${!file.isLocal && modifiedFiles.has(`${currentRepo}/${currentBranch}/${file.path}`) ? 'text-amber-500' : 'text-gray-500'}`} />
+                                    )
                                   )
                                 )}
                               </div>
@@ -606,7 +616,7 @@ import {
                               >
                                 {file.type !== 'heading' ? (
                                   <div className="flex items-center justify-between">
-                                    <span className="truncate">{file.name}</span>
+                                    <span className="truncate">{file.type === 'dir' ? file.name : getDisplayName(file.name)}</span>
                                     <div className="w-4 h-4 flex items-center justify-center ml-2 shrink-0">
                                       {file.status === 'pending' ? (
                                         <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-500" />

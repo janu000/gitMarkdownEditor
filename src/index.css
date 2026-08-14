@@ -2,6 +2,39 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Excalidraw Custom Fonts */
+@font-face {
+  font-family: 'Virgil';
+  src: url('/fonts/Virgil/Virgil-Regular.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Cascadia';
+  src: url('/fonts/Cascadia/CascadiaCode-Regular.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Cascadia Code';
+  src: url('/fonts/Cascadia/CascadiaCode-Regular.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Assistant';
+  src: url('/fonts/Assistant/Assistant-Regular.woff2') format('woff2');
+  font-weight: normal;
+  font-style: normal;
+  font-display: swap;
+}
+
 /* Override Vite defaults to ensure full-screen layout */
 html, body, #root {
   margin: 0 !important;
@@ -200,10 +233,51 @@ html, body, #root {
 
 .rich-markdown-editor .milkdown .ProseMirror {
   min-height: 100%;
-  max-width: 56rem;
-  margin: 0 auto;
-  padding: 2rem 1.5rem;
-  width: 100%;
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 2.25rem 3.5rem 2.25rem 5.5rem !important;
+  width: 100% !important;
+  box-sizing: border-box;
+}
+
+/* Normal text fills the full width of the editor */
+.rich-markdown-editor .milkdown .ProseMirror > p,
+.rich-markdown-editor .milkdown .ProseMirror > h1,
+.rich-markdown-editor .milkdown .ProseMirror > h2,
+.rich-markdown-editor .milkdown .ProseMirror > h3,
+.rich-markdown-editor .milkdown .ProseMirror > h4,
+.rich-markdown-editor .milkdown .ProseMirror > h5,
+.rich-markdown-editor .milkdown .ProseMirror > h6,
+.rich-markdown-editor .milkdown .ProseMirror > ul,
+.rich-markdown-editor .milkdown .ProseMirror > ol,
+.rich-markdown-editor .milkdown .ProseMirror > blockquote,
+.rich-markdown-editor .milkdown .ProseMirror > hr {
+  width: 100% !important;
+  max-width: 100% !important;
+}
+
+/* Tables, code blocks, images, math equations, and excalidraw blocks are width-limited */
+.rich-markdown-editor .milkdown .ProseMirror table,
+.rich-markdown-editor .milkdown .ProseMirror .table-wrapper,
+.rich-markdown-editor .milkdown .ProseMirror div[data-type="table"],
+.rich-markdown-editor .milkdown .ProseMirror pre,
+.rich-markdown-editor .milkdown .ProseMirror div[data-type="code_block"]:not(.excalidraw-code-block-host),
+.rich-markdown-editor .milkdown .ProseMirror .code-block,
+.rich-markdown-editor .milkdown .ProseMirror .image-container,
+.rich-markdown-editor .milkdown .ProseMirror div[data-type="image"],
+.rich-markdown-editor .milkdown .ProseMirror .katex-display,
+.rich-markdown-editor .milkdown .ProseMirror div[data-type="math_block"],
+.rich-markdown-editor .milkdown .ProseMirror .excalidraw-block-container,
+.rich-markdown-editor .milkdown .ProseMirror .excalidraw-block-view,
+.rich-markdown-editor .milkdown .ProseMirror .excalidraw-block-editing {
+  max-width: 56rem !important;
+  box-sizing: border-box;
+}
+
+.rich-markdown-editor .milkdown .ProseMirror img {
+  width: auto;
+  max-width: min(56rem, 100%) !important;
+  height: auto;
 }
 
 .rich-markdown-editor .milkdown-top-bar {
@@ -331,3 +405,254 @@ html, body, #root {
 .hljs-strong { color: var(--hljs-color); font-weight: bold; }
 .hljs-addition { color: var(--hljs-add-color); background-color: var(--hljs-add-bg); }
 .hljs-deletion { color: var(--hljs-del-color); background-color: var(--hljs-del-bg); }
+
+/* Excalidraw Integration Styles */
+.excalidraw-code-block-host {
+  padding: 0 !important;
+  background: transparent !important;
+  border: none !important;
+  margin: 0 !important;
+}
+
+.excalidraw-code-block-host > :not(.excalidraw-rich-mount) {
+  display: none !important;
+}
+
+.excalidraw-preview-mount {
+  width: 100%;
+}
+
+.excalidraw-block-container svg {
+  max-width: 100% !important;
+  height: auto !important;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.05));
+}
+
+.dark .excalidraw-block-container svg {
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+}
+
+/* Excalidraw Canvas Embedded UI fixes */
+.excalidraw-wrapper .excalidraw {
+  height: 100% !important;
+  width: 100% !important;
+}
+
+.excalidraw-wrapper .excalidraw .App-menu_top {
+  padding: 4px !important;
+}
+
+/* Excalidraw In-Place Editing UI & Button Specificity */
+.excalidraw-block-editing {
+  border: 2px solid #3b82f6 !important;
+  border-radius: 0.75rem !important;
+  box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1) !important;
+}
+
+.dark .excalidraw-block-editing {
+  border: 2px solid #60a5fa !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.6) !important;
+}
+
+.excalidraw-block-editing .excalidraw-edit-header {
+  padding-left: 20px !important;
+  padding-right: 20px !important;
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+  box-sizing: border-box !important;
+}
+
+.excalidraw-block-editing button.btn-done-editing {
+  background-color: #2563eb !important;
+  color: #ffffff !important;
+  border: 1px solid #1d4ed8 !important;
+  font-weight: 600 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  padding: 6px 16px !important;
+  border-radius: 8px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  font-size: 12px !important;
+  line-height: 1.25 !important;
+}
+
+.excalidraw-block-editing button.btn-done-editing:hover {
+  background-color: #1d4ed8 !important;
+  color: #ffffff !important;
+}
+
+.excalidraw-block-editing button.btn-fullscreen-editing {
+  background-color: #ffffff !important;
+  color: #1f2937 !important;
+  border: 1px solid #d1d5db !important;
+  padding: 6px 14px !important;
+  border-radius: 8px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  font-size: 12px !important;
+  line-height: 1.25 !important;
+}
+
+.dark .excalidraw-block-editing button.btn-fullscreen-editing {
+  background-color: #1f2937 !important;
+  color: #f9fafb !important;
+  border: 1px solid #4b5563 !important;
+}
+
+/* Excalidraw View Mode Floating Hover Toolbar */
+.excalidraw-block-view .excalidraw-floating-bar {
+  padding: 6px 12px !important;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.08) !important;
+}
+
+.excalidraw-block-view .excalidraw-floating-bar button {
+  font-family: inherit !important;
+}
+
+/* Excalidraw In-Place & Embedded Canvas: Dock styling and options widget to the left */
+.excalidraw .App-bottom-bar {
+  justify-content: flex-start !important;
+  align-items: flex-start !important;
+  padding-left: 0.75rem !important;
+  padding-bottom: 0.75rem !important;
+  pointer-events: none !important;
+}
+
+.excalidraw .App-bottom-bar > .Island,
+.excalidraw .App-mobile-menu {
+  width: auto !important;
+  max-width: 250px !important;
+  min-width: unset !important;
+  margin-left: 0 !important;
+  margin-right: auto !important;
+  align-self: flex-start !important;
+  border-radius: 0.75rem !important;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15) !important;
+  pointer-events: auto !important;
+}
+
+.excalidraw .App-bottom-bar > .Island .panelColumn {
+  padding: 8px 10px !important;
+  max-width: 250px !important;
+}
+
+.excalidraw .App-menu__left,
+.excalidraw .layer-ui__wrapper .App-menu__left,
+.excalidraw .Island.App-menu__left {
+  position: absolute !important;
+  left: 0.75rem !important;
+  right: auto !important;
+  width: 13.5rem !important;
+  max-width: 14.5rem !important;
+  margin-left: 0 !important;
+  border-radius: 0.75rem !important;
+  box-sizing: border-box !important;
+}
+
+/* Codeblock Collapse / Fold in Raw CodeMirror View */
+.cm-codeblock-fold-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-right: 0.5rem;
+  margin-left: -2rem;
+  vertical-align: middle;
+  border-radius: 0.375rem;
+  color: #9ca3af;
+  background-color: transparent;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+  user-select: none;
+  line-height: 1;
+}
+
+/* Show button on hover over the codeblock start line or directly over the button, or when collapsed */
+.cm-line:hover .cm-codeblock-fold-btn,
+.cm-codeblock-fold-btn:hover,
+.cm-codeblock-fold-btn.is-collapsed {
+  opacity: 1;
+}
+
+.cm-codeblock-fold-btn svg {
+  width: 1.25rem;
+  height: 1.25rem;
+  display: block;
+}
+
+.cm-codeblock-fold-btn:hover {
+  color: #374151;
+  background-color: #f3f4f6;
+}
+
+.dark .cm-codeblock-fold-btn {
+  color: #6b7280;
+}
+
+.dark .cm-codeblock-fold-btn:hover {
+  color: #e5e7eb;
+  background-color: #21262d;
+}
+
+.cm-codeblock-fold-btn.is-collapsed {
+  color: #6b7280;
+}
+
+.cm-codeblock-fold-btn.is-collapsed:hover {
+  color: #111827;
+  background-color: #e5e7eb;
+}
+
+.dark .cm-codeblock-fold-btn.is-collapsed {
+  color: #9ca3af;
+}
+
+.dark .cm-codeblock-fold-btn.is-collapsed:hover {
+  color: #ffffff;
+  background-color: #30363d;
+}
+
+.cm-codeblock-collapsed-pill,
+.cm-foldPlaceholder {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 0.5rem;
+  padding: 0.05rem 0.5rem;
+  font-size: 0.75rem;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-weight: 500;
+  border-radius: 9999px;
+  background-color: #e0e7ff !important;
+  color: #4338ca !important;
+  border: 1px solid #c7d2fe !important;
+  cursor: pointer;
+  user-select: none;
+  vertical-align: middle;
+  transition: all 0.15s ease;
+}
+
+.cm-codeblock-collapsed-pill:hover,
+.cm-foldPlaceholder:hover {
+  background-color: #c7d2fe !important;
+  color: #3730a3 !important;
+}
+
+.dark .cm-codeblock-collapsed-pill,
+.dark .cm-foldPlaceholder {
+  background-color: rgba(99, 102, 241, 0.18) !important;
+  color: #c7d2fe !important;
+  border-color: rgba(99, 102, 241, 0.35) !important;
+}
+
+.dark .cm-codeblock-collapsed-pill:hover,
+.dark .cm-foldPlaceholder:hover {
+  background-color: rgba(99, 102, 241, 0.28) !important;
+  color: #ffffff !important;
+}
+
+

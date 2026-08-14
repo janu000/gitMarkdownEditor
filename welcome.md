@@ -105,6 +105,91 @@ function greet(name) {
 greet('Developer');
 ```
 
+### 🎨 Seamless Excalidraw Diagrams
+Draw diagrams, sketches, and flowcharts directly inside any Markdown note without leaving the editor:
+
+```excalidraw
+{
+  "type": "excalidraw",
+  "version": 2,
+  "source": "https://excalidraw.com",
+  "elements": [
+    {
+      "id": "node1",
+      "type": "rectangle",
+      "x": 60,
+      "y": 40,
+      "width": 140,
+      "height": 60,
+      "strokeColor": "#3b82f6",
+      "backgroundColor": "#dbeafe",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "roughness": 1,
+      "roundness": { "type": 3 }
+    },
+    {
+      "id": "text1",
+      "type": "text",
+      "x": 80,
+      "y": 60,
+      "width": 100,
+      "height": 20,
+      "fontSize": 16,
+      "fontFamily": 1,
+      "text": "Markdown Note",
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "strokeColor": "#1e3a8a"
+    },
+    {
+      "id": "arrow1",
+      "type": "arrow",
+      "x": 200,
+      "y": 70,
+      "width": 80,
+      "height": 0,
+      "strokeColor": "#6366f1",
+      "strokeWidth": 2,
+      "points": [[0, 0], [80, 0]],
+      "endArrowhead": "arrow"
+    },
+    {
+      "id": "node2",
+      "type": "rectangle",
+      "x": 280,
+      "y": 40,
+      "width": 140,
+      "height": 60,
+      "strokeColor": "#10b981",
+      "backgroundColor": "#d1fae5",
+      "fillStyle": "solid",
+      "strokeWidth": 2,
+      "roughness": 1,
+      "roundness": { "type": 3 }
+    },
+    {
+      "id": "text2",
+      "type": "text",
+      "x": 305,
+      "y": 60,
+      "width": 90,
+      "height": 20,
+      "fontSize": 16,
+      "fontFamily": 1,
+      "text": "🎨 Excalidraw",
+      "textAlign": "center",
+      "verticalAlign": "middle",
+      "strokeColor": "#065f46"
+    }
+  ],
+  "appState": {
+    "viewBackgroundColor": "transparent"
+  },
+  "files": {}
+}
+```
+
 ### 🚀 Emojis & Rich Media
 - Use standard `:shortcodes:` like `:rocket:` 🚀.
 - Access the **Emoji Picker** via the toolbar to browse Gitmojis, Status, and more.

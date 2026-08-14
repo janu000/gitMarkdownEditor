@@ -33,8 +33,20 @@ const useStore = create((set, get) => ({
     return { theme: newTheme };
   }),
   
-  viewMode: 'split',
-  setViewMode: (viewMode) => set((state) => ({ viewMode: typeof viewMode === 'function' ? viewMode(state.viewMode) : viewMode })),
+  viewMode: (() => {
+    if (typeof localStorage !== 'undefined') {
+      const saved = localStorage.getItem('gme_view_mode');
+      if (saved === 'edit' || saved === 'split' || saved === 'preview') {
+        return saved;
+      }
+    }
+    return 'split';
+  })(),
+  setViewMode: (viewMode) => set((state) => {
+    const newViewMode = typeof viewMode === 'function' ? viewMode(state.viewMode) : viewMode;
+    if (typeof localStorage !== 'undefined') localStorage.setItem('gme_view_mode', newViewMode);
+    return { viewMode: newViewMode };
+  }),
 
   editorMode: typeof localStorage !== 'undefined' && localStorage.getItem('gme_editor_mode') === 'visual' ? 'visual' : 'source',
   setEditorMode: (editorMode) => set((state) => {

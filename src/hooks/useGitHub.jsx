@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { utf8_to_b64, b64_to_utf8 } from '../utils/encoding';
 import { storage } from '../utils/storage';
-import { ensureMarkdownExtension } from '../utils/markdown';
+import { ensureMarkdownExtension, isMarkdownFile, getDisplayName } from '../utils/markdown';
 export default function useGitHub(showToast, setLoadingState, {
   content, setContent, defaultContent,
   setActiveFile,
@@ -115,7 +115,7 @@ export default function useGitHub(showToast, setLoadingState, {
   }, []);
 
   const syncAllFiles = useCallback(async (repoFullName, branch, files, silent = false) => {
-    const filesToSync = files.filter(f => f.type === 'file' && f.name.match(/\.(md|txt|mdx)$/i));
+    const filesToSync = files.filter(f => f.type === 'file' && isMarkdownFile(f.name));
     if (filesToSync.length === 0) return;
     
     if (!silent) showToast(`Syncing ${filesToSync.length} files...`, 'info');
@@ -182,7 +182,7 @@ export default function useGitHub(showToast, setLoadingState, {
         if (err.status === 422) {
           const simpleData = await apiRequest(`/repos/${repoFullName}/contents/${_path}?ref=${targetBranch}`);
           const items = Array.isArray(simpleData) ? simpleData : [simpleData];
-          setRepoContents(items.map(i => ({
+          setRepoContents(items.filter(i => i.type === 'dir' || isMarkdownFile(i.name)).map(i => ({
             name: i.name,
             path: i.path,
             type: i.type === 'dir' ? 'dir' : 'file',
@@ -202,7 +202,11 @@ export default function useGitHub(showToast, setLoadingState, {
         type: item.type === 'tree' ? 'dir' : 'file',
         sha: item.sha,
         size: item.size
-      })).filter(item => item.name !== '.gitkeep').sort((a, b) => {
+      })).filter(item => {
+        if (item.name === '.gitkeep') return false;
+        if (item.type === 'dir') return true;
+        return isMarkdownFile(item.name);
+      }).sort((a, b) => {
         if (a.type === b.type) return a.path.localeCompare(b.path);
         return a.type === 'dir' ? -1 : 1;
       });
@@ -230,8 +234,8 @@ export default function useGitHub(showToast, setLoadingState, {
       return;
     }
     
-    if (!file.name.match(/\.(md|txt|mdx)$/i)) {
-      if (!silent) showToast('Only Markdown/Text files are supported', 'error');
+    if (!isMarkdownFile(file.name)) {
+      if (!silent) showToast('Only Markdown files are supported', 'error');
       return;
     }
 
@@ -243,7 +247,7 @@ export default function useGitHub(showToast, setLoadingState, {
         const contentToLoad = localDraft !== null ? localDraft : (file.content || '');
         setContent(contentToLoad);
         setActiveFile(file);
-        if (!silent) showToast(`Loaded ${file.name}`);
+        if (!silent) showToast(`Loaded ${getDisplayName(file.name)}`);
       } catch {
         if (!silent) showToast('Failed to load local file', 'error');
       } finally {
@@ -443,33 +447,36 @@ export default function useGitHub(showToast, setLoadingState, {
       return;
     }
 
-    const newName = customNewName !== null ? customNewName : prompt(`Rename ${fileToRename.name} to:`, fileToRename.name);
-    if (!newName || newName === fileToRename.name) return;
+    const rawName = customNewName !== null ? customNewName : prompt(`Rename ${getDisplayName(fileToRename.name)} to:`, getDisplayName(fileToRename.name));
+    if (!rawName) return;
+
+    const formattedName = fileToRename.type === 'dir' ? rawName.trim() : ensureMarkdownExtension(rawName);
+    if (!formattedName || formattedName === fileToRename.name) return;
 
     const currentPath = pathStack.length > 0 ? pathStack[pathStack.length - 1].path : '';
-    const newPath = currentPath ? `${currentPath}/${newName}` : newName;
+    const newPath = currentPath ? `${currentPath}/${formattedName}` : formattedName;
 
     // Git Mode Rename Optimistic
-    const newFile = { ...fileToRename, name: newName, path: newPath, branch: branchContext };
+    const newFile = { ...fileToRename, name: formattedName, path: newPath, branch: branchContext };
     setPendingOps(prev => ({
       ...prev,
       [fileToRename.path]: { action: 'delete' },
       [newPath]: { action: 'add', file: newFile }
     }));
     if (activeFileRef.current?.path === fileToRename.path) setActiveFile(newFile);
-    showToast(`Renaming to ${newName}...`);
+    showToast(`Renaming to ${getDisplayName(formattedName)}...`);
 
     try {
       const sourceData = await apiRequest(`/repos/${currentRepoRef.current}/contents/${fileToRename.path}?ref=${branchContext}`);
       const createBody = {
-        message: `Rename ${fileToRename.name} to ${newName} via Git Markdown Editor`,
+        message: `Rename ${fileToRename.name} to ${formattedName} via Git Markdown Editor`,
         content: sourceData.content.replace(/\n/g, ''),
         branch: branchContext
       };
       const createRes = await apiRequest(`/repos/${currentRepoRef.current}/contents/${newPath}`, 'PUT', createBody);
 
       const deleteBody = { 
-        message: `Rename ${fileToRename.name} to ${newName} (cleanup)`, 
+        message: `Rename ${fileToRename.name} to ${formattedName} (cleanup)`, 
         sha: sourceData.sha, 
         branch: branchContext
       };
@@ -482,7 +489,7 @@ export default function useGitHub(showToast, setLoadingState, {
 
       setRepoContents(prev => {
         const filtered = prev.filter(f => f.path !== fileToRename.path);
-        return [...filtered, { name: newName, path: newPath, type: 'file', sha: createRes.content.sha }].sort((a, b) => {
+        return [...filtered, { name: formattedName, path: newPath, type: 'file', sha: createRes.content.sha }].sort((a, b) => {
            if (a.type === b.type) return a.name.localeCompare(b.name);
            return a.type === 'dir' ? -1 : 1;
         });
@@ -494,7 +501,7 @@ export default function useGitHub(showToast, setLoadingState, {
         delete newState[newPath];
         return newState;
       });
-      showToast(`Renamed ${newName}`);
+      showToast(`Renamed ${getDisplayName(formattedName)}`);
       
       if (activeFileRef.current && activeFileRef.current.path === newPath) setActiveFile(prev => ({ ...prev, sha: createRes.content.sha }));
     } catch (err) {
@@ -625,14 +632,14 @@ export default function useGitHub(showToast, setLoadingState, {
       return;
     }
 
-    if (!window.confirm(`Delete ${fileToDelete.name}?`)) return;
+    if (!window.confirm(`Delete ${getDisplayName(fileToDelete.name)}?`)) return;
 
     setPendingOps(prev => ({ ...prev, [fileToDelete.path]: { action: 'delete' } }));
     if (activeFileRef.current?.path === fileToDelete.path) {
       setActiveFile(null);
       setContent(defaultContent || '');
     }
-    showToast(`Deleting ${fileToDelete.name}...`);
+    showToast(`Deleting ${getDisplayName(fileToDelete.name)}...`);
 
     try {
       if (pendingOps[fileToDelete.path]?.action === 'add') {
@@ -653,10 +660,10 @@ export default function useGitHub(showToast, setLoadingState, {
 
       setRepoContents(prev => prev.filter(f => f.path !== fileToDelete.path));
       setPendingOps(prev => { const newState = { ...prev }; delete newState[fileToDelete.path]; return newState; });
-      showToast(`Deleted ${fileToDelete.name}`);
+      showToast(`Deleted ${getDisplayName(fileToDelete.name)}`);
       
     } catch {
-      showToast(`Failed to delete ${fileToDelete.name}`, 'error');
+      showToast(`Failed to delete ${getDisplayName(fileToDelete.name)}`, 'error');
       setPendingOps(prev => { const newState = { ...prev }; delete newState[fileToDelete.path]; return newState; });
     }
   }, [apiRequest, pendingOps, setActiveFile, setContent, setPendingOps, showToast, activeFileRef, getStoragePath, defaultContent, setLoadingState]);
@@ -673,7 +680,7 @@ export default function useGitHub(showToast, setLoadingState, {
     setPendingOps(prev => ({ ...prev, [filePath]: { action: 'add', file: tempFile, content: initialContent } }));
     setActiveFile(tempFile);
     setContent(initialContent);
-    showToast(`Creating ${formattedName}...`); 
+    showToast(`Creating ${getDisplayName(formattedName)}...`); 
 
     try {
       const body = { 
@@ -702,9 +709,9 @@ export default function useGitHub(showToast, setLoadingState, {
 
       setPendingOps(prev => { const newState = { ...prev }; delete newState[filePath]; return newState; });
       setActiveFile(prev => prev && prev.path === filePath ? { ...prev, sha: data.content.sha } : prev);
-      showToast(`Synced ${formattedName}`);
+      showToast(`Synced ${getDisplayName(formattedName)}`);
     } catch {
-      showToast(`Failed to create file: ${formattedName}`, 'error');
+      showToast(`Failed to create file: ${getDisplayName(formattedName)}`, 'error');
       setPendingOps(prev => { const newState = { ...prev }; delete newState[filePath]; return newState; });
       setActiveFile(prev => prev && prev.path === filePath ? null : prev);
     }

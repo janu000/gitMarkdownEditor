@@ -2,7 +2,7 @@ import React, { memo } from 'react';
 import { 
   Bold, Italic, Heading1, Heading2, List, ListOrdered, CheckSquare, 
   Quote, Link as LinkIcon, Image as ImageIcon, Table, Code, Sigma, 
-  Strikethrough, Smile, Redo2, SquareCode, Undo2
+  Strikethrough, Smile, Redo2, SquareCode, Undo2, Palette
 } from 'lucide-react';
 import ToolButton from './ToolButton';
 import { emojiCategories } from '../utils/emojis';
@@ -15,6 +15,7 @@ const FormattingToolbar = memo(({
   insertNumberedList, 
   insertTaskList,
   insertTable,
+  insertDrawing,
   undo,
   redo,
   toggleCode,
@@ -46,11 +47,12 @@ const FormattingToolbar = memo(({
       <ToolButton icon={<Quote className="w-5 h-5" />} onClick={() => insertText('> ', '', 'Quote')} title={`Blockquote (${formatShortcut(shortcuts.quote)})`} />
       <div className="w-px h-5 bg-gray-300 dark:bg-gray-700 mx-1" />
       <ToolButton active={activeFormats?.link} icon={<LinkIcon className="w-5 h-5" />} onClick={() => insertText('[', '](url)', 'link text')} title={`Link (${formatShortcut(shortcuts.link)})`} />
-      <ToolButton icon={<ImageIcon className="w-5 h-5" />} onClick={() => insertText('![alt text](', ')', 'image url')} title={`Image (${formatShortcut(shortcuts.image)})`} />
       <ToolButton icon={<Table className="w-5 h-5" />} onClick={insertTable} title={`Table (${formatShortcut(shortcuts.table)})`} />
+      <ToolButton icon={<ImageIcon className="w-5 h-5" />} onClick={() => insertText('![alt text](', ')', 'image url')} title={`Image (${formatShortcut(shortcuts.image)})`} />
+      <ToolButton icon={<Palette className="w-5 h-5" />} onClick={insertDrawing} title="Insert Excalidraw Drawing" />
+      <ToolButton active={activeFormats?.math} icon={<Sigma className="w-5 h-5" />} onClick={() => toggleMath()} title={`Math (${formatShortcut(shortcuts.math_block)})`} />
       <ToolButton active={activeFormats?.code} icon={<Code className="w-5 h-5" />} onClick={() => toggleCode()} title={`Code (${formatShortcut(shortcuts.code_block)})`} />
       <ToolButton icon={<SquareCode className="w-5 h-5" />} onClick={insertCodeBlock} title="Code Block (Text)" />
-      <ToolButton active={activeFormats?.math} icon={<Sigma className="w-5 h-5" />} onClick={() => toggleMath()} title={`Math (${formatShortcut(shortcuts.math_block)})`} />
       
       <div className="relative inline-block">
         <ToolButton icon={<Smile className="w-5 h-5" />} onClick={() => setShowEmojiPicker(!showEmojiPicker)} title="Emoji" />

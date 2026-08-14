@@ -1,4 +1,5 @@
-import { forwardRef, memo, useEffect, useEffectEvent, useImperativeHandle, useRef } from 'react';
+import { forwardRef, memo, useEffect, useEffectEvent, useImperativeHandle, useRef, useState, useCallback } from 'react';
+import ReactDOM from 'react-dom';
 import { Crepe } from '@milkdown/crepe';
 import { commandsCtx, editorViewCtx } from '@milkdown/kit/core';
 import { imageBlockSchema } from '@milkdown/kit/component/image-block';
@@ -23,16 +24,25 @@ import {
 } from '@milkdown/kit/preset/commonmark';
 import { toggleLinkCommand } from '@milkdown/kit/component/link-tooltip';
 import { createTable, toggleStrikethroughCommand } from '@milkdown/kit/preset/gfm';
+import ExcalidrawBlock from './ExcalidrawBlock';
+import { createDefaultExcalidrawScene, parseExcalidrawContent } from '../utils/excalidraw';
 import '@milkdown/crepe/theme/common/style.css';
 import '@milkdown/crepe/theme/frame.css';
 
-const RichMarkdownEditor = memo(forwardRef(({ content, setContent, onSelectionFormatChange, theme }, ref) => {
+const RichMarkdownEditor = memo(forwardRef(({
+  content,
+  setContent,
+  onSelectionFormatChange,
+  theme = 'light',
+  onOpenExcalidrawModal,
+}, ref) => {
   const containerRef = useRef(null);
   const crepeRef = useRef(null);
   const contentRef = useRef(content || '');
   const markdownRef = useRef(content || '');
   const isApplyingExternalContentRef = useRef(false);
   const onSelectionFormatChangeRef = useRef(onSelectionFormatChange);
+  const [excalidrawPortals, setExcalidrawPortals] = useState([]);
 
   useEffect(() => {
     onSelectionFormatChangeRef.current = onSelectionFormatChange;
@@ -101,6 +111,72 @@ const RichMarkdownEditor = memo(forwardRef(({ content, setContent, onSelectionFo
     markdownRef.current = markdown;
     setContent(markdown);
   });
+
+  const newlyCreatedBlockIdsRef = useRef(new Set());
+
+  // Scan ProseMirror editor for Excalidraw code blocks and prepare portal containers
+  const refreshExcalidrawBlocks = useCallback(() => {
+    const crepe = crepeRef.current;
+    if (!crepe || !containerRef.current) return;
+
+    let view = null;
+    try {
+      crepe.editor.action((ctx) => {
+        view = ctx.get(editorViewCtx);
+      });
+    } catch {
+      return;
+    }
+
+    if (!view) return;
+
+    const portals = [];
+    view.state.doc.descendants((node, pos) => {
+      if (
+        node.type.name === 'code_block' &&
+        (node.attrs?.language === 'excalidraw' || node.attrs?.language === 'json:excalidraw')
+      ) {
+        try {
+          const dom = view.nodeDOM(pos);
+          if (dom && dom instanceof HTMLElement) {
+            if (!dom.dataset.gmeBlockId) {
+              dom.dataset.gmeBlockId = `excalidraw-${Math.random().toString(36).slice(2, 9)}`;
+            }
+            const blockId = dom.dataset.gmeBlockId;
+
+            let mountTarget = dom.querySelector('.excalidraw-rich-mount');
+            if (!mountTarget) {
+              mountTarget = document.createElement('div');
+              mountTarget.className = 'excalidraw-rich-mount w-full';
+              dom.classList.add('excalidraw-code-block-host');
+              dom.appendChild(mountTarget);
+            }
+
+            const rawText = node.textContent || '';
+            const parsed = parseExcalidrawContent(rawText);
+            const isAutoEdit = newlyCreatedBlockIdsRef.current.has(blockId);
+            if (isAutoEdit) {
+              newlyCreatedBlockIdsRef.current.delete(blockId);
+            }
+
+            portals.push({
+              id: blockId,
+              target: mountTarget,
+              pos,
+              nodeSize: node.nodeSize,
+              rawCode: rawText,
+              parsed,
+              autoEdit: isAutoEdit,
+            });
+          }
+        } catch (err) {
+          console.error('Error attaching Excalidraw block portal:', err);
+        }
+      }
+    });
+
+    setExcalidrawPortals(portals);
+  }, []);
 
   useImperativeHandle(ref, () => {
     const runCommand = (command, payload) => {
@@ -257,8 +333,78 @@ const RichMarkdownEditor = memo(forwardRef(({ content, setContent, onSelectionFo
         view.focus();
         return true;
       },
+      insertDrawing: (customScene) => {
+        const ctx = getContext();
+        if (!ctx) return false;
+
+        const view = ctx.get(editorViewCtx);
+        const scene = customScene || createDefaultExcalidrawScene();
+        const jsonStr = JSON.stringify(scene, null, 2);
+        const codeBlock = codeBlockSchema.type(ctx).create(
+          { language: 'excalidraw' },
+          view.state.schema.text(jsonStr)
+        );
+
+        const newBlockId = `excalidraw-${Math.random().toString(36).slice(2, 9)}`;
+        newlyCreatedBlockIdsRef.current.add(newBlockId);
+
+        const transaction = view.state.tr.replaceSelectionWith(codeBlock);
+        view.dispatch(transaction);
+        view.focus();
+
+        setTimeout(() => {
+          try {
+            crepeRef.current?.editor?.action((actionCtx) => {
+              const currentView = actionCtx.get(editorViewCtx);
+              const { from } = currentView.state.selection;
+              currentView.state.doc.descendants((node, pos) => {
+                if (
+                  node.type.name === 'code_block' &&
+                  (node.attrs?.language === 'excalidraw' || node.attrs?.language === 'json:excalidraw')
+                ) {
+                  if (pos <= from && pos + node.nodeSize >= from - 2) {
+                    const dom = currentView.nodeDOM(pos);
+                    if (dom && dom instanceof HTMLElement && !dom.dataset.gmeBlockId) {
+                      dom.dataset.gmeBlockId = newBlockId;
+                    }
+                  }
+                }
+              });
+            });
+          } catch {
+            // ignore
+          }
+          refreshExcalidrawBlocks();
+        }, 40);
+        return true;
+      },
+      updateDrawing: (pos, updatedData) => {
+        const crepe = crepeRef.current;
+        if (!crepe) return false;
+
+        let success = false;
+        crepe.editor.action((ctx) => {
+          const view = ctx.get(editorViewCtx);
+          const jsonStr = JSON.stringify(updatedData, null, 2);
+          const currentNode = view.state.doc.nodeAt(pos);
+          if (currentNode && currentNode.type.name === 'code_block') {
+            const tr = view.state.tr.replaceWith(
+              pos + 1,
+              pos + currentNode.nodeSize - 1,
+              view.state.schema.text(jsonStr)
+            );
+            view.dispatch(tr);
+            success = true;
+          }
+        });
+
+        if (success) {
+          setTimeout(refreshExcalidrawBlocks, 30);
+        }
+        return success;
+      },
     };
-  }, []);
+  }, [refreshExcalidrawBlocks]);
 
   useEffect(() => {
     contentRef.current = content || '';
@@ -296,6 +442,7 @@ const RichMarkdownEditor = memo(forwardRef(({ content, setContent, onSelectionFo
         try {
           const view = ctx.get(editorViewCtx);
           onSelectionFormatChangeRef.current?.(getSelectionFormats(view));
+          refreshExcalidrawBlocks();
         } catch {
           // ignore if editor view not ready
         }
@@ -336,6 +483,7 @@ const RichMarkdownEditor = memo(forwardRef(({ content, setContent, onSelectionFo
       }
 
       crepeRef.current.cleanupSelectionFormats = cleanupSelectionFormats;
+      setTimeout(refreshExcalidrawBlocks, 100);
     };
 
     void initialize();
@@ -346,7 +494,7 @@ const RichMarkdownEditor = memo(forwardRef(({ content, setContent, onSelectionFo
       if (crepeRef.current === crepe) crepeRef.current = null;
       void crepe.destroy();
     };
-  }, []);
+  }, [refreshExcalidrawBlocks]);
 
   useEffect(() => {
     const crepe = crepeRef.current;
@@ -358,13 +506,72 @@ const RichMarkdownEditor = memo(forwardRef(({ content, setContent, onSelectionFo
     crepe.editor.action(replaceAll(nextContent, true));
     markdownRef.current = nextContent;
     isApplyingExternalContentRef.current = false;
-  }, [content]);
+    setTimeout(refreshExcalidrawBlocks, 100);
+  }, [content, refreshExcalidrawBlocks]);
+
+  // Handle in-place canvas update inside ProseMirror
+  const handleBlockChange = (pos, updatedData) => {
+    const crepe = crepeRef.current;
+    if (!crepe) return;
+
+    crepe.editor.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      const jsonStr = JSON.stringify(updatedData, null, 2);
+      const currentNode = view.state.doc.nodeAt(pos);
+      if (currentNode && currentNode.type.name === 'code_block') {
+        const tr = view.state.tr.replaceWith(
+          pos + 1,
+          pos + currentNode.nodeSize - 1,
+          view.state.schema.text(jsonStr)
+        );
+        view.dispatch(tr);
+      }
+    });
+  };
+
+  // Handle block deletion
+  const handleBlockDelete = (pos, nodeSize) => {
+    const crepe = crepeRef.current;
+    if (!crepe) return;
+
+    crepe.editor.action((ctx) => {
+      const view = ctx.get(editorViewCtx);
+      const tr = view.state.tr.delete(pos, pos + nodeSize);
+      view.dispatch(tr);
+    });
+  };
 
   return (
-    <div
-      ref={containerRef}
-      className={`rich-markdown-editor h-full overflow-y-auto custom-scrollbar ${theme === 'dark' ? 'rich-markdown-editor-dark' : ''}`}
-    />
+    <div className="relative h-full w-full">
+      <div
+        ref={containerRef}
+        className={`rich-markdown-editor h-full overflow-y-auto custom-scrollbar ${theme === 'dark' ? 'rich-markdown-editor-dark' : ''}`}
+      />
+
+      {/* Excalidraw Block Portals rendered right inside WYSIWYG document */}
+      {excalidrawPortals.map((portal) =>
+        portal.target ? (
+          ReactDOM.createPortal(
+            <ExcalidrawBlock
+              key={portal.id}
+              rawCode={portal.rawCode}
+              parsedData={portal.parsed}
+              autoEdit={portal.autoEdit}
+              theme={theme}
+              isEditable={true}
+              onOpenFullscreen={(data) => {
+                if (onOpenExcalidrawModal) {
+                  onOpenExcalidrawModal(data, portal.rawCode, portal.pos, portal.pos + portal.nodeSize);
+                }
+              }}
+              onChange={(updatedData) => handleBlockChange(portal.pos, updatedData)}
+              onDelete={() => handleBlockDelete(portal.pos, portal.nodeSize)}
+            />,
+            portal.target
+          )
+        ) : null
+      )}
+    </div>
   );
 }));
 

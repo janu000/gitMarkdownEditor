@@ -1,13 +1,14 @@
 import { memo, useEffect, useState } from 'react';
-import { Bold, Code, Italic, Link, Sigma, SquareCode, Strikethrough } from 'lucide-react';
+import { Bold, Code, Italic, Link, Sigma, SquareCode, Strikethrough, Palette } from 'lucide-react';
 import ToolButton from './ToolButton';
 import { formatShortcut } from '../utils/shortcutManager';
 
-const FLOATING_TOOLBAR_WIDTH = 264;
+const FLOATING_TOOLBAR_WIDTH = 296;
 
 const FloatingFormattingToolbar = memo(({
   enabled,
   insertText,
+  insertDrawing,
   toggleCode,
   insertCodeBlock,
   toggleMath,
@@ -68,10 +69,11 @@ const FloatingFormattingToolbar = memo(({
       <ToolButton active={activeFormats?.italic} icon={<Italic className="w-4 h-4" />} onClick={() => insertText('*', '*', 'italic text')} title={`Italic (${formatShortcut(shortcuts.italic)})`} />
       <ToolButton active={activeFormats?.strikethrough} icon={<Strikethrough className="w-4 h-4" />} onClick={() => insertText('~~', '~~', 'strikethrough text')} title={`Strikethrough (${formatShortcut(shortcuts.strikethrough)})`} />
       <div className="w-px h-4 bg-gray-300 dark:bg-gray-700 mx-0.5" />
+      <ToolButton active={activeFormats?.link} icon={<Link className="w-4 h-4" />} onClick={() => insertText('[', '](url)', 'link text')} title={`Link (${formatShortcut(shortcuts.link)})`} />
+      <ToolButton icon={<Palette className="w-4 h-4" />} onClick={insertDrawing} title="Insert Excalidraw Drawing" />
+      <ToolButton active={activeFormats?.math} icon={<Sigma className="w-4 h-4" />} onClick={toggleMath} title={`Math (${formatShortcut(shortcuts.math_block)})`} />
       <ToolButton active={activeFormats?.code} icon={<Code className="w-4 h-4" />} onClick={toggleCode} title={`Code (${formatShortcut(shortcuts.code_block)})`} />
       <ToolButton icon={<SquareCode className="w-4 h-4" />} onClick={insertCodeBlock} title="Code Block (Text)" />
-      <ToolButton active={activeFormats?.math} icon={<Sigma className="w-4 h-4" />} onClick={toggleMath} title={`Math (${formatShortcut(shortcuts.math_block)})`} />
-      <ToolButton active={activeFormats?.link} icon={<Link className="w-4 h-4" />} onClick={() => insertText('[', '](url)', 'link text')} title={`Link (${formatShortcut(shortcuts.link)})`} />
     </div>
   );
 });

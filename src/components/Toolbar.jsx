@@ -3,6 +3,7 @@ import {
   Columns, Sun, Moon, PenLine, Eye, Download, Printer, Save, Loader2, Code2, Highlighter, FileText, Type
 } from 'lucide-react';
 import { formatShortcut } from '../utils/shortcutManager';
+import { getDisplayName } from '../utils/markdown';
 
 const Toolbar = memo(({
   isSidebarOpen,
@@ -37,13 +38,13 @@ const Toolbar = memo(({
             <>
               {activeFile.repo && currentRepo && <span className="text-gray-500">{currentRepo} ({currentBranch}) / </span>}
               {!activeFile.repo && <span className="text-gray-500 italic">Local / </span>}
-              <span className="text-gray-900 dark:text-gray-200 ml-1 font-medium">{activeFile.name}</span>
+              <span className="text-gray-900 dark:text-gray-200 ml-1 font-medium">{getDisplayName(activeFile.name)}</span>
               {isModified && <span className="w-2 h-2 rounded-full bg-yellow-500 ml-2" title="Unsaved changes"></span>}
             </>
           ) : localFileName ? (
             <>
               <span className="text-gray-500 italic">Local / </span>
-              <span className="text-gray-900 dark:text-gray-200 ml-1 font-medium">{localFileName}</span>
+              <span className="text-gray-900 dark:text-gray-200 ml-1 font-medium">{getDisplayName(localFileName)}</span>
             </>
           ) : (
             <span className="text-gray-500 italic">Local Draft (Unsynced)</span>

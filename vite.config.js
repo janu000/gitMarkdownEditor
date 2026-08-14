@@ -7,6 +7,9 @@ export default defineConfig({
   worker: {
     format: 'es',
   },
+  define: {
+    'process.env.IS_PREACT': JSON.stringify('false'),
+  },
   // 👇 ADD THIS SERVER BLOCK 👇
   server: {
     host: true, // This allows connections from outside localhost (like your Docker container)
@@ -38,7 +41,7 @@ export default defineConfig({
         enabled: true
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,json,vue,ts,jsx,tsx}']
+        globPatterns: ['**/*.{js,css,html,ico,png,svg,json,vue,ts,jsx,tsx,woff,woff2}']
       }
     })
   ],

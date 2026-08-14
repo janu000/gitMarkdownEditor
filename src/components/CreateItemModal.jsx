@@ -19,21 +19,11 @@ export default function CreateItemModal({
     const timer = setTimeout(() => {
       if (inputRef.current) {
         inputRef.current.focus();
-        if (mode === 'rename' && initialValue) {
-          // Select without extension if present
-          const dotIdx = initialValue.lastIndexOf('.');
-          if (dotIdx > 0) {
-            inputRef.current.setSelectionRange(0, dotIdx);
-          } else {
-            inputRef.current.select();
-          }
-        } else {
-          inputRef.current.select();
-        }
+        inputRef.current.select();
       }
     }, 50);
     return () => clearTimeout(timer);
-  }, [isOpen, mode, initialValue]);
+  }, [isOpen]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -79,22 +69,6 @@ export default function CreateItemModal({
     return itemType === 'folder' 
       ? <FolderPlus className="w-5 h-5 text-indigo-500" />
       : <FilePlus className="w-5 h-5 text-indigo-500" />;
-  };
-
-  const handleQuickExtension = (ext) => {
-    const trimmed = name.trim();
-    if (!trimmed) {
-      setName(`untitled${ext}`);
-      return;
-    }
-    const lastPart = trimmed.split('/').pop();
-    const dotIdx = lastPart.lastIndexOf('.');
-    if (dotIdx > 0) {
-      const base = trimmed.substring(0, trimmed.lastIndexOf('.'));
-      setName(`${base}${ext}`);
-    } else {
-      setName(`${trimmed}${ext}`);
-    }
   };
 
   return (
@@ -182,30 +156,12 @@ export default function CreateItemModal({
           </div>
 
           {/* Quick Extensions for Files */}
-          {isFile && (
-            <div className="space-y-2">
-              <div className="flex items-center space-x-1.5">
-                <span className="text-[11px] text-gray-400 dark:text-gray-500">Preset extensions:</span>
-                {['.md', '.txt'].map((ext) => (
-                  <button
-                    key={ext}
-                    type="button"
-                    onClick={() => handleQuickExtension(ext)}
-                    className="px-2 py-0.5 text-[11px] font-mono rounded bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 hover:bg-indigo-50 dark:hover:bg-indigo-500/20 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors"
-                  >
-                    {ext}
-                  </button>
-                ))}
-              </div>
-
-              {formattedPreview && (
-                <div className="flex items-center space-x-2 px-3 py-2 bg-indigo-50/50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 rounded-xl text-xs text-indigo-700 dark:text-indigo-300">
-                  <Sparkles className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                  <span className="truncate">
-                    Creates: <strong className="font-mono">{formattedPreview}</strong>
-                  </span>
-                </div>
-              )}
+          {isFile && formattedPreview && (
+            <div className="flex items-center space-x-2 px-3 py-2 bg-indigo-50/50 dark:bg-indigo-500/10 border border-indigo-100 dark:border-indigo-500/20 rounded-xl text-xs text-indigo-700 dark:text-indigo-300">
+              <Sparkles className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+              <span className="truncate">
+                Creates markdown note: <strong className="font-mono">{formattedPreview}</strong>
+              </span>
             </div>
           )}
 

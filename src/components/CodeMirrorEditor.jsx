@@ -3,10 +3,11 @@ import {
   lineNumbers, highlightActiveLineGutter, highlightSpecialChars,
   drawSelection, dropCursor, rectangularSelection, crosshairCursor,
   highlightActiveLine, keymap, EditorView, scrollPastEnd,
-  ViewPlugin, Decoration
+  ViewPlugin, Decoration, WidgetType
 } from '@codemirror/view';
-import { EditorState, Compartment, Transaction } from '@codemirror/state';
+import { EditorState, Compartment, Transaction, StateField, StateEffect } from '@codemirror/state';
 import { 
+  codeFolding, foldEffect, unfoldEffect, foldedRanges, foldState,
   foldGutter, indentOnInput, syntaxHighlighting as cmSyntaxHighlighting, 
   bracketMatching, foldKeymap, HighlightStyle 
 } from '@codemirror/language';
@@ -25,6 +26,169 @@ import useStore from '../store/useStore';
 const languageConfig = new Compartment();
 const highlightConfig = new Compartment();
 const baseThemeConfig = new Compartment();
+
+// --- Code Block Collapsing Feature ---
+function isRangeFolded(state, from, to) {
+  let folded = false;
+  const folds = foldedRanges(state);
+  folds.between(from, to, (f, t) => {
+    if (f <= from && t >= to) {
+      folded = true;
+      return false;
+    }
+  });
+  return folded;
+}
+
+function scanCodeBlocks(doc) {
+  const blocks = [];
+  const totalLines = doc.lines;
+  let inBlock = false;
+  let startLine = null;
+  let fenceChar = '';
+  let fenceLen = 0;
+
+  for (let i = 1; i <= totalLines; i++) {
+    const line = doc.line(i);
+    const text = line.text;
+    const match = text.match(/^(\s*)(`{3,}|~{3,})(.*)$/);
+
+    if (!inBlock) {
+      if (match) {
+        inBlock = true;
+        fenceChar = match[2][0];
+        fenceLen = match[2].length;
+        startLine = {
+          number: i,
+          from: line.from,
+          to: line.to,
+          text: line.text,
+          lang: match[3].trim(),
+          fenceLen
+        };
+      }
+    } else {
+      const closeMatch = text.match(/^(\s*)(`{3,}|~{3,})\s*$/);
+      if (closeMatch && closeMatch[2][0] === fenceChar && closeMatch[2].length >= fenceLen) {
+        blocks.push({
+          startLineNumber: startLine.number,
+          startPos: startLine.from,
+          startLineTo: startLine.to,
+          endLineNumber: i,
+          endPos: line.to,
+          lineCount: i - startLine.number - 1,
+          lang: startLine.lang
+        });
+        inBlock = false;
+        startLine = null;
+      }
+    }
+  }
+
+  // Handle unclosed code block reaching end of document
+  if (inBlock && startLine && totalLines > startLine.number) {
+    const lastLine = doc.line(totalLines);
+    blocks.push({
+      startLineNumber: startLine.number,
+      startPos: startLine.from,
+      startLineTo: startLine.to,
+      endLineNumber: totalLines,
+      endPos: lastLine.to,
+      lineCount: totalLines - startLine.number,
+      lang: startLine.lang
+    });
+  }
+
+  return blocks;
+}
+
+class FoldButtonWidget extends WidgetType {
+  constructor(isCollapsed, startPos, startLineTo, endPos, lineCount) {
+    super();
+    this.isCollapsed = isCollapsed;
+    this.startPos = startPos;
+    this.startLineTo = startLineTo;
+    this.endPos = endPos;
+    this.lineCount = lineCount;
+  }
+
+  eq(other) {
+    return this.isCollapsed === other.isCollapsed &&
+           this.startPos === other.startPos &&
+           this.startLineTo === other.startLineTo &&
+           this.endPos === other.endPos &&
+           this.lineCount === other.lineCount;
+  }
+
+  toDOM(view) {
+    const btn = document.createElement('span');
+    btn.className = `cm-codeblock-fold-btn ${this.isCollapsed ? 'is-collapsed' : 'is-expanded'}`;
+    btn.setAttribute('role', 'button');
+    btn.setAttribute('tabindex', '-1');
+    btn.setAttribute('title', this.isCollapsed ? `Expand code block (${this.lineCount} lines)` : `Collapse code block (${this.lineCount} lines)`);
+    
+    btn.innerHTML = this.isCollapsed
+      ? `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>`
+      : `<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>`;
+
+    btn.onmousedown = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const folded = isRangeFolded(view.state, this.startLineTo, this.endPos);
+      if (folded) {
+        view.dispatch({
+          effects: unfoldEffect.of({ from: this.startLineTo, to: this.endPos })
+        });
+      } else {
+        view.dispatch({
+          effects: foldEffect.of({ from: this.startLineTo, to: this.endPos })
+        });
+      }
+    };
+
+    return btn;
+  }
+
+  ignoreEvent() {
+    return true;
+  }
+}
+
+const codeBlockFoldPlugin = ViewPlugin.fromClass(class {
+  constructor(view) {
+    this.decorations = this.getDecorations(view);
+  }
+
+  update(update) {
+    if (update.docChanged || update.viewportChanged || update.state.field(foldState, false) !== update.startState.field(foldState, false)) {
+      this.decorations = this.getDecorations(update.view);
+    }
+  }
+
+  getDecorations(view) {
+    const builder = [];
+    const doc = view.state.doc;
+    const blocks = scanCodeBlocks(doc);
+
+    for (const block of blocks) {
+      if (block.lineCount < 1) continue;
+
+      const isCollapsed = isRangeFolded(view.state, block.startLineTo, block.endPos);
+
+      // Add the inline fold button to the left of the start of the code block line
+      builder.push(
+        Decoration.widget({
+          widget: new FoldButtonWidget(isCollapsed, block.startPos, block.startLineTo, block.endPos, block.lineCount),
+          side: -1
+        }).range(block.startPos)
+      );
+    }
+
+    return Decoration.set(builder, true);
+  }
+}, {
+  decorations: v => v.decorations
+});
 
 const tableDecoration = Decoration.mark({ class: "cm-table-highlight" });
 
@@ -179,6 +343,8 @@ const customBasicSetup = [
   highlightActiveLineGutter(),
   highlightSpecialChars(),
   history(),
+  codeFolding(),
+  codeBlockFoldPlugin,
   foldGutter(),
   drawSelection(),
   dropCursor(),
@@ -214,7 +380,7 @@ const getBaseTheme = (theme) => EditorView.theme({
     overflow: "auto", 
     fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
     lineHeight: "1.625",
-    padding: "24px"
+    padding: "32px 32px 32px 64px"
   },
   ".cm-content": { 
     padding: "0",

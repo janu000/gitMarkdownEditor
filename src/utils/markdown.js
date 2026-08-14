@@ -34,20 +34,46 @@ export const fallbackParse = (md) => {
   }).join('')}</div>`;
 };
 
+export const isMarkdownFile = (filenameOrPath) => {
+  if (!filenameOrPath || typeof filenameOrPath !== 'string') return false;
+  const name = filenameOrPath.split('/').pop().toLowerCase();
+  return (
+    name.endsWith('.md') ||
+    name.endsWith('.markdown') ||
+    name.endsWith('.mdown') ||
+    name.endsWith('.mkdn') ||
+    name.endsWith('.mkd')
+  );
+};
+
+export const getDisplayName = (filenameOrPath) => {
+  if (!filenameOrPath || typeof filenameOrPath !== 'string') return '';
+  const lastPart = filenameOrPath.split('/').pop();
+  return lastPart.replace(/\.(md|markdown|mdown|mkdn|mkd)$/i, '');
+};
+
 export const ensureMarkdownExtension = (filename) => {
   if (!filename || typeof filename !== 'string') return filename;
   const trimmed = filename.trim();
   if (!trimmed) return trimmed;
   
-  const lastPart = trimmed.split('/').pop();
-  if (/\.[a-zA-Z0-9]+$/i.test(lastPart)) {
+  if (isMarkdownFile(trimmed)) {
     return trimmed;
   }
   
+  const lastPart = trimmed.split('/').pop();
+  const dotIdx = lastPart.lastIndexOf('.');
+  if (dotIdx > 0) {
+    // If user provided a non-markdown extension, strip it and append .md
+    const prefix = trimmed.substring(0, trimmed.length - (lastPart.length - dotIdx));
+    return `${prefix}.md`;
+  }
+
   if (trimmed.endsWith('.')) {
     return `${trimmed}md`;
   }
   
   return `${trimmed}.md`;
 };
+
 

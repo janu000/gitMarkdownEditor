@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { storage } from '../utils/storage';
-import { ensureMarkdownExtension } from '../utils/markdown';
+import { ensureMarkdownExtension, isMarkdownFile, getDisplayName } from '../utils/markdown';
 
 export default function useWorkspace(showToast) {
   const [localWorkspaceFiles, setLocalWorkspaceFiles] = useState(() => {
     const stored = JSON.parse(localStorage.getItem('gme_local_workspace') || '[]');
-    return stored.map(f => ({ ...f, isLocal: true }));
+    return stored
+      .filter(f => f.type === 'dir' || isMarkdownFile(f.name || f.path))
+      .map(f => ({ ...f, isLocal: true }));
   });
 
   useEffect(() => {
@@ -22,7 +24,7 @@ export default function useWorkspace(showToast) {
     const fullPath = currentPath ? `${currentPath}/${formattedName}` : formattedName;
     const existingFile = localWorkspaceFiles.find(f => f.path === fullPath);
     if (existingFile) {
-      showToast(`File '${formattedName}' already exists in this folder.`, 'error');
+      showToast(`File '${getDisplayName(formattedName)}' already exists in this folder.`, 'error');
       return null;
     }
     const newFile = { 
@@ -41,7 +43,7 @@ export default function useWorkspace(showToast) {
     ]);
 
     setLocalWorkspaceFiles(prev => [...prev, newFile]);
-    showToast(`Created ${formattedName}`);
+    showToast(`Created ${getDisplayName(formattedName)}`);
     return newFile;
   }, [localWorkspaceFiles, showToast]);
 
@@ -67,14 +69,15 @@ export default function useWorkspace(showToast) {
   }, [localWorkspaceFiles, showToast]);
 
   const renameLocalFile = useCallback(async (fileToRename, newName) => {
+    const formattedName = fileToRename.type === 'dir' ? newName.trim() : ensureMarkdownExtension(newName);
     const pathParts = fileToRename.path.split('/');
     pathParts.pop();
     const basePath = pathParts.join('/');
-    const newPath = basePath ? `${basePath}/${newName}` : newName;
+    const newPath = basePath ? `${basePath}/${formattedName}` : formattedName;
 
     const existingFile = localWorkspaceFiles.find(f => f.path !== fileToRename.path && f.path === newPath);
     if (existingFile) {
-      showToast(`A file or folder with name '${newName}' already exists.`, 'error');
+      showToast(`A file or folder with name '${getDisplayName(formattedName)}' already exists.`, 'error');
       return false;
     }
     
@@ -95,7 +98,7 @@ export default function useWorkspace(showToast) {
 
       setLocalWorkspaceFiles(prev => prev.map(f => {
         if (f.path === fileToRename.path) {
-          return { ...f, name: newName, path: newPath };
+          return { ...f, name: formattedName, path: newPath };
         }
         if (f.path.startsWith(oldPrefix)) {
           const updatedPath = f.path.replace(oldPrefix, newPrefix);
@@ -109,11 +112,11 @@ export default function useWorkspace(showToast) {
       await storage.renameFile(oldStoragePath, newStoragePath);
 
       setLocalWorkspaceFiles(prev => prev.map(f => 
-        f.path === fileToRename.path ? { ...f, name: newName, path: newPath } : f
+        f.path === fileToRename.path ? { ...f, name: formattedName, path: newPath } : f
       ));
     }
 
-    showToast(`Renamed to ${newName}`);
+    showToast(`Renamed to ${getDisplayName(formattedName)}`);
     return true;
   }, [localWorkspaceFiles, showToast]);
 
