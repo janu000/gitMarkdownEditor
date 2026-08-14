@@ -22,85 +22,18 @@ import { markdown } from '@codemirror/lang-markdown';
 import { languages } from '@codemirror/language-data';
 import { tags as t } from '@lezer/highlight';
 import useStore from '../store/useStore';
+import {
+  scanCodeBlocks,
+  isRangeFolded,
+  getFileStorageKey,
+  saveBlockFoldStates,
+  applyFoldStates,
+  foldRestoreAnnotation
+} from '../utils/codeBlockFoldStorage';
 
 const languageConfig = new Compartment();
 const highlightConfig = new Compartment();
 const baseThemeConfig = new Compartment();
-
-// --- Code Block Collapsing Feature ---
-function isRangeFolded(state, from, to) {
-  let folded = false;
-  const folds = foldedRanges(state);
-  folds.between(from, to, (f, t) => {
-    if (f <= from && t >= to) {
-      folded = true;
-      return false;
-    }
-  });
-  return folded;
-}
-
-function scanCodeBlocks(doc) {
-  const blocks = [];
-  const totalLines = doc.lines;
-  let inBlock = false;
-  let startLine = null;
-  let fenceChar = '';
-  let fenceLen = 0;
-
-  for (let i = 1; i <= totalLines; i++) {
-    const line = doc.line(i);
-    const text = line.text;
-    const match = text.match(/^(\s*)(`{3,}|~{3,})(.*)$/);
-
-    if (!inBlock) {
-      if (match) {
-        inBlock = true;
-        fenceChar = match[2][0];
-        fenceLen = match[2].length;
-        startLine = {
-          number: i,
-          from: line.from,
-          to: line.to,
-          text: line.text,
-          lang: match[3].trim(),
-          fenceLen
-        };
-      }
-    } else {
-      const closeMatch = text.match(/^(\s*)(`{3,}|~{3,})\s*$/);
-      if (closeMatch && closeMatch[2][0] === fenceChar && closeMatch[2].length >= fenceLen) {
-        blocks.push({
-          startLineNumber: startLine.number,
-          startPos: startLine.from,
-          startLineTo: startLine.to,
-          endLineNumber: i,
-          endPos: line.to,
-          lineCount: i - startLine.number - 1,
-          lang: startLine.lang
-        });
-        inBlock = false;
-        startLine = null;
-      }
-    }
-  }
-
-  // Handle unclosed code block reaching end of document
-  if (inBlock && startLine && totalLines > startLine.number) {
-    const lastLine = doc.line(totalLines);
-    blocks.push({
-      startLineNumber: startLine.number,
-      startPos: startLine.from,
-      startLineTo: startLine.to,
-      endLineNumber: totalLines,
-      endPos: lastLine.to,
-      lineCount: totalLines - startLine.number,
-      lang: startLine.lang
-    });
-  }
-
-  return blocks;
-}
 
 class FoldButtonWidget extends WidgetType {
   constructor(isCollapsed, startPos, startLineTo, endPos, lineCount) {
@@ -443,6 +376,12 @@ const CodeMirrorEditor = memo(({
     onUpdateRef.current = onUpdate;
   }, [onUpdate]);
 
+  const activeFile = useStore(state => state.activeFile);
+  const activeFileRef = useRef(activeFile);
+  useEffect(() => {
+    activeFileRef.current = activeFile;
+  }, [activeFile]);
+
   const searchQuery = useStore(state => state.searchQuery);
   const searchOptions = useStore(state => state.searchOptions);
   const isSearchVisible = useStore(state => state.isSearchVisible);
@@ -513,6 +452,21 @@ const CodeMirrorEditor = memo(({
             onUpdateRef.current(update);
           }
 
+          // Persist user-driven codeblock fold toggles across site refreshes
+          const isRestore = update.transactions.some(tr => tr.annotation(foldRestoreAnnotation));
+          if (!isRestore && update.state.field(foldState, false) !== update.startState.field(foldState, false)) {
+            const doc = update.state.doc;
+            const blocks = scanCodeBlocks(doc);
+            const currentKey = getFileStorageKey(activeFileRef.current);
+            const blocksWithState = blocks.map((b, i) => ({
+              block: b,
+              index: i,
+              doc,
+              isFolded: isRangeFolded(update.state, b.startLineTo, b.endPos)
+            }));
+            saveBlockFoldStates(currentKey, blocksWithState);
+          }
+
           // Update search results
           const { isSearchVisible: freshIsVisible, searchQuery: freshQuery, searchOptions: freshOptions } = searchStateRef.current;
           
@@ -554,6 +508,9 @@ const CodeMirrorEditor = memo(({
 
     viewRef.current = view;
     if (editorRef) editorRef.current = view;
+
+    // Apply saved or default fold states (e.g. excalidraw blocks collapsed by default) on initial mount
+    applyFoldStates(view, getFileStorageKey(activeFileRef.current), activeFileRef.current?.name || '');
 
     return () => {
       clearTimeout(debounceTimer);
@@ -614,8 +571,15 @@ const CodeMirrorEditor = memo(({
         annotations: Transaction.remote.of(true)
       });
       contentRef.current = content;
+      applyFoldStates(view, getFileStorageKey(activeFileRef.current), activeFileRef.current?.name || '');
     }
   }, [content]);
+
+  // Re-apply fold states when switching active files
+  useEffect(() => {
+    if (!viewRef.current) return;
+    applyFoldStates(viewRef.current, getFileStorageKey(activeFile), activeFile?.name || '');
+  }, [activeFile]);
 
   return (
     <div 

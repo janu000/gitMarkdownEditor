@@ -7,7 +7,7 @@ import useStore from '../store/useStore';
 import { findNext, findPrevious, replaceNext, replaceAll, SearchQuery, setSearchQuery } from '@codemirror/search';
 import { undo, redo } from '@codemirror/commands';
 
-const SearchPanel = ({ editorRef }) => {
+const SearchPanel = ({ editorRef, richEditorRef, editorMode = 'source' }) => {
   const searchQuery = useStore(state => state.searchQuery);
   const setSearchQueryStore = useStore(state => state.setSearchQuery);
   const replaceQuery = useStore(state => state.replaceQuery);
@@ -23,15 +23,83 @@ const SearchPanel = ({ editorRef }) => {
   const findInputRef = useRef(null);
   const replaceInputRef = useRef(null);
 
+  const handleFindNext = useCallback((e) => {
+    e?.preventDefault();
+    if (editorMode === 'visual') {
+      richEditorRef?.current?.findNext?.();
+    } else {
+      if (editorRef?.current) findNext(editorRef.current);
+    }
+  }, [editorMode, editorRef, richEditorRef]);
+
+  const handleFindPrev = useCallback((e) => {
+    e?.preventDefault();
+    if (editorMode === 'visual') {
+      richEditorRef?.current?.findPrevious?.();
+    } else {
+      if (editorRef?.current) findPrevious(editorRef.current);
+    }
+  }, [editorMode, editorRef, richEditorRef]);
+
+  const handleReplace = useCallback((e) => {
+    e?.preventDefault();
+    if (editorMode === 'visual') {
+      richEditorRef?.current?.replaceNext?.();
+    } else {
+      if (editorRef?.current) {
+        const { matchCase, wholeWord, regex } = searchOptions;
+        editorRef.current.dispatch({
+          effects: setSearchQuery.of(new SearchQuery({
+            search: searchQuery,
+            replace: replaceQuery,
+            caseSensitive: matchCase,
+            wholeWord: wholeWord,
+            regexp: regex
+          }))
+        });
+        replaceNext(editorRef.current);
+      }
+    }
+  }, [editorMode, editorRef, richEditorRef, searchQuery, replaceQuery, searchOptions]);
+
+  const handleReplaceAll = useCallback((e) => {
+    e?.preventDefault();
+    if (editorMode === 'visual') {
+      richEditorRef?.current?.replaceAll?.();
+    } else {
+      if (editorRef?.current) {
+        const { matchCase, wholeWord, regex } = searchOptions;
+        editorRef.current.dispatch({
+          effects: setSearchQuery.of(new SearchQuery({
+            search: searchQuery,
+            replace: replaceQuery,
+            caseSensitive: matchCase,
+            wholeWord: wholeWord,
+            regexp: regex
+          }))
+        });
+        replaceAll(editorRef.current);
+      }
+    }
+  }, [editorMode, editorRef, richEditorRef, searchQuery, replaceQuery, searchOptions]);
+
   useEffect(() => {
     const handleGlobalKeyDown = (e) => {
       if (e.key === 'Escape' && isSearchVisible) {
+        e.preventDefault();
         setSearchVisible(false);
+      } else if (e.key === 'F3' && isSearchVisible) {
+        e.preventDefault();
+        if (e.shiftKey) {
+          handleFindPrev(e);
+        } else {
+          handleFindNext(e);
+        }
       }
     };
     window.addEventListener('keydown', handleGlobalKeyDown);
     return () => window.removeEventListener('keydown', handleGlobalKeyDown);
-  }, [isSearchVisible, setSearchVisible]);
+  }, [isSearchVisible, setSearchVisible, handleFindNext, handleFindPrev]);
 
   useEffect(() => {
     if (isSearchVisible && findInputRef.current) {
@@ -39,50 +107,6 @@ const SearchPanel = ({ editorRef }) => {
       findInputRef.current.select();
     }
   }, [isSearchVisible]);
-
-  const handleFindNext = useCallback((e) => {
-    e?.preventDefault();
-    if (editorRef.current) findNext(editorRef.current);
-  }, [editorRef]);
-
-  const handleFindPrev = useCallback((e) => {
-    e?.preventDefault();
-    if (editorRef.current) findPrevious(editorRef.current);
-  }, [editorRef]);
-
-  const handleReplace = useCallback((e) => {
-    e?.preventDefault();
-    if (editorRef.current) {
-      const { matchCase, wholeWord, regex } = searchOptions;
-      editorRef.current.dispatch({
-        effects: setSearchQuery.of(new SearchQuery({
-          search: searchQuery,
-          replace: replaceQuery,
-          caseSensitive: matchCase,
-          wholeWord: wholeWord,
-          regexp: regex
-        }))
-      });
-      replaceNext(editorRef.current);
-    }
-  }, [editorRef, searchQuery, replaceQuery, searchOptions]);
-
-  const handleReplaceAll = useCallback((e) => {
-    e?.preventDefault();
-    if (editorRef.current) {
-      const { matchCase, wholeWord, regex } = searchOptions;
-      editorRef.current.dispatch({
-        effects: setSearchQuery.of(new SearchQuery({
-          search: searchQuery,
-          replace: replaceQuery,
-          caseSensitive: matchCase,
-          wholeWord: wholeWord,
-          regexp: regex
-        }))
-      });
-      replaceAll(editorRef.current);
-    }
-  }, [editorRef, searchQuery, replaceQuery, searchOptions]);
 
   const toggleOption = (option) => {
     setSearchOptions({ [option]: !searchOptions[option] });
@@ -94,12 +118,20 @@ const SearchPanel = ({ editorRef }) => {
     // Forward Undo/Redo to Editor
     if (isMod && e.key === 'z') {
       e.preventDefault(); e.stopPropagation();
-      if (editorRef.current) undo(editorRef.current);
+      if (editorMode === 'visual') {
+        richEditorRef?.current?.undo?.();
+      } else {
+        if (editorRef?.current) undo(editorRef.current);
+      }
       return;
     }
     if (isMod && (e.key === 'y' || (e.shiftKey && e.key === 'Z'))) {
       e.preventDefault(); e.stopPropagation();
-      if (editorRef.current) redo(editorRef.current);
+      if (editorMode === 'visual') {
+        richEditorRef?.current?.redo?.();
+      } else {
+        if (editorRef?.current) redo(editorRef.current);
+      }
       return;
     }
 

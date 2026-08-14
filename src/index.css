@@ -151,6 +151,28 @@ html, body, #root {
     @apply p-1 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-md text-gray-500 dark:text-gray-400 transition-colors flex items-center justify-center;
   }
 
+  .gme-search-match {
+    background-color: rgba(255, 255, 0, 0.4);
+    outline: 1px solid rgba(255, 255, 0, 0.8);
+    border-radius: 1px;
+  }
+
+  .dark .gme-search-match {
+    background-color: rgba(255, 255, 0, 0.25);
+    outline: 1px solid rgba(255, 255, 0, 0.5);
+  }
+
+  .gme-search-match-selected {
+    background-color: rgba(255, 150, 50, 0.6) !important;
+    outline: 1px solid rgba(255, 150, 50, 1) !important;
+    border-radius: 1px;
+  }
+
+  .dark .gme-search-match-selected {
+    background-color: rgba(255, 150, 50, 0.6) !important;
+    outline: 1px solid rgba(255, 150, 50, 1) !important;
+  }
+
   .gme-stats-bar {
     @apply h-[var(--bottom-bar-height)] bg-gray-50 dark:bg-[#0d1117] border-t border-gray-200 dark:border-gray-800 flex items-center px-4 text-[11px] font-medium text-gray-500 dark:text-gray-400 space-x-4 shrink-0 overflow-hidden select-none;
   }
@@ -433,14 +455,17 @@ html, body, #root {
 }
 
 /* Excalidraw Canvas Embedded UI fixes */
-.excalidraw-wrapper .excalidraw {
+.excalidraw-wrapper,
+.excalidraw-wrapper .excalidraw,
+.excalidraw-wrapper .excalidraw-container,
+.excalidraw-wrapper .excalidraw canvas {
   height: 100% !important;
   width: 100% !important;
+  border-radius: 0 !important;
+  border: none !important;
 }
 
-.excalidraw-wrapper .excalidraw .App-menu_top {
-  padding: 4px !important;
-}
+
 
 /* Excalidraw In-Place Editing UI & Button Specificity */
 .excalidraw-block-editing {
@@ -512,45 +537,7 @@ html, body, #root {
   font-family: inherit !important;
 }
 
-/* Excalidraw In-Place & Embedded Canvas: Dock styling and options widget to the left */
-.excalidraw .App-bottom-bar {
-  justify-content: flex-start !important;
-  align-items: flex-start !important;
-  padding-left: 0.75rem !important;
-  padding-bottom: 0.75rem !important;
-  pointer-events: none !important;
-}
 
-.excalidraw .App-bottom-bar > .Island,
-.excalidraw .App-mobile-menu {
-  width: auto !important;
-  max-width: 250px !important;
-  min-width: unset !important;
-  margin-left: 0 !important;
-  margin-right: auto !important;
-  align-self: flex-start !important;
-  border-radius: 0.75rem !important;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15) !important;
-  pointer-events: auto !important;
-}
-
-.excalidraw .App-bottom-bar > .Island .panelColumn {
-  padding: 8px 10px !important;
-  max-width: 250px !important;
-}
-
-.excalidraw .App-menu__left,
-.excalidraw .layer-ui__wrapper .App-menu__left,
-.excalidraw .Island.App-menu__left {
-  position: absolute !important;
-  left: 0.75rem !important;
-  right: auto !important;
-  width: 13.5rem !important;
-  max-width: 14.5rem !important;
-  margin-left: 0 !important;
-  border-radius: 0.75rem !important;
-  box-sizing: border-box !important;
-}
 
 /* Codeblock Collapse / Fold in Raw CodeMirror View */
 .cm-codeblock-fold-btn {

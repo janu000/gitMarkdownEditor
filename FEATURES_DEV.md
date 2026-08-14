@@ -28,13 +28,15 @@ This document provides a detailed breakdown of all implemented features in the G
     - Auto-bracket closing.
     - Smart indentation.
     - Line wrapping and active line highlighting.
-- **Collapsible Code Blocks:**
+- **Collapsible Code Blocks & State Persistence:**
     - Integrated interactive fold buttons directly to the left of fenced code block start tags (```` ``` ```` / `~~~`).
     - Buttons are enlarged (1.5rem / 24px) with subtle, theme-aware neutral grey hover highlights for a cleaner editor look.
     - Buttons are hidden (`opacity: 0`) by default and appear smoothly on hover when hovering over the code block opening line or directly to the left of it (and remain visible when collapsed).
     - Clicking the button collapses the body lines and closing fence into a sleek, clickable `... N lines ...` placeholder pill while preserving the opening language indicator.
     - Clicking either the toggle button or the collapsed pill expands the block back to full view.
-    - Implemented via a custom CodeMirror 6 `StateField` and `ViewPlugin`, ensuring document AST, drafts, and undo/redo histories remain 100% intact.
+    - **Session & Refresh Persistence (`codeBlockFoldStorage.js`):** Code block fold states (collapsed vs expanded) are saved to `localStorage` under `gme_codeblock_folds` mapped per-file. Fold states are restored automatically on site refresh and file switching.
+    - **Default Collapsed Excalidraw Blocks:** Any fenced ```` ```excalidraw ```` blocks (or `.excalidraw` / `.excalidraw.md` drawing files opened in the raw CodeMirror editor) are automatically kept collapsed initially by default to minimize visual noise, while still allowing the user to expand them and persist their preferred state.
+    - Implemented via custom CodeMirror 6 `StateField`, `ViewPlugin`, and transaction annotations, ensuring document AST, drafts, and undo/redo histories remain 100% intact.
 - **Transaction-based State:** Uses CodeMirror's functional state model for robust undo/redo history and precise programmatic updates.
 
 ### Multi-File Persistence (IndexedDB)
@@ -78,6 +80,9 @@ This document provides a detailed breakdown of all implemented features in the G
 ### Preview Features
 - **Sync Scrolling (High Precision):** 
     - **Bi-directional Sync:** Scrolling the editor moves the preview and vice-versa.
+    - **Multi-Engine Support:** Seamless, high-precision synchronization for both **Source Mode (CodeMirror 6)** and **Visual Mode (Milkdown/Crepe ProseMirror WYSIWYG)**.
+    - **Dynamic Scroller Discovery & Mode-Switching Resilience:** Integrates a `MutationObserver` on `#editor-container` alongside auto-retry discovery to immediately and seamlessly bind scroll listeners, observers, and anchor caches when toggling between Source (CodeMirror) and Visual (WYSIWYG) modes, ensuring sync scroll never disables or drops across mode transitions.
+    - **Semantic Content-Signature Alignment Engine:** Replaces fragile index-based DOM block pairing with a robust forward sliding-window signature matcher. Accurately pairs headings, paragraphs, code blocks, lists, blockquotes, tables, and math equations across `.ProseMirror` and `.markdown-body` by text prefix and tag semantics, completely eliminating drift and offset mismatches caused by internal Crepe widget wrappers or nested lists.
     - **Focus-Point Alignment (20%):** Maps a focus point 20% down from the top of each viewport to keep the reading/editing area perfectly aligned.
     - **IndexedDB Multi-File Migration:** Replaced the fragile single-file `localStorage` draft system with a scalable IndexedDB solution. This allows users to work on multiple files simultaneously without losing changes when switching between them. Key technical changes include the introduction of `src/utils/storage.js` and the refactoring of `useGitHub.jsx` to prioritize local drafts over redundant network re-fetching.
 - **Smooth Zero-Point Transition:** To ensure a clean start, the focus-point offset dynamically scales. At the absolute top (`scrollTop = 0`), the logic uses a 0% offset (Top-to-Top). As you scroll, this offset smoothly interpolates to the full 20% over the first half-viewport of movement. This eliminates "snapping" and ensures both panes always start exactly at the top together.
@@ -86,7 +91,7 @@ This document provides a detailed breakdown of all implemented features in the G
     - **Content-End Mapping:** Explicitly maps the "start of text" to "start of text" and "end of text" to "end of text." This ensures that virtual space (like "scroll past end" padding) doesn't interfere with content alignment.
     - **AST-Level Accuracy:** Uses precise character offsets from the Markdown AST to map editor lines to preview elements.
     - **Layout Shift Resilience:** 
-        - Employs `ResizeObserver` on the actual `.markdown-body` content element, image `load` listeners, and **CodeMirror geometry update listeners**.
+        - Employs `ResizeObserver` on the actual `.markdown-body` content element, `.ProseMirror` visual document, image `load` listeners, and **CodeMirror geometry update listeners**.
         - **Throttled Forced Updates:** Cache updates are throttled to 16ms (60fps) when forced by layout changes, ensuring synchronization stays accurate even during rapid content shifts (like KaTeX rendering or image loading).
     - **Performance Optimizations:** 
         - **Asynchronous Batching:** Processes element measurements in small batches (100 nodes at a time) with main-thread yielding.
@@ -95,7 +100,7 @@ This document provides a detailed breakdown of all implemented features in the G
         - **Paint-Safe Synchronization:** Uses `requestAnimationFrame` with proper cancellation logic to ensure measurements occur after browser layout is stable.
     - **Efficient Implementation:** Uses binary search and scroll-caching for smooth performance even on large documents.
     - **Robust Loop Prevention:** Ref-based locking with a shorter **50ms** lock window ensures scroll events don't trigger infinite feedback loops while remaining responsive.
-    - **Active by Default:** Automatically enabled when in split view mode.
+    - **Active by Default:** Automatically enabled when in split view mode across all editor engines.
 - **Independent Scrolling:** Panes scroll independently when not in split view mode.
 - **Click-to-Jump (Sync):** Clicking any element in the preview scrolls the editor to the exact character offset of that element.
 - **GFM Support:** Support for GitHub Flavored Markdown (Tables, Task lists, Strikethrough, Autolinks).
@@ -248,10 +253,25 @@ This document provides a detailed breakdown of all implemented features in the G
     - **Toolbar Action:** Added "Insert Excalidraw Drawing" button to both the main Formatting Toolbar and Floating Formatting Toolbar.
     - **Performance & Theme Sync:** Lazy-loaded Excalidraw bundles, light/dark theme synchronization, drag-to-resize handles, and event isolation to prevent ProseMirror/CodeMirror key conflicts during drawing.
     - **Full Custom Font Support:** Bundled complete Excalidraw web font assets (`Virgil`, `Cascadia`, `Excalifont`, `Comic Shanns`, `Nunito`, `Assistant`) into `public/fonts` with `window.EXCALIDRAW_ASSET_PATH`, CSS `@font-face` rules, and PWA workbox caching. Text elements inside Excalidraw diagrams now render with their authentic hand-drawn and code typography.
-    - **Left-Docked Styling Widget:** Configured the embedded drawing editor so its styling and properties palette docks neatly on the left side (`max-width: 250px`) instead of spanning full width across the canvas.
+    - **Native Responsive Tooling & Menu Positioning:** Fully restored native Excalidraw responsive layout controls across top/bottom bars, ensuring the 3-line hamburger menu, shapes toolbar, and floating property panels render in their authentic positions without clipping or collision.
+    - **Seamless Block Header Alignment:** Overwrote inner canvas container borders and rounded radii (`border-radius: 0; border: none;`), ensuring the drawing surface meets the in-place editor's top header divider line seamlessly without awkward corner gaps or double borders.
 - **Visual Editor Fluid Text Layout:**
     - Normal text elements (paragraphs, headings, lists, blockquotes) now span 100% of the editor container width for an unconstrained, modern widescreen note-taking experience.
     - Structural and rich content blocks (Markdown tables, code blocks, images, KaTeX math displays, and Excalidraw diagrams) remain cleanly bounded to `max-width: 56rem` (896px) to preserve optimal reading and tabular layout ergonomics.
+- **Visual Editor (WYSIWYG) Search & Replace:**
+    - Unified the custom `SearchPanel` modal to work seamlessly across both Source (CodeMirror 6) and Visual (Milkdown/Crepe ProseMirror) editor modes.
+    - **ProseMirror Search Engine Plugin:** Integrated a custom ProseMirror plugin (`gmeSearchPlugin`) with dynamic inline decorations (`DecorationSet`), highlighting all matching phrases (`.gme-search-match`) and distinctly highlighting the active match (`.gme-search-match-selected`) across text blocks, headings, lists, tables, and code blocks.
+    - **Zero-Flicker Search Performance:** Completely decoupled the Crepe editor instance lifecycle from search query state. Typing in search only dispatches virtual ProseMirror decoration meta transactions without unmounting, destroying, or re-rendering the visual editor instance.
+    - **Optimized Zustand Store Selectors:** Implemented `useShallow` across root state consumers to ensure typing in search inputs does not trigger unnecessary parent re-renders in `App.jsx`.
+    - **Live Match Counter:** Accurately computes and tracks total matches and current active match index (`N/M`), updating in real-time as the user types, edits text, or clicks inside the document.
+    - **Full Navigation & Action Suite:** Supports Find Next (Enter / Down Arrow / F3), Find Previous (Shift+Enter / Up Arrow / Shift+F3), Replace Next, Replace All (atomic transaction), and Undo/Redo forwarding from search inputs.
+    - **Smooth Center-Aligned Auto-Scroll:** Automatically scrolls the visual editor viewport to smoothly center the active search match.
+    - **Search Filters:** Full support for Case Sensitivity (`Alt+C`), Whole Word (`Alt+W`), and Regular Expressions (`Alt+R`).
+- **Persistent Code Block Collapse & Default Excalidraw Folding:**
+    - **Persistence across Session & Site Refreshes:** Collapse and expand states for all fenced code blocks in the raw CodeMirror 6 editor are persisted in `localStorage` under `gme_codeblock_folds` using deterministic multi-level keys (primary line content hash, block index, and content signatures) mapped per-file.
+    - **Excalidraw Blocks Default to Collapsed:** Fenced ```` ```excalidraw ```` blocks (and `.excalidraw` / `.excalidraw.md` files opened in raw mode) are automatically collapsed on initial load to keep the markdown content clean and scannable.
+    - **User Preference Preservation:** When users expand an Excalidraw block or collapse any other code block (JavaScript, Python, etc.), the application records their choice and restores it across site refreshes and file switches.
+    - **Clean State Synchronization:** Automatic fold restorations use CodeMirror `Annotation` tokens to prevent race conditions or false saves, while user toggles (via button click, placeholder click, or fold keyboard shortcuts) persist instantly.
 
 ---
 

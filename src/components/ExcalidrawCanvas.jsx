@@ -142,7 +142,7 @@ const ExcalidrawCanvas = memo(({
       ref={containerRef}
       onKeyDown={handleKeyDown}
       onPointerDown={handlePointerDown}
-      className={`excalidraw-wrapper relative w-full h-full rounded-lg overflow-hidden border border-gray-200 dark:border-gray-700 select-none ${className}`}
+      className={`excalidraw-wrapper relative w-full h-full overflow-hidden select-none ${className}`}
       style={{ minHeight: '380px', ...style }}
     >
       <ExcalidrawComponent

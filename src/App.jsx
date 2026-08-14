@@ -16,6 +16,7 @@ import SearchPanel from './components/SearchPanel';
 
 // Hooks
 import useStore, { defaultContent, DEFAULT_MARKDOWN } from './store/useStore';
+import { useShallow } from 'zustand/react/shallow';
 import useLayoutResizer from './hooks/useLayoutResizer';
 import useMarkdownParser from './hooks/useMarkdownParser';
 import useGitHub from './hooks/useGitHub';
@@ -67,7 +68,44 @@ export default function App() {
     expandedPaths, setExpandedPaths,
     modifiedFiles, setModifiedFiles,
     setSearchVisible, setReplaceVisible
-  } = useStore();
+  } = useStore(useShallow(state => ({
+    content: state.content,
+    setContent: state.setContent,
+    theme: state.theme,
+    setTheme: state.setTheme,
+    viewMode: state.viewMode,
+    setViewMode: state.setViewMode,
+    editorMode: state.editorMode,
+    setEditorMode: state.setEditorMode,
+    syntaxHighlighting: state.syntaxHighlighting,
+    loadingState: state.loadingState,
+    setLoadingState: state.setLoadingState,
+    toast: state.toast,
+    showToast: state.showToast,
+    showAuthModal: state.showAuthModal,
+    setShowAuthModal: state.setShowAuthModal,
+    showShortcutModal: state.showShortcutModal,
+    setShowShortcutModal: state.setShowShortcutModal,
+    showEmojiPicker: state.showEmojiPicker,
+    setShowEmojiPicker: state.setShowEmojiPicker,
+    showFormattingTools: state.showFormattingTools,
+    setShowFormattingTools: state.setShowFormattingTools,
+    shortcuts: state.shortcuts,
+    setShortcuts: state.setShortcuts,
+    localFileName: state.localFileName,
+    activeFile: state.activeFile,
+    setActiveFile: state.setActiveFile,
+    pendingOps: state.pendingOps,
+    setPendingOps: state.setPendingOps,
+    pathStack: state.pathStack,
+    setPathStack: state.setPathStack,
+    expandedPaths: state.expandedPaths,
+    setExpandedPaths: state.setExpandedPaths,
+    modifiedFiles: state.modifiedFiles,
+    setModifiedFiles: state.setModifiedFiles,
+    setSearchVisible: state.setSearchVisible,
+    setReplaceVisible: state.setReplaceVisible,
+  })));
 
   // Automatically expand parent folders of active file
   useEffect(() => {
@@ -315,7 +353,7 @@ export default function App() {
   const handleExportPdfCallback = useCallback(() => handleExportPdf(), [handleExportPdf]);
 
   useShortcuts(shortcuts, actions);
-  const triggerSyncUpdate = useSyncScroll(editorRef, previewRef, viewMode === 'split' && editorMode === 'source', parsedHtml);
+  const triggerSyncUpdate = useSyncScroll(editorRef, richEditorRef, previewRef, editorMode, viewMode === 'split', parsedHtml);
 
   const stats = useMemo(() => {
     const text = content || '';
@@ -348,12 +386,6 @@ export default function App() {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  useEffect(() => {
-    if (editorMode === 'visual') {
-      setSearchVisible(false);
-      setReplaceVisible(false);
-    }
-  }, [editorMode, setSearchVisible, setReplaceVisible]);
 
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -946,7 +978,11 @@ export default function App() {
                   />
                 </div>
                 <div className="flex-1 relative overflow-hidden pr-[2px]">
-                  {editorMode === 'source' && <SearchPanel editorRef={editorRef} />}
+                  <SearchPanel 
+                    editorMode={editorMode}
+                    editorRef={editorRef} 
+                    richEditorRef={richEditorRef} 
+                  />
                   <div className="h-full overflow-hidden">
                     {editorMode === 'source' ? (
                       <CodeMirrorEditor 
@@ -966,6 +1002,7 @@ export default function App() {
                           onSelectionFormatChange={setActiveFormats}
                           theme={theme}
                           onOpenExcalidrawModal={handleOpenExcalidrawModal}
+                          onUpdate={() => triggerSyncUpdate(true)}
                         />
                       </Suspense>
                     )}
