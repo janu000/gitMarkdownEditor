@@ -200,7 +200,10 @@ html, body, #root {
 
 .rich-markdown-editor .milkdown .ProseMirror {
   min-height: 100%;
-  padding: 1.5rem;
+  max-width: 56rem;
+  margin: 0 auto;
+  padding: 2rem 1.5rem;
+  width: 100%;
 }
 
 .rich-markdown-editor .milkdown-top-bar {
