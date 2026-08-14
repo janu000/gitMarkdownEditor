@@ -458,18 +458,16 @@ export default function App() {
     if (currentRepo) {
       await deleteGHFile(file);
     } else {
-      if (window.confirm(`Delete ${file.name}?`)) {
-        await deleteLocalFile(file);
-        if (file.type === 'dir' && activeFile?.path.startsWith(`${file.path}/`)) {
-          setActiveFile(null);
-          setContent(defaultContent !== null ? defaultContent : DEFAULT_MARKDOWN);
-        } else if (activeFile?.path === file.path) {
-          setActiveFile(null);
-          setContent(defaultContent !== null ? defaultContent : DEFAULT_MARKDOWN);
-        }
+      await deleteLocalFile(file);
+      if (file.type === 'dir' && activeFile?.path?.startsWith(`${file.path}/`)) {
+        setActiveFile(null);
+        setContent(defaultContent !== null ? defaultContent : DEFAULT_MARKDOWN);
+      } else if (activeFile?.path === file.path) {
+        setActiveFile(null);
+        setContent(defaultContent !== null ? defaultContent : DEFAULT_MARKDOWN);
       }
     }
-  }, [currentRepo, deleteGHFile, deleteLocalFile, activeFile, setContent, setActiveFile]);
+  }, [currentRepo, deleteGHFile, deleteLocalFile, activeFile, setContent, setActiveFile, defaultContent]);
 
   const handleMoveFile = useCallback(async (file, targetPath) => {
     if (currentRepo) {

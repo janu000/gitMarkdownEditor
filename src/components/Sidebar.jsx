@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import logo from '../assets/logo.svg';
 import CreateItemModal from './CreateItemModal';
+import DeleteConfirmModal from './DeleteConfirmModal';
 import { isExcalidrawFile } from '../utils/excalidraw';
 import { getDisplayName } from '../utils/markdown';
 
@@ -65,6 +66,11 @@ import { getDisplayName } from '../utils/markdown';
     targetFile: null
   });
 
+  const [deleteModalState, setDeleteModalState] = React.useState({
+    isOpen: false,
+    file: null
+  });
+
   const handleOpenCreateModal = (mode = 'file', parentPath = null, targetFile = null, initialValue = '') => {
     setModalState({
       isOpen: true,
@@ -73,6 +79,20 @@ import { getDisplayName } from '../utils/markdown';
       parentPath,
       targetFile
     });
+  };
+
+  const handleOpenDeleteModal = (file) => {
+    setDeleteModalState({
+      isOpen: true,
+      file
+    });
+  };
+
+  const handleConfirmDelete = async (fileToDelete) => {
+    setDeleteModalState({ isOpen: false, file: null });
+    if (fileToDelete) {
+      await deleteFile(fileToDelete);
+    }
   };
 
   const handleModalSubmit = (name, type, parentPath) => {
@@ -429,8 +449,8 @@ import { getDisplayName } from '../utils/markdown';
                                 </button>
                               </>
                             )}
-                            <button onClick={(e) => { e.stopPropagation(); handleOpenCreateModal('rename', null, file); }} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded mr-1"><FileEdit className="w-4 h-4" /></button>
-                            <button onClick={(e) => { e.stopPropagation(); deleteFile(file); }} className="p-1 hover:bg-red-100 dark:hover:bg-red-900/50 text-gray-400 hover:text-red-500 dark:hover:text-red-400 rounded"><Trash2 className="w-4 h-4" /></button>
+                            <button onClick={(e) => { e.stopPropagation(); handleOpenCreateModal('rename', null, file); }} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded mr-1" title="Rename"><FileEdit className="w-4 h-4" /></button>
+                            <button onClick={(e) => { e.stopPropagation(); handleOpenDeleteModal(file); }} className="p-1 hover:bg-red-100 dark:hover:bg-red-900/50 text-gray-400 hover:text-red-500 dark:hover:text-red-400 rounded" title={file.type === 'dir' ? 'Delete folder' : 'Delete file'}><Trash2 className="w-4 h-4" /></button>
                           </div>
                         )}
                       </div>
@@ -656,8 +676,8 @@ import { getDisplayName } from '../utils/markdown';
                                     </button>
                                   </>
                                 )}
-                                <button onClick={(e) => { e.stopPropagation(); handleOpenCreateModal('rename', null, file); }} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded mr-1"><FileEdit className="w-4 h-4" /></button>
-                                <button onClick={(e) => { e.stopPropagation(); deleteFile(file); }} className="p-1 hover:bg-red-100 dark:hover:bg-red-900/50 text-gray-400 hover:text-red-500 dark:hover:text-red-400 rounded"><Trash2 className="w-4 h-4" /></button>
+                                <button onClick={(e) => { e.stopPropagation(); handleOpenCreateModal('rename', null, file); }} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-400 hover:text-indigo-600 dark:hover:text-indigo-400 rounded mr-1" title="Rename"><FileEdit className="w-4 h-4" /></button>
+                                <button onClick={(e) => { e.stopPropagation(); handleOpenDeleteModal(file); }} className="p-1 hover:bg-red-100 dark:hover:bg-red-900/50 text-gray-400 hover:text-red-500 dark:hover:text-red-400 rounded" title={file.type === 'dir' ? 'Delete folder' : 'Delete file'}><Trash2 className="w-4 h-4" /></button>
                               </div>
                             )}
                           </div>
@@ -692,6 +712,15 @@ import { getDisplayName } from '../utils/markdown';
         parentPath={modalState.parentPath}
         onClose={() => setModalState(prev => ({ ...prev, isOpen: false }))}
         onSubmit={handleModalSubmit}
+      />
+
+      <DeleteConfirmModal
+        isOpen={deleteModalState.isOpen}
+        file={deleteModalState.file}
+        currentRepo={currentRepo}
+        currentBranch={currentBranch}
+        onClose={() => setDeleteModalState({ isOpen: false, file: null })}
+        onConfirm={handleConfirmDelete}
       />
     </div>
   );

@@ -605,11 +605,6 @@ export default function useGitHub(showToast, setLoadingState, {
           return;
         }
 
-        if (!window.confirm(`Delete folder ${fileToDelete.name}?`)) {
-          setLoadingState('');
-          return;
-        }
-
         setLoadingState('saving');
         showToast(`Deleting folder ${fileToDelete.name}...`);
 
@@ -631,8 +626,6 @@ export default function useGitHub(showToast, setLoadingState, {
       }
       return;
     }
-
-    if (!window.confirm(`Delete ${getDisplayName(fileToDelete.name)}?`)) return;
 
     setPendingOps(prev => ({ ...prev, [fileToDelete.path]: { action: 'delete' } }));
     if (activeFileRef.current?.path === fileToDelete.path) {

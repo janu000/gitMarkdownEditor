@@ -272,6 +272,11 @@ This document provides a detailed breakdown of all implemented features in the G
     - **Excalidraw Blocks Default to Collapsed:** Fenced ```` ```excalidraw ```` blocks (and `.excalidraw` / `.excalidraw.md` files opened in raw mode) are automatically collapsed on initial load to keep the markdown content clean and scannable.
     - **User Preference Preservation:** When users expand an Excalidraw block or collapse any other code block (JavaScript, Python, etc.), the application records their choice and restores it across site refreshes and file switches.
     - **Clean State Synchronization:** Automatic fold restorations use CodeMirror `Annotation` tokens to prevent race conditions or false saves, while user toggles (via button click, placeholder click, or fold keyboard shortcuts) persist instantly.
+- **Custom Delete Confirmation Modal (`DeleteConfirmModal.jsx`):**
+    - Replaced disruptive, unstyled native browser `window.confirm` dialogs for file and folder deletions with a bespoke, accessible, glassmorphic modal popup matching the application's design system.
+    - **Context-Aware Information:** Displays item type (file vs folder), item name, full item path, and repository/branch or local workspace context badge.
+    - **Destructive Action Safety:** Features a danger badge, warning notice about permanent deletion, auto-focus on the `Cancel` action to prevent accidental confirmation, and keyboard navigation support (`Escape` to dismiss, form submission for deletion).
+    - **Clean Architecture:** Fully removed native blocking `window.confirm` calls from `App.jsx` and `useGitHub.jsx`, seamlessly delegating user confirmation to the new UI modal.
 
 ---
 
