@@ -1026,7 +1026,7 @@ export default function App() {
               className={`flex flex-col h-full bg-white dark:bg-[#0d1117] ${viewMode === 'edit' ? 'hidden' : ''}`}
               style={viewMode === 'split' ? { width: `${(1 - tempSplitRatio) * 100}%` } : { flex: 1 }}
             >
-              <div id="preview-stats" className={`overflow-hidden transition-all duration-300 shrink-0 ${showFormattingTools ? 'h-[var(--bottom-bar-height)] opacity-100 border-b border-gray-200 dark:border-gray-800' : 'h-0 opacity-0'}`}>
+              <div id="preview-stats" className={`overflow-hidden transition-all duration-300 shrink-0 ${showFormattingTools ? 'h-[var(--bottom-bar-height)] opacity-100' : 'h-0 opacity-0'}`}>
                 <div className="gme-stats-bar h-full flex items-center px-4 bg-gray-50 dark:bg-[#0d1117] space-x-3 text-xs">
                   <div className="flex items-center">
                     <span className="text-gray-400 mr-1.5">Words:</span>
