@@ -31,13 +31,13 @@ const Preview = memo(({
       let mountEl = preEl.nextElementSibling;
       if (!mountEl || !mountEl.classList.contains('excalidraw-preview-mount')) {
         mountEl = document.createElement('div');
-        mountEl.className = 'excalidraw-preview-mount my-6 flex justify-center w-full select-none';
+        mountEl.className = 'excalidraw-preview-mount my-6 flex justify-start w-full select-none';
         preEl.parentNode.insertBefore(mountEl, preEl.nextSibling);
       }
 
       mountEl.innerHTML = `
-        <div class="excalidraw-rendered-diagram flex justify-center w-full overflow-x-auto">
-          <div class="svg-host-area flex justify-center w-full max-w-full">
+        <div class="excalidraw-rendered-diagram flex justify-start w-full overflow-x-auto">
+          <div class="svg-host-area flex justify-start w-full max-w-full">
             <div class="text-xs text-gray-400 py-4">Rendering diagram...</div>
           </div>
         </div>
@@ -48,6 +48,9 @@ const Preview = memo(({
       exportSceneToSvg(parsed, {
         theme: theme === 'dark' ? 'dark' : 'light',
         exportBackground: false,
+        matchViewport: true,
+        height: parsed.appState?.height || 420,
+        width: container.clientWidth || 768,
       })
         .then((svg) => {
           if (svgHost) {

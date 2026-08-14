@@ -438,12 +438,12 @@ const CodeMirrorEditor = memo(({
         }),
         EditorView.updateListener.of((update) => {
           if (update.docChanged) {
+            const newContent = update.state.doc.toString();
+            contentRef.current = newContent;
             clearTimeout(debounceTimer);
             const syncDelay = update.state.doc.length < 10000 ? 10 : 300;
             
             debounceTimer = setTimeout(() => {
-              const newContent = update.state.doc.toString();
-              contentRef.current = newContent;
               setContent(newContent);
             }, syncDelay);
           }
@@ -564,7 +564,7 @@ const CodeMirrorEditor = memo(({
     const view = viewRef.current;
     const currentText = view.state.doc.toString();
     
-    if (content !== undefined && content !== currentText) {
+    if (content !== undefined && content !== currentText && content !== contentRef.current) {
       view.dispatch({
         changes: { from: 0, to: currentText.length, insert: content || '' },
         selection: { anchor: 0 },

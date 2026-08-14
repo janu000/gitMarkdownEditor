@@ -218,6 +218,8 @@ export async function exportSceneToSvg(sceneData, options = {}) {
   };
   const safeCollaborators = cleanAppState.collaborators instanceof Map ? cleanAppState.collaborators : new Map();
 
+  const exportPadding = options.exportPadding ?? 20;
+
   const svg = await exportToSvg({
     elements: normalized.elements,
     appState: {
@@ -228,13 +230,56 @@ export async function exportSceneToSvg(sceneData, options = {}) {
       collaborators: safeCollaborators,
     },
     files: normalized.files || {},
-    exportPadding: options.exportPadding ?? 20,
+    exportPadding,
   });
 
-  svg.style.maxWidth = '100%';
-  svg.style.height = 'auto';
-  svg.style.display = 'block';
-  svg.style.margin = '0 auto';
+  const scrollX = typeof cleanAppState.scrollX === 'number' ? cleanAppState.scrollX : null;
+  const scrollY = typeof cleanAppState.scrollY === 'number' ? cleanAppState.scrollY : null;
+  const zoom = cleanAppState.zoom?.value || (typeof cleanAppState.zoom === 'number' ? cleanAppState.zoom : 1) || 1;
+  const targetHeight = options.height || cleanAppState.height || 420;
+  const targetWidth = options.width || cleanAppState.width || 800;
+
+  if (options.matchViewport && scrollX != null && scrollY != null && targetWidth > 0 && targetHeight > 0) {
+    // exportToSvg translates elements to their padded bounds, so convert the
+    // Excalidraw viewport into that exported coordinate space.
+    let minX = Infinity;
+    let minY = Infinity;
+    for (const element of normalized.elements) {
+      if (element.isDeleted) continue;
+      let elementMinX = element.x ?? 0;
+      let elementMinY = element.y ?? 0;
+      if (Array.isArray(element.points) && element.points.length > 0) {
+        for (const [pointX, pointY] of element.points) {
+          if (element.x + pointX < elementMinX) elementMinX = element.x + pointX;
+          if (element.y + pointY < elementMinY) elementMinY = element.y + pointY;
+        }
+      }
+      if (elementMinX < minX) minX = elementMinX;
+      if (elementMinY < minY) minY = elementMinY;
+    }
+    if (minX === Infinity) minX = 0;
+    if (minY === Infinity) minY = 0;
+
+    const vbX = -scrollX - minX + exportPadding;
+    const vbY = -scrollY - minY + exportPadding;
+    const vbW = targetWidth / zoom;
+    const vbH = targetHeight / zoom;
+
+    svg.setAttribute('viewBox', `${vbX} ${vbY} ${vbW} ${vbH}`);
+    svg.setAttribute('width', '100%');
+    svg.setAttribute('height', `${targetHeight}`);
+    svg.style.width = '100%';
+    svg.style.height = `${targetHeight}px`;
+    svg.style.maxWidth = '100%';
+    svg.style.display = 'block';
+    svg.style.margin = '0';
+  } else {
+    svg.style.maxWidth = '100%';
+    svg.style.width = 'auto';
+    svg.style.height = 'auto';
+    svg.style.display = 'block';
+    svg.style.margin = '0';
+  }
 
   return svg;
 }

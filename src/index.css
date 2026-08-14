@@ -346,8 +346,22 @@ html, body, #root {
 
 /* Print Styles */
 @media print {
-  @page { size: a4 portrait; margin: 20mm; }
-  #main-sidebar, #sidebar-resizer, #top-toolbar, #formatting-toolbar, #editor-container, #split-resizer, #preview-stats { display: none !important; }
+  @page {
+    size: auto;
+    margin: 20mm 16mm 20mm 16mm;
+    @top-left { content: none; }
+    @top-center { content: none; }
+    @top-right { content: none; }
+    @bottom-left { content: none; }
+    @bottom-right { content: none; }
+    @bottom-center {
+      content: counter(page);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-size: 9pt;
+      color: #6b7280;
+    }
+  }
+  #main-sidebar, #sidebar-resizer, #top-toolbar, #formatting-toolbar, #editor-container, #split-resizer, #preview-stats, .toast-notification, .excalidraw-floating-bar, .excalidraw-block-header, .search-panel, .shortcut-modal, .auth-modal, .delete-confirm-modal, .create-item-modal, [role="dialog"], [role="status"] { display: none !important; }
   body, html, #root, .flex.h-screen.w-full { height: auto !important; overflow: visible !important; background: white !important; margin: 0 !important; padding: 0 !important; }
   .flex-1.flex.flex-col.min-w-0 { flex: 1 1 100% !important; max-width: 100% !important; min-width: unset !important; width: 100% !important; }
   .flex-1.flex.overflow-hidden.relative { flex: 1 1 100% !important; max-width: 100% !important; overflow: visible !important; }
@@ -444,13 +458,20 @@ html, body, #root {
   width: 100%;
 }
 
-.excalidraw-block-container svg {
+.excalidraw-block-container svg,
+.excalidraw-block-view svg,
+.excalidraw-preview-mount svg {
   max-width: 100% !important;
+  width: auto !important;
   height: auto !important;
+  margin: 0 !important;
+  display: block !important;
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.05));
 }
 
-.dark .excalidraw-block-container svg {
+.dark .excalidraw-block-container svg,
+.dark .excalidraw-block-view svg,
+.dark .excalidraw-preview-mount svg {
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
 }
 
@@ -487,44 +508,62 @@ html, body, #root {
   box-sizing: border-box !important;
 }
 
-.excalidraw-block-editing button.btn-done-editing {
-  background-color: #2563eb !important;
-  color: #ffffff !important;
-  border: 1px solid #1d4ed8 !important;
-  font-weight: 600 !important;
-  opacity: 1 !important;
-  visibility: visible !important;
-  padding: 6px 16px !important;
-  border-radius: 8px !important;
+.excalidraw .excalidraw-done-button {
+  height: 36px !important;
+  padding: 0 14px !important;
   display: inline-flex !important;
   align-items: center !important;
+  justify-content: center !important;
   gap: 6px !important;
+  border-radius: 8px !important;
+  border: 1px solid #1d4ed8 !important;
+  background-color: #2563eb !important;
+  color: #ffffff !important;
+  box-shadow: 0 1px 3px rgba(37, 99, 235, 0.3) !important;
+  cursor: pointer !important;
   font-size: 12px !important;
-  line-height: 1.25 !important;
+  font-weight: 600 !important;
+  font-family: inherit !important;
+  transition: all 0.15s ease !important;
+  margin-right: 8px !important;
 }
 
-.excalidraw-block-editing button.btn-done-editing:hover {
+.excalidraw .excalidraw-done-button:hover {
+  background-color: #1d4ed8 !important;
+  border-color: #1e40af !important;
+  color: #ffffff !important;
+}
+
+.dark .excalidraw .excalidraw-done-button {
+  border: 1px solid #2563eb !important;
   background-color: #1d4ed8 !important;
   color: #ffffff !important;
 }
 
-.excalidraw-block-editing button.btn-fullscreen-editing {
-  background-color: #ffffff !important;
-  color: #1f2937 !important;
-  border: 1px solid #d1d5db !important;
-  padding: 6px 14px !important;
-  border-radius: 8px !important;
-  display: inline-flex !important;
-  align-items: center !important;
-  gap: 6px !important;
-  font-size: 12px !important;
-  line-height: 1.25 !important;
+.dark .excalidraw .excalidraw-done-button:hover {
+  background-color: #1e40af !important;
+  border-color: #3b82f6 !important;
+  color: #ffffff !important;
 }
 
-.dark .excalidraw-block-editing button.btn-fullscreen-editing {
-  background-color: #1f2937 !important;
+.excalidraw-block-editing button.btn-fullscreen-editing:hover,
+.excalidraw .excalidraw-top-right-actions button.btn-fullscreen-editing:hover {
+  background-color: #f3f4f6 !important;
+  color: #111827 !important;
+  border-color: #9ca3af !important;
+}
+
+.dark .excalidraw-block-editing button.btn-fullscreen-editing,
+.dark .excalidraw .excalidraw-top-right-actions button.btn-fullscreen-editing {
+  background-color: #1e293b !important;
   color: #f9fafb !important;
   border: 1px solid #4b5563 !important;
+}
+
+.dark .excalidraw-block-editing button.btn-fullscreen-editing:hover,
+.dark .excalidraw .excalidraw-top-right-actions button.btn-fullscreen-editing:hover {
+  background-color: #334155 !important;
+  border-color: #64748b !important;
 }
 
 /* Excalidraw View Mode Floating Hover Toolbar */
@@ -535,6 +574,11 @@ html, body, #root {
 
 .excalidraw-block-view .excalidraw-floating-bar button {
   font-family: inherit !important;
+}
+
+.excalidraw-block-view .excalidraw-floating-bar svg {
+  width: 18px !important;
+  height: 18px !important;
 }
 
 

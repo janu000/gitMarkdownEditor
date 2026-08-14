@@ -214,7 +214,7 @@ export default function App() {
   const { 
     insertText, insertListItem, insertNumberedList, insertTaskList,
     setBlockType, undoChange, redoChange, toggleCode, toggleMath, insertExcalidraw
-  } = useFormatting(editorRef);
+  } = useFormatting(editorRef, setContent);
 
   // Synchronize document window title with active file display name
   useEffect(() => {
@@ -247,6 +247,7 @@ export default function App() {
 
   const handleOpenExcalidrawModal = useCallback((data, rawCode = null, offsetStart = null, offsetEnd = null) => {
     setExcalidrawModalState({
+      id: Date.now(),
       isOpen: true,
       initialData: data || null,
       rawCode: rawCode || null,
@@ -269,9 +270,14 @@ export default function App() {
     }
 
     // Direct update inside visual WYSIWYG editor
-    if (editorMode === 'visual' && typeof offsetStart === 'number') {
-      const updated = richEditorRef.current?.updateDrawing?.(offsetStart, updatedData);
-      if (updated) return;
+    if (editorMode === 'visual') {
+      if (typeof offsetStart === 'number') {
+        const updated = richEditorRef.current?.updateDrawing?.(offsetStart, updatedData);
+        if (updated) return;
+      } else {
+        const inserted = richEditorRef.current?.insertDrawing?.(updatedData);
+        if (inserted) return;
+      }
     }
 
     // Replace matched rawCode in content
@@ -281,13 +287,13 @@ export default function App() {
       return;
     }
 
-    // Replace by offset coordinates
-    if (offsetStart != null && offsetEnd != null && offsetEnd >= offsetStart) {
+    // Replace by offset coordinates (in source mode)
+    if (offsetStart != null && offsetEnd != null && offsetEnd >= offsetStart && editorMode !== 'visual') {
       setContent((prev) => prev.slice(0, offsetStart) + newCodeBlock + prev.slice(offsetEnd));
       return;
     }
 
-    // Insert new drawing at cursor
+    // Fallback: insert drawing at cursor
     if (editorMode === 'visual') {
       richEditorRef.current?.insertDrawing?.(updatedData);
     } else {
@@ -342,7 +348,14 @@ export default function App() {
     redo: () => runFormattingCommand('redo', redoChange),
   }), [editorMode, insertListItem, insertNumberedList, insertTaskList, insertText, insertExcalidraw, redoChange, runFormattingCommand, setBlockType, toggleCode, toggleMath, undoChange]);
 
-  const handleExportPdf = useCallback(() => window.print(), []);
+  const handleExportPdf = useCallback(() => {
+    const originalTitle = document.title;
+    document.title = '';
+    window.print();
+    setTimeout(() => {
+      document.title = originalTitle;
+    }, 500);
+  }, []);
 
   const actions = useMemo(() => ({
     saveToGitHub, handleExportPdf, 
@@ -793,7 +806,7 @@ export default function App() {
       <Suspense fallback={null}>
         {excalidrawModalState.isOpen && (
           <ExcalidrawModal
-            key={`modal-${excalidrawModalState.rawCode || 'active'}`}
+            key={`modal-${excalidrawModalState.id || excalidrawModalState.rawCode || 'active'}`}
             isOpen={excalidrawModalState.isOpen}
             initialData={excalidrawModalState.initialData}
             onSave={handleSaveExcalidrawModal}

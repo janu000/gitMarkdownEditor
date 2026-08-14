@@ -9,12 +9,15 @@ import '@excalidraw/excalidraw/index.css';
 const ExcalidrawCanvas = memo(({
   initialData,
   onChange,
+  onAPI,
+  excalidrawRef,
   theme = 'light',
   zenModeEnabled = false,
   gridModeEnabled = false,
   viewModeEnabled = false,
   className = '',
   style = {},
+  renderTopRightUI,
 }) => {
   const [ExcalidrawComponent, setExcalidrawComponent] = useState(null);
   const [excalidrawAPI, setExcalidrawAPI] = useState(null);
@@ -146,13 +149,20 @@ const ExcalidrawCanvas = memo(({
       style={{ minHeight: '380px', ...style }}
     >
       <ExcalidrawComponent
-        excalidrawAPI={(api) => setExcalidrawAPI(api)}
+        excalidrawAPI={(api) => {
+          setExcalidrawAPI(api);
+          onAPI?.(api);
+          if (excalidrawRef) {
+            excalidrawRef.current = api;
+          }
+        }}
         initialData={initialDataRef.current}
         onChange={handleChange}
         theme={theme === 'dark' ? 'dark' : 'light'}
         viewModeEnabled={viewModeEnabled}
         zenModeEnabled={zenModeEnabled}
         gridModeEnabled={gridModeEnabled}
+        renderTopRightUI={renderTopRightUI}
         UIOptions={{
           canvasActions: {
             loadScene: true,

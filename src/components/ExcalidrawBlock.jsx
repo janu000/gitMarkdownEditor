@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, memo, useCallback, useMemo, Component } from 'react';
-import { Edit3, Maximize2, Check, Copy, CheckCheck, Trash2 } from 'lucide-react';
+import { Edit3, Check, Copy, CheckCheck, Trash2 } from 'lucide-react';
 import ExcalidrawCanvas from './ExcalidrawCanvas';
 import { exportSceneToSvg, parseExcalidrawContent, serializeToCodeBlock } from '../utils/excalidraw';
 
@@ -45,7 +45,6 @@ const ExcalidrawBlock = memo(({
   parsedData,
   autoEdit = false,
   onChange,
-  onOpenFullscreen,
   onDelete,
   theme = 'light',
   isEditable = true,
@@ -59,11 +58,19 @@ const ExcalidrawBlock = memo(({
   const latestDataRef = useRef(initialExternalData);
   const [svgElement, setSvgElement] = useState(null);
   const [copied, setCopied] = useState(false);
-  const [height, setHeight] = useState(420);
+  const [height, setHeight] = useState(() => initialExternalData?.appState?.height || 420);
   const isResizingRef = useRef(false);
   const startYRef = useRef(0);
   const startHeightRef = useRef(420);
   const containerRef = useRef(null);
+  const excalidrawAPIRef = useRef(null);
+
+  // Sync height from external data when changed
+  useEffect(() => {
+    if (initialExternalData?.appState?.height && initialExternalData.appState.height !== height) {
+      setHeight(initialExternalData.appState.height);
+    }
+  }, [initialExternalData?.appState?.height]);
 
   // Update latestDataRef when external props change and not currently editing
   useEffect(() => {
@@ -78,9 +85,12 @@ const ExcalidrawBlock = memo(({
 
     let isMounted = true;
 
-    exportSceneToSvg(initialExternalData, {
+    exportSceneToSvg(latestDataRef.current || initialExternalData, {
       theme: theme === 'dark' ? 'dark' : 'light',
       exportBackground: false,
+      matchViewport: true,
+      height: height,
+      width: containerRef.current?.clientWidth || 800,
     })
       .then((svg) => {
         if (isMounted) {
@@ -94,15 +104,18 @@ const ExcalidrawBlock = memo(({
     return () => {
       isMounted = false;
     };
-  }, [initialExternalData, theme, isEditing]);
+  }, [initialExternalData, theme, isEditing, height]);
 
   const handleCanvasChange = useCallback((elements, appState, files) => {
+    const currentWidth = containerRef.current?.clientWidth || appState?.width;
     const updated = {
       ...latestDataRef.current,
       elements,
       appState: {
         ...latestDataRef.current?.appState,
         ...appState,
+        height: height,
+        width: currentWidth || latestDataRef.current?.appState?.width,
       },
       files: files || latestDataRef.current?.files || {},
     };
@@ -112,7 +125,26 @@ const ExcalidrawBlock = memo(({
       const codeBlock = serializeToCodeBlock(updated);
       onChange(updated, codeBlock);
     }
-  }, [onChange]);
+  }, [onChange, height]);
+
+  const handleDoneEditing = useCallback(() => {
+    const api = excalidrawAPIRef.current;
+    if (api) {
+      try {
+        const elements = api.getSceneElements?.();
+        if (Array.isArray(elements)) {
+          handleCanvasChange(
+            elements,
+            api.getAppState?.() || {},
+            api.getFiles?.() || {},
+          );
+        }
+      } catch (err) {
+        console.warn('Could not capture the final Excalidraw viewport:', err);
+      }
+    }
+    setIsEditing(false);
+  }, [handleCanvasChange]);
 
   const handleCopySvg = async (e) => {
     e.stopPropagation();
@@ -152,58 +184,75 @@ const ExcalidrawBlock = memo(({
     window.addEventListener('mouseup', handleMouseUp);
   };
 
+  // Reliable capture-phase double-click listener to open edit mode inside ProseMirror
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el || isEditing || !isEditable) return;
+
+    const handleDblClick = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setIsEditing(true);
+    };
+
+    el.addEventListener('dblclick', handleDblClick, true);
+    return () => {
+      el.removeEventListener('dblclick', handleDblClick, true);
+    };
+  }, [isEditing, isEditable]);
+
+  // Done button integrated inside the Excalidraw toolbar with vibrant blue styling
+  const renderTopRightUI = useCallback(() => {
+    return (
+      <div className="flex items-center mr-2">
+        <button
+          type="button"
+          onClick={handleDoneEditing}
+          className="excalidraw-done-button"
+          style={{
+            height: '36px',
+            padding: '0 14px',
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '6px',
+            borderRadius: '8px',
+            border: '1px solid #1d4ed8',
+            backgroundColor: '#2563eb',
+            color: '#ffffff',
+            boxShadow: '0 1px 3px rgba(37, 99, 235, 0.3)',
+            cursor: 'pointer',
+            fontSize: '12px',
+            fontWeight: 600,
+            fontFamily: 'inherit',
+            transition: 'all 0.15s ease',
+          }}
+          title="Finish Editing (Done)"
+        >
+          <Check className="w-4 h-4 stroke-[2.5]" style={{ color: '#ffffff' }} />
+          <span style={{ color: '#ffffff' }}>Done</span>
+        </button>
+      </div>
+    );
+  }, [handleDoneEditing]);
+
   if (isEditing) {
     return (
       <div
         ref={containerRef}
+        style={{ height: `${height}px` }}
         className={`excalidraw-block-editing my-6 rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-[#0d1117] shadow-lg ring-2 ring-blue-500/40 relative overflow-hidden ${className}`}
         contentEditable={false}
       >
-        {/* Spacious top control bar in editing mode */}
-        <div className="excalidraw-edit-header flex items-center justify-between px-6 py-3 min-h-[48px] bg-gray-50/95 dark:bg-[#161b22]/95 border-b border-gray-200 dark:border-gray-800 text-xs text-gray-600 dark:text-gray-400 select-none">
-          <div className="flex items-center space-x-3">
-            <span className="inline-flex items-center justify-center w-6 h-6 rounded-md bg-blue-100 dark:bg-blue-900/50 text-blue-600 dark:text-blue-400 font-semibold text-xs shadow-xs">
-              🎨
-            </span>
-            <span className="font-semibold text-gray-800 dark:text-gray-200 text-[13px] tracking-wide">
-              Excalidraw Canvas
-            </span>
-            <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-medium bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200/60 dark:border-blue-800/60">
-              Editing
-            </span>
-          </div>
-
-          <div className="flex items-center space-x-3">
-            {onOpenFullscreen && (
-              <button
-                type="button"
-                onClick={() => onOpenFullscreen(latestDataRef.current)}
-                className="btn-fullscreen-editing px-3.5 py-1.5 text-xs font-medium rounded-lg bg-white dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200 border border-gray-300 dark:border-gray-600 flex items-center gap-1.5 shadow-xs transition cursor-pointer"
-                title="Expand to Fullscreen Modal"
-              >
-                <Maximize2 className="w-3.5 h-3.5 text-gray-500 dark:text-gray-400" />
-                <span>Fullscreen</span>
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={() => setIsEditing(false)}
-              className="btn-done-editing px-4 py-1.5 text-xs font-semibold rounded-lg !bg-blue-600 hover:!bg-blue-700 !text-white flex items-center gap-1.5 shadow-sm transition cursor-pointer"
-              style={{ backgroundColor: '#2563eb', color: '#ffffff' }}
-            >
-              <Check className="w-4 h-4 !text-white stroke-[2.5]" />
-              <span className="font-semibold !text-white">Done Editing</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Live Canvas */}
-        <div style={{ height: `${height}px` }} className="w-full relative">
+        {/* Live Canvas occupying full container with native toolbar Done button */}
+        <div className="w-full h-full relative">
           <ExcalidrawErrorBoundary onReset={() => setIsEditing(false)}>
             <ExcalidrawCanvas
-              key="canvas-active"
-              initialData={initialExternalData}
+              key="inplace-canvas"
+              initialData={latestDataRef.current || initialExternalData}
               onChange={handleCanvasChange}
+              excalidrawRef={excalidrawAPIRef}
+              renderTopRightUI={renderTopRightUI}
               theme={theme}
               style={{ height: '100%', minHeight: '100%' }}
             />
@@ -226,39 +275,25 @@ const ExcalidrawBlock = memo(({
     <div
       ref={containerRef}
       onDoubleClick={() => isEditable && setIsEditing(true)}
-      className={`excalidraw-block-view group relative my-6 p-4 flex justify-center w-full cursor-pointer select-none rounded-xl transition-colors ${
+      className={`excalidraw-block-view group relative my-6 p-0 flex justify-start w-full cursor-pointer select-none rounded-xl transition-colors ${
         isEditable ? 'hover:bg-gray-50/50 dark:hover:bg-[#161b22]/30' : ''
       } ${className}`}
       contentEditable={false}
       title={isEditable ? 'Double-click to edit diagram' : undefined}
     >
-      {/* Spacious glassmorphic floating action overlay on hover with generous outside padding */}
+      {/* Compact contextual actions for the rendered drawing */}
       {isEditable && (
-        <div className="excalidraw-floating-bar absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-all duration-200 flex items-center space-x-2 bg-white/95 dark:bg-[#161b22]/95 backdrop-blur-md border border-gray-200/90 dark:border-gray-700/90 rounded-xl px-3 py-1.5 shadow-xl z-20">
+        <div className="excalidraw-floating-bar absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-all duration-200 flex h-8 items-center gap-0.5 bg-white/95 dark:bg-[#161b22]/95 backdrop-blur-md border border-gray-200/90 dark:border-gray-700/90 rounded-md px-0.5 shadow-lg z-20">
           <button
             type="button"
             onClick={handleCopySvg}
-            className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition cursor-pointer"
+            className="flex h-6 w-6 items-center justify-center rounded hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition cursor-pointer"
             title="Copy SVG"
           >
-            {copied ? <CheckCheck className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-gray-600 dark:text-gray-300" />}
+            {copied ? <CheckCheck className="w-3 h-3 text-green-500" /> : <Copy className="w-3 h-3 text-gray-600 dark:text-gray-300" />}
           </button>
 
-          {onOpenFullscreen && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenFullscreen(latestDataRef.current);
-              }}
-              className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 transition cursor-pointer"
-              title="Fullscreen"
-            >
-              <Maximize2 className="w-4 h-4 text-gray-600 dark:text-gray-300" />
-            </button>
-          )}
-
-          <div className="w-px h-4 bg-gray-200 dark:bg-gray-700 mx-1" />
+          <div className="h-4 w-px bg-gray-200 dark:bg-gray-700" />
 
           <button
             type="button"
@@ -266,10 +301,10 @@ const ExcalidrawBlock = memo(({
               e.stopPropagation();
               setIsEditing(true);
             }}
-            className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-blue-50 dark:bg-blue-900/40 hover:bg-blue-100 dark:hover:bg-blue-900/60 text-blue-600 dark:text-blue-400 border border-blue-200/80 dark:border-blue-800/80 flex items-center gap-1.5 transition cursor-pointer shadow-xs"
+            className="flex h-6 items-center gap-1 rounded border border-blue-200/80 dark:border-blue-800/80 bg-blue-50 px-1.5 text-[10px] font-semibold text-blue-600 shadow-xs transition hover:bg-blue-100 dark:bg-blue-900/40 dark:text-blue-400 dark:hover:bg-blue-900/60 cursor-pointer"
             title="Edit Drawing"
           >
-            <Edit3 className="w-3.5 h-3.5" />
+            <Edit3 className="w-3 h-3" />
             <span>Edit</span>
           </button>
 
@@ -280,10 +315,10 @@ const ExcalidrawBlock = memo(({
                 e.stopPropagation();
                 onDelete();
               }}
-              className="p-1.5 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition cursor-pointer"
+              className="flex h-6 w-6 items-center justify-center rounded text-gray-400 transition hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/40 dark:hover:text-red-400 cursor-pointer"
               title="Delete Diagram"
             >
-              <Trash2 className="w-4 h-4" />
+              <Trash2 className="w-3 h-3" />
             </button>
           )}
         </div>
@@ -292,11 +327,12 @@ const ExcalidrawBlock = memo(({
       {/* SVG Output */}
       {svgElement ? (
         <div
-          className="w-full flex justify-center overflow-x-auto"
+          style={{ height: `${height}px` }}
+          className="w-full flex justify-start overflow-hidden rounded-lg"
           dangerouslySetInnerHTML={{ __html: svgElement.outerHTML }}
         />
       ) : (
-        <div className="flex items-center justify-center p-6 text-gray-400 space-x-2">
+        <div style={{ height: `${height}px` }} className="flex items-center justify-center p-6 text-gray-400 space-x-2">
           <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
           <span className="text-xs">Rendering diagram...</span>
         </div>

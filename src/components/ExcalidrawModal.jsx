@@ -13,8 +13,18 @@ export default function ExcalidrawModal({
 }) {
   const [sceneData, setSceneData] = useState(() => initialData || createDefaultExcalidrawScene());
   const [isDirty, setIsDirty] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(true);
   const modalRef = useRef(null);
+  const excalidrawAPIRef = useRef(null);
+  const latestDataRef = useRef(initialData || createDefaultExcalidrawScene());
+
+  // Keep latestDataRef in sync with initialData when modal opens
+  useEffect(() => {
+    if (initialData) {
+      latestDataRef.current = initialData;
+      setSceneData(initialData);
+    }
+  }, [initialData]);
 
   // Handle escape key
   useEffect(() => {
@@ -30,40 +40,72 @@ export default function ExcalidrawModal({
   }, [isOpen, isDirty, onClose]);
 
   const handleCanvasChange = useCallback((elements, appState, files) => {
-    setSceneData((prev) => ({
-      ...prev,
+    const updated = {
       elements,
       appState: {
-        ...prev?.appState,
         ...appState,
       },
-      files: files || prev?.files || {},
-    }));
+      files: files || {},
+    };
+    latestDataRef.current = updated;
+    setSceneData(updated);
     setIsDirty(true);
   }, []);
 
   const handleSave = () => {
+    let dataToSave = null;
+
+    if (excalidrawAPIRef.current) {
+      try {
+        const elements = excalidrawAPIRef.current.getSceneElements?.();
+        const appState = excalidrawAPIRef.current.getAppState?.();
+        const files = excalidrawAPIRef.current.getFiles?.();
+        if (Array.isArray(elements)) {
+          dataToSave = {
+            elements,
+            appState: appState || {},
+            files: files || {},
+          };
+        }
+      } catch (err) {
+        console.warn('Could not extract live scene from Excalidraw API:', err);
+      }
+    }
+
+    if (!dataToSave) {
+      dataToSave = latestDataRef.current || sceneData;
+    }
+
     if (onSave) {
-      onSave(sceneData);
+      onSave(dataToSave);
     }
     onClose();
   };
 
   const handleClear = () => {
     if (window.confirm('Are you sure you want to clear the entire canvas?')) {
-      setSceneData(createDefaultExcalidrawScene());
+      const defaultScene = createDefaultExcalidrawScene();
+      latestDataRef.current = defaultScene;
+      setSceneData(defaultScene);
       setIsDirty(true);
+      if (excalidrawAPIRef.current) {
+        try {
+          excalidrawAPIRef.current.updateScene({ elements: [] });
+        } catch {
+          // ignore
+        }
+      }
     }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-2 sm:p-4 animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-0 m-0 animate-in fade-in duration-150">
       <div
         ref={modalRef}
-        className={`flex flex-col bg-white dark:bg-[#0d1117] border border-gray-200 dark:border-gray-800 rounded-2xl shadow-2xl overflow-hidden transition-all duration-200 ${
-          isFullscreen ? 'w-screen h-screen rounded-none !p-0 !m-0 fixed inset-0' : 'w-full max-w-6xl h-[88vh]'
+        className={`flex flex-col bg-white dark:bg-[#0d1117] overflow-hidden transition-all duration-150 ${
+          isFullscreen ? 'w-screen h-screen rounded-none fixed inset-0' : 'w-full max-w-6xl h-[88vh] rounded-2xl border border-gray-200 dark:border-gray-800 shadow-2xl'
         }`}
       >
         {/* Header */}
@@ -127,6 +169,7 @@ export default function ExcalidrawModal({
           <ExcalidrawCanvas
             initialData={sceneData}
             onChange={handleCanvasChange}
+            excalidrawRef={excalidrawAPIRef}
             theme={theme}
             style={{ height: '100%', width: '100%' }}
           />

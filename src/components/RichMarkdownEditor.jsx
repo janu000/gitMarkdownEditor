@@ -638,6 +638,14 @@ const RichMarkdownEditor = memo(forwardRef(({
         view.dispatch(transaction);
         view.focus();
 
+        try {
+          const nextMd = crepe.getMarkdown();
+          markdownRef.current = nextMd;
+          setContent(nextMd);
+        } catch (e) {
+          console.warn('Could not extract markdown after inserting drawing:', e);
+        }
+
         setTimeout(() => {
           try {
             crepeRef.current?.editor?.action((actionCtx) => {
@@ -672,11 +680,33 @@ const RichMarkdownEditor = memo(forwardRef(({
         crepe.editor.action((ctx) => {
           const view = ctx.get(editorViewCtx);
           const jsonStr = JSON.stringify(updatedData, null, 2);
-          const currentNode = view.state.doc.nodeAt(pos);
+          let targetPos = pos;
+          let currentNode = typeof pos === 'number' ? view.state.doc.nodeAt(pos) : null;
+
+          // If node at pos is not an excalidraw code_block, search for one nearby or in doc
+          if (!currentNode || currentNode.type.name !== 'code_block') {
+            view.state.doc.descendants((node, p) => {
+              if (!currentNode && node.type.name === 'code_block' && (node.attrs?.language === 'excalidraw' || node.attrs?.language === 'json:excalidraw')) {
+                if (typeof pos === 'number' && Math.abs(p - pos) < 50) {
+                  targetPos = p;
+                  currentNode = node;
+                }
+              }
+            });
+            if (!currentNode) {
+              view.state.doc.descendants((node, p) => {
+                if (!currentNode && node.type.name === 'code_block' && (node.attrs?.language === 'excalidraw' || node.attrs?.language === 'json:excalidraw')) {
+                  targetPos = p;
+                  currentNode = node;
+                }
+              });
+            }
+          }
+
           if (currentNode && currentNode.type.name === 'code_block') {
             const tr = view.state.tr.replaceWith(
-              pos + 1,
-              pos + currentNode.nodeSize - 1,
+              targetPos + 1,
+              targetPos + currentNode.nodeSize - 1,
               view.state.schema.text(jsonStr)
             );
             view.dispatch(tr);
@@ -685,6 +715,13 @@ const RichMarkdownEditor = memo(forwardRef(({
         });
 
         if (success) {
+          try {
+            const nextMd = crepe.getMarkdown();
+            markdownRef.current = nextMd;
+            setContent(nextMd);
+          } catch (e) {
+            console.warn('Could not extract markdown after updating drawing:', e);
+          }
           setTimeout(() => refreshExcalidrawBlocksRef.current?.(), 30);
         }
         return success;
@@ -1039,6 +1076,7 @@ const RichMarkdownEditor = memo(forwardRef(({
     const crepe = crepeRef.current;
     if (!crepe) return;
 
+    let success = false;
     crepe.editor.action((ctx) => {
       const view = ctx.get(editorViewCtx);
       const jsonStr = JSON.stringify(updatedData, null, 2);
@@ -1050,8 +1088,19 @@ const RichMarkdownEditor = memo(forwardRef(({
           view.state.schema.text(jsonStr)
         );
         view.dispatch(tr);
+        success = true;
       }
     });
+
+    if (success) {
+      try {
+        const nextMd = crepe.getMarkdown();
+        markdownRef.current = nextMd;
+        setContent(nextMd);
+      } catch {
+        // ignore
+      }
+    }
   };
 
   // Handle block deletion
@@ -1064,6 +1113,14 @@ const RichMarkdownEditor = memo(forwardRef(({
       const tr = view.state.tr.delete(pos, pos + nodeSize);
       view.dispatch(tr);
     });
+
+    try {
+      const nextMd = crepe.getMarkdown();
+      markdownRef.current = nextMd;
+      setContent(nextMd);
+    } catch {
+      // ignore
+    }
   };
 
   return (
@@ -1084,11 +1141,6 @@ const RichMarkdownEditor = memo(forwardRef(({
               autoEdit={portal.autoEdit}
               theme={theme}
               isEditable={true}
-              onOpenFullscreen={(data) => {
-                if (onOpenExcalidrawModal) {
-                  onOpenExcalidrawModal(data, portal.rawCode, portal.pos, portal.pos + portal.nodeSize);
-                }
-              }}
               onChange={(updatedData) => handleBlockChange(portal.pos, updatedData)}
               onDelete={() => handleBlockDelete(portal.pos, portal.nodeSize)}
             />,

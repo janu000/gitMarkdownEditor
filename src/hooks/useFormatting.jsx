@@ -8,7 +8,7 @@ import { createDefaultExcalidrawScene } from '../utils/excalidraw';
 const LIST_PREFIX_REGEX = /^(\s*)(?:([-*+]\s+\[[ xX]\]\s+)|([-*+]\s+)|(\d+)\.\s+)/;
 const NUMBERED_MARKER_REGEX = /^(\s*)(\d+)\.\s+/;
 
-export default function useFormatting(editorRef) {
+export default function useFormatting(editorRef, setContent) {
   const insertText = useCallback((before, after = '', defaultText = '') => {
     const view = editorRef.current;
     if (!view || !(view instanceof EditorView)) return;
@@ -433,22 +433,27 @@ export default function useFormatting(editorRef) {
   }, [editorRef]);
 
   const insertExcalidraw = useCallback((customScene) => {
-    const view = editorRef.current;
-    if (!view || !(view instanceof EditorView)) return;
-
-    const { state } = view;
-    const { from, to } = state.selection.main;
     const scene = customScene || createDefaultExcalidrawScene();
     const jsonStr = JSON.stringify(scene, null, 2);
     const blockText = `\n\`\`\`excalidraw\n${jsonStr}\n\`\`\`\n`;
 
-    view.dispatch({
-      changes: { from, to, insert: blockText },
-      selection: { anchor: from + blockText.length, head: from + blockText.length },
-      scrollIntoView: true,
-    });
-    view.focus();
-  }, [editorRef]);
+    const view = editorRef.current;
+    if (view && view instanceof EditorView) {
+      const { state } = view;
+      const { from, to } = state.selection.main;
+      view.dispatch({
+        changes: { from, to, insert: blockText },
+        selection: { anchor: from + blockText.length, head: from + blockText.length },
+        scrollIntoView: true,
+      });
+      view.focus();
+      if (setContent) {
+        setContent(view.state.doc.toString());
+      }
+    } else if (setContent) {
+      setContent((prev) => (prev ? `${prev}\n${blockText}` : blockText));
+    }
+  }, [editorRef, setContent]);
 
   return {
     insertText,
